@@ -1,0 +1,10 @@
+42,0.05,relu,acc,1.0
+42,0.05,relu,geodesic_integrated_gradients_5,0.9824,0.0002992,9.643e-05
+42,0.05,relu,geodesic_integrated_gradients_10,0.9824,0.0002987,9.464e-05
+42,0.05,relu,geodesic_integrated_gradients_15,0.9824,0.0002987,9.45e-05
+42,0.05,relu,enhanced_integrated_gradients_5,0.9824,0.1556,0.0001279
+42,0.05,relu,enhanced_integrated_gradients_10,0.9824,0.07213,9.874e-05
+42,0.05,relu,enhanced_integrated_gradients_15,0.9824,0.1718,9.764e-05
+42,0.05,relu,gradient_shap,0.9392,5.911,4.625
+42,0.05,relu,integrated_gradients,0.9704,5.184,4.119
+42,0.05,relu,smooth_grad,0.968,4.698,4.162
