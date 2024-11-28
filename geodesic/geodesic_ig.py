@@ -8,9 +8,7 @@ from typing import Any, Callable, List, Tuple, Union
 from captum.attr._utils.approximation_methods import approximation_parameters
 from captum.attr._utils.attribution import GradientAttribution
 from captum.attr._utils.common import (
-    _format_input_baseline,
     _reshape_and_sum,
-    _validate_input,
 )
 from captum.log import log_usage
 from captum._utils.common import (
@@ -19,7 +17,6 @@ from captum._utils.common import (
     _format_additional_forward_args,
     _format_inputs,
     _format_output,
-    _is_tuple,
 )
 from captum._utils.typing import (
     BaselineType,
@@ -35,6 +32,7 @@ from typing import Any, Callable, List, Tuple, Union
 from geodesic.utils.a_star_path import astar_path
 from geodesic.utils.common import unsqueeze_like
 from geodesic.utils.batching import _geodesic_batch_attribution
+from geodesic.utils.attibute_helper import data_and_params_validator
 
 
 class GeodesicIntegratedGradients(GradientAttribution):
@@ -151,6 +149,127 @@ class GeodesicIntegratedGradients(GradientAttribution):
                 warnings.warn(
                     "The knn graph is disconnected. You should increase n_neighbors."
                 )
+                
+    def fit_knn_if_needed(self, inputs, baselines, n_neighbors, kwargs):
+        """
+        This function fits the NearestNeighbors model if it is not already provided.
+
+        If the NearestNeighbors model is not provided, it initializes and fits the model 
+        using the provided inputs. It also checks if the k-nearest neighbors graph is 
+        connected and raises a warning if it is not, suggesting to increase the number 
+        of neighbors. Additionally, it concatenates the input data with baselines and 
+        any pre-existing data before fitting the model.
+
+        Args:
+            inputs (Tensor or tuple of Tensors): The input data for which the NearestNeighbors 
+                model needs to be fitted.
+            baselines (Tensor or tuple of Tensors): The baseline data used for comparison with 
+                the inputs.
+            n_neighbors (int or tuple of ints, optional): The number of neighbors to use for 
+                the NearestNeighbors model. If not provided, it uses the value from the instance 
+                variable.
+            kwargs: Additional keyword arguments to pass to the NearestNeighbors model.
+
+        Returns:
+            tuple: A tuple containing the indices, k-nearest neighbors, distances for the 
+                fitted NearestNeighbors model, the NearestNeighbors instance, and the 
+                concatenated data. The concatenated data is returned to ensure that the 
+                model is fitted on the complete dataset, including inputs, baselines, 
+                and any pre-existing data.
+        """
+        n_neighbors = n_neighbors or self.n_neighbors
+        assert n_neighbors is not None, "You must provide n_neighbors"
+        nn = self.nn
+        if nn is None:
+            if isinstance(n_neighbors, int):
+                n_neighbors = tuple(n_neighbors for _ in inputs)
+
+            nn = tuple(
+                NearestNeighbors(n_neighbors=n, **kwargs).fit(
+                    X=x.reshape(len(x), -1).cpu()
+                )
+                for x, n in zip(inputs, n_neighbors)
+            )
+
+            n_components = tuple(
+                sparse.csgraph.connected_components(nn_.kneighbors_graph())[0]
+                for nn_ in nn
+            )
+            if any(n > 1 for n in n_components):
+                warnings.warn(
+                    "The knn graph is disconnected. You should increase n_neighbors."
+                )
+
+        # Concat data, inputs and baselines
+        if self.data is None:
+            data = tuple(torch.cat([x, y]) for x, y in zip(inputs, baselines))
+        else:
+            data = tuple(
+                torch.cat([x, y, z])
+                for x, y, z in zip(self.data, inputs, baselines)
+            )
+
+        # Get knns
+        idx, knns, dists = self._get_knns(
+            nn=nn,
+            inputs=data,
+            n_neighbors=n_neighbors,
+        )
+        return idx, knns, dists, nn, data
+    
+    def augment_data_with_steiner_points_if_provided(self, data, dists, idx, knns, nn, n_neighbors, n_steiner = None):
+        """
+        Augments the input data with Steiner points if the number of Steiner points is provided.
+
+        Steiner points are additional points added to the dataset to improve the connectivity 
+        and quality of the k-nearest neighbors graph. This is particularly useful when the 
+        original data points are sparse or not well-connected.
+
+        Args:
+            data (tuple): The original input data.
+            dists (tuple): Distances between the data points.
+            idx (tuple): Indices of the k-nearest neighbors.
+            knns (tuple): k-nearest neighbors for each data point.
+            nn (tuple): NearestNeighbors instances.
+            n_neighbors (tuple): Number of neighbors for each method.
+            n_steiner (int, optional): Number of Steiner points to add. Default is None.
+
+        Returns:
+            tuple: Updated k-nearest neighbors, indices, and augmented data with Steiner points.
+        """
+        if n_steiner is not None:
+            # Get number of points to add
+            max_dists = tuple(d.max() for d in dists)
+            n_points = tuple(
+                torch.div(d, m / n_steiner, rounding_mode="floor").long() + 1
+                for d, m in zip(dists, max_dists)
+            )
+
+            # Augment inputs
+            data = tuple(
+                torch.cat(
+                    [x]
+                    + [
+                        torch.stack(
+                            [
+                                x[id][i] + (k / n) * (x[knn][i] - x[id][i])
+                                for k in range(1, n)
+                            ]
+                        )
+                        for i, n in enumerate(n_point)
+                        if n > 1
+                    ],
+                    dim=0,
+                )
+                for x, knn, id, n_point in zip(data, knns, idx, n_points)
+            )
+            # Get knns
+            knns, idx, _ = self._get_knns(
+                nn=nn,
+                inputs=data,
+                n_neighbors=n_neighbors,
+            )
+        return knns, idx, data
 
     # The following overloaded method signatures correspond to the case where
     # return_convergence_delta is False, then only attributions are returned,
@@ -400,110 +519,12 @@ class GeodesicIntegratedGradients(GradientAttribution):
                 This value however depends on the path and is as such only
                 an indication of the true curvature of the input space.
         """
-        # Keeps track whether original input is a tuple or not before
-        # converting it into a tuple.
-        is_inputs_tuple = _is_tuple(inputs)
 
-        inputs, baselines = _format_input_baseline(inputs, baselines)
+        inputs, baselines, is_inputs_tuple = data_and_params_validator(inputs, baselines, n_steps, method, distance, additional_forward_args)
 
-        # If baseline is float or int, create a tensor
-        baselines = tuple(
-            torch.ones_like(input) * baseline
-            if isinstance(baseline, (int, float))
-            else baseline
-            for input, baseline in zip(inputs, baselines)
-        )
+        idx, knns, dists, nn, data = self.fit_knn_if_needed(inputs, baselines, n_neighbors, kwargs)
 
-        _validate_input(inputs, baselines, n_steps, method)
-
-        # If additional_forward_args has a tensor, assert inputs
-        # consists of one sample
-        if additional_forward_args is not None:
-            if any(isinstance(x, Tensor) for x in additional_forward_args):
-                assert (
-                    len(inputs[0]) == 1
-                ), "Only one sample must be passed when additional_forward_args has a tensor."
-
-        # Check distance
-        assert distance in [
-            "geodesic",
-            "euclidean",
-        ], f"distance must be either 'geodesic' or 'euclidean', got {distance}"
-
-        # Fit NearestNeighbors if not provided
-        n_neighbors = n_neighbors or self.n_neighbors
-        assert n_neighbors is not None, "You must provide n_neighbors"
-        nn = self.nn
-        if nn is None:
-            if isinstance(n_neighbors, int):
-                n_neighbors = tuple(n_neighbors for _ in inputs)
-
-            nn = tuple(
-                NearestNeighbors(n_neighbors=n, **kwargs).fit(
-                    X=x.reshape(len(x), -1).cpu()
-                )
-                for x, n in zip(inputs, n_neighbors)
-            )
-
-            n_components = tuple(
-                sparse.csgraph.connected_components(nn_.kneighbors_graph())[0]
-                for nn_ in nn
-            )
-            if any(n > 1 for n in n_components):
-                warnings.warn(
-                    "The knn graph is disconnected. You should increase n_neighbors."
-                )
-
-        # Concat data, inputs and baselines
-        if self.data is None:
-            data = tuple(torch.cat([x, y]) for x, y in zip(inputs, baselines))
-        else:
-            data = tuple(
-                torch.cat([x, y, z])
-                for x, y, z in zip(self.data, inputs, baselines)
-            )
-
-        # Get knns
-        idx, knns, dists = self._get_knns(
-            nn=nn,
-            inputs=data,
-            n_neighbors=n_neighbors,
-        )
-
-        # If steiner is provided, augment inputs
-        if n_steiner is not None:
-            # Get number of points to add
-            max_dists = tuple(d.max() for d in dists)
-            n_points = tuple(
-                torch.div(d, m / n_steiner, rounding_mode="floor").long() + 1
-                for d, m in zip(dists, max_dists)
-            )
-
-            # Augment inputs
-            data = tuple(
-                torch.cat(
-                    [x]
-                    + [
-                        torch.stack(
-                            [
-                                x[id][i] + (k / n) * (x[knn][i] - x[id][i])
-                                for k in range(1, n)
-                            ]
-                        )
-                        for i, n in enumerate(n_point)
-                        if n > 1
-                    ],
-                    dim=0,
-                )
-                for x, knn, id, n_point in zip(data, knns, idx, n_points)
-            )
-
-            # Get knns
-            knns, idx, _ = self._get_knns(
-                nn=nn,
-                inputs=data,
-                n_neighbors=n_neighbors,
-            )
+        knns, idx, data = self.augment_data_with_steiner_points_if_provided(data, dists, idx, knns, nn, n_neighbors, n_steiner)
 
         # Compute grads for inputs and baselines
         if internal_batch_size is not None:
@@ -539,6 +560,7 @@ class GeodesicIntegratedGradients(GradientAttribution):
                 for x, knn, id in zip(data, knns, idx)
             )
 
+            
         # Create undirected graph for the A* algorithm
         graphs = tuple(dict() for _ in data)
         for graph, id, knn, attr in zip(graphs, idx, knns, grads_norm):
