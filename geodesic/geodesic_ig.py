@@ -3,6 +3,8 @@ import torch
 import typing
 import warnings
 
+from tqdm import tqdm
+
 from typing import Any, Callable, List, Tuple, Union
 
 from captum.attr._utils.approximation_methods import approximation_parameters
@@ -270,6 +272,134 @@ class GeodesicIntegratedGradients(GradientAttribution):
                 n_neighbors=n_neighbors,
             )
         return knns, idx, data
+    
+    def compute_astar_paths(self, data, idx, knns, grads_norm, inputs):
+        """
+        Creates undirected graph and computes A* paths between inputs and baselines.
+        """
+        # Create undirected graph for the A* algorithm
+        graphs = tuple(dict() for _ in data)
+        for graph, id, knn, attr in zip(graphs, idx, knns, grads_norm):
+            for i, k, a in zip(id.tolist(), knn.tolist(), attr.tolist()):
+                graph[k] = list(set(graph.get(k, list()) + [(i, a)]))
+                graph[i] = list(set(graph.get(i, list()) + [(k, a)]))
+
+        # Get input and baseline indices
+        if self.data is not None:
+            inputs_idx = tuple(
+                range(len(x), len(x) + len(y))
+                for x, y in zip(self.data, inputs)
+            )
+            baselines_idx = tuple(
+                range(len(x) + len(y), len(x) + 2 * len(y))
+                for x, y in zip(self.data, inputs)
+            )
+        else:
+            inputs_idx = tuple(range(len(x)) for x in inputs)
+            baselines_idx = tuple(range(len(x), 2 * len(x)) for x in inputs)
+
+        # Compute A* paths
+        paths = tuple(
+            [
+                astar_path(graph, i, j, heuristic=None, d=d)
+                for i, j in tqdm(
+                    zip(input_idx, baseline_idx),
+                    desc="Computing A* paths",
+                    total=len(input_idx)
+                )
+            ]
+            for graph, input_idx, baseline_idx, d in zip(
+                graphs, inputs_idx, baselines_idx, data
+            )
+        )
+
+        # Get paths lengths and make them pairwise
+        paths_len = tuple([len(x) - 1 for x in path] for path in paths)
+        paths = tuple(
+            torch.cat([torch.Tensor(list(zip(x, x[1:]))).long() for x in path])
+            for path in paths
+        )
+
+        return paths, paths_len
+
+    def process_path_gradients(self, paths, paths_len, knns, grads_idx, total_grads):
+        """
+        Process gradients along the computed paths.
+        """
+
+        # Get grads of each path
+        total_grads = tuple(
+            grad[grad_idx] for grad, grad_idx in zip(total_grads, grads_idx)
+        )
+
+        # Get and apply sign for correct input - baseline direction
+        if self.multiplies_by_inputs:
+            sign = tuple(
+                2 * (knn[grad_idx] == path[:, 0]) - 1
+                for knn, grad_idx, path in zip(knns, grads_idx, paths)
+            )
+            total_grads = tuple(
+                grad * unsqueeze_like(s.to(grad.device), grad)
+                for grad, s in zip(total_grads, sign)
+            )
+
+        # Split for each path and sum over points and paths
+        total_grads = tuple(
+            torch.split(grad, split_size_or_sections=path_len, dim=0)
+            for grad, path_len in zip(total_grads, paths_len)
+        )
+        total_grads = tuple(
+            tuple(x.sum(0) for x in grad) for grad in total_grads
+        )
+        total_grads = tuple(torch.stack(grad) for grad in total_grads)
+
+        return total_grads
+
+    def format_output_with_optional_metrics(
+        self, 
+        total_grads, 
+        is_inputs_tuple,
+        return_curvature,
+        return_convergence_delta,
+        **kwargs
+    ):
+        """
+        Formats the output including optional metrics (curvature and convergence delta).
+        """
+        curvature = None
+        if return_curvature:
+            curvature = self.compute_curvature(
+                inputs=kwargs['inputs'],
+                baselines=kwargs['baselines'],
+                data=kwargs['data'],
+                knns=kwargs['knns'],
+                idx=kwargs['idx'],
+                grads_idx=kwargs['grads_idx'],
+                paths_len=kwargs['paths_len'],
+            )
+
+        if return_convergence_delta:
+            start_point, end_point = kwargs['baselines'], kwargs['inputs']
+            delta = self.compute_convergence_delta(
+                total_grads,
+                start_point,
+                end_point,
+                additional_forward_args=kwargs['additional_forward_args'],
+                target=kwargs['target'],
+            )
+            if curvature is not None:
+                return (
+                    _format_output(is_inputs_tuple, total_grads),
+                    delta,
+                    _format_output(is_inputs_tuple, curvature),
+                )
+            return _format_output(is_inputs_tuple, total_grads), delta
+
+        if curvature is not None:
+            return _format_output(
+                is_inputs_tuple, total_grads
+            ), _format_output(is_inputs_tuple, curvature)
+        return _format_output(is_inputs_tuple, total_grads)
 
     # The following overloaded method signatures correspond to the case where
     # return_convergence_delta is False, then only attributions are returned,
@@ -560,128 +690,38 @@ class GeodesicIntegratedGradients(GradientAttribution):
                 for x, knn, id in zip(data, knns, idx)
             )
 
-            
-        # Create undirected graph for the A* algorithm
-        graphs = tuple(dict() for _ in data)
-        for graph, id, knn, attr in zip(graphs, idx, knns, grads_norm):
-            for i, k, a in zip(id.tolist(), knn.tolist(), attr.tolist()):
-                graph[k] = list(set(graph.get(k, list()) + [(i, a)]))
-                graph[i] = list(set(graph.get(i, list()) + [(k, a)]))
+        # Create and compute paths using A* algorithm
+        paths, paths_len = self.compute_astar_paths(data, idx, knns, grads_norm, inputs)
 
-        # Def heuristic for A* algorithm: euclidean distance to target
-        def heuristic(u, v, d):
-            return torch.linalg.norm(d[u] - d[v]).item()
-
-        # Compute A* paths
-        if self.data is not None:
-            inputs_idx = tuple(
-                range(len(x), len(x) + len(y))
-                for x, y in zip(self.data, inputs)
-            )
-            baselines_idx = tuple(
-                range(len(x) + len(y), len(x) + 2 * len(y))
-                for x, y in zip(self.data, inputs)
-            )
-        else:
-            inputs_idx = tuple(range(len(x)) for x in inputs)
-            baselines_idx = tuple(range(len(x), 2 * len(x)) for x in inputs)
-
-        paths = tuple(
-            [
-                astar_path(graph, i, j, heuristic=None, d=d)
-                for i, j in zip(input_idx, baseline_idx)
-            ]
-            for graph, input_idx, baseline_idx, d in zip(
-                graphs, inputs_idx, baselines_idx, data
-            )
-        )
-
-        # Get paths lengths
-        paths_len = tuple([len(x) - 1 for x in path] for path in paths)
-
-        # Make them pairwise
-        paths = tuple(
-            torch.cat([torch.Tensor(list(zip(x, x[1:]))).long() for x in path])
-            for path in paths
-        )
-
-        # Get grad indexes
+        # Get grad indexes, these are the indexes of the gradients that are used to process the path gradients and formatting outputs
         grads_idx = tuple(
             [
-                torch.where((id == i) * (knn == j) + (id == j) * (knn == i))[
-                    0
-                ][0].item()
+                torch.where((id == i) * (knn == j) + (id == j) * (knn == i))[0][0].item()
                 for i, j in zip(path[:, 0], path[:, 1])
             ]
             for id, knn, path in zip(idx, knns, paths)
         )
 
-        # Get grads of each path
-        total_grads = tuple(
-            grad[grad_idx] for grad, grad_idx in zip(total_grads, grads_idx)
+        # Process gradients along paths
+        total_grads = self.process_path_gradients(paths, paths_len, knns, grads_idx, total_grads)
+
+        # Handle optional return values (curvature and convergence delta)
+        return self.format_output_with_optional_metrics(
+            total_grads, 
+            is_inputs_tuple,
+            return_curvature,
+            return_convergence_delta,
+            inputs=inputs,
+            baselines=baselines,
+            data=data,
+            knns=knns,
+            idx=idx,
+            grads_idx=grads_idx,
+            paths_len=paths_len,
+            additional_forward_args=additional_forward_args,
+            target=target
         )
 
-        # Get and apply sign to make sure we use the correct input - baseline.
-        # This is ignored if the gradients are not multiplied by inputs.
-        if self.multiplies_by_inputs:
-            sign = tuple(
-                2 * (knn[grad_idx] == path[:, 0]) - 1
-                for knn, grad_idx, path in zip(knns, grads_idx, paths)
-            )
-            total_grads = tuple(
-                grad * unsqueeze_like(s.to(grad.device), grad)
-                for grad, s in zip(total_grads, sign)
-            )
-
-        # Split for each path
-        total_grads = tuple(
-            torch.split(grad, split_size_or_sections=path_len, dim=0)
-            for grad, path_len in zip(total_grads, paths_len)
-        )
-
-        # Sum over points and paths
-        # and stack result
-        total_grads = tuple(
-            tuple(x.sum(0) for x in grad) for grad in total_grads
-        )
-        total_grads = tuple(torch.stack(grad) for grad in total_grads)
-
-        # Optionally compute curvature
-        curvature = None
-        if return_curvature:
-            curvature = self.compute_curvature(
-                inputs=inputs,
-                baselines=baselines,
-                data=data,
-                knns=knns,
-                idx=idx,
-                grads_idx=grads_idx,
-                paths_len=paths_len,
-            )
-
-        if return_convergence_delta:
-            start_point, end_point = baselines, inputs
-            # computes approximation error based on the completeness axiom
-            delta = self.compute_convergence_delta(
-                total_grads,
-                start_point,
-                end_point,
-                additional_forward_args=additional_forward_args,
-                target=target,
-            )
-            if curvature is not None:
-                return (
-                    _format_output(is_inputs_tuple, total_grads),
-                    delta,
-                    _format_output(is_inputs_tuple, curvature),
-                )
-            return _format_output(is_inputs_tuple, total_grads), delta
-
-        if curvature is not None:
-            return _format_output(
-                is_inputs_tuple, total_grads
-            ), _format_output(is_inputs_tuple, curvature)
-        return _format_output(is_inputs_tuple, total_grads)
 
     def _attribute(
         self,
@@ -695,6 +735,26 @@ class GeodesicIntegratedGradients(GradientAttribution):
             None, Tuple[List[float], List[float]]
         ] = None,
     ) -> Tuple[Tuple[Tensor, ...], Tuple[Tensor, ...]]:
+        """
+        Prepares and scales inputs for gradient computation as part of the attribution process.
+
+        This function is a helper for the `attribute` method, which calculates attributions
+        by integrating gradients along a path from the baselines to the inputs. It sets up
+        the necessary parameters and scales the inputs according to the specified approximation
+        method, preparing them for gradient computation.
+
+        Args:
+            inputs (Tuple[Tensor, ...]): The input tensors for which attributions are computed.
+            baselines (Tuple[Union[Tensor, int, float], ...]): The baseline tensors or values used for comparison.
+            target (TargetType, optional): The target indices for which gradients are computed. Default is None.
+            additional_forward_args (Any, optional): Additional arguments to the forward function. Default is None.
+            n_steps (int, optional): The number of steps for the approximation method. Default is 50.
+            method (str, optional): The approximation method to use. Default is "gausslegendre".
+            step_sizes_and_alphas (Union[None, Tuple[List[float], List[float]]], optional): Precomputed step sizes and alphas. Default is None.
+
+        Returns:
+            Tuple[Tuple[Tensor, ...], Tuple[Tensor, ...]]: The prepared and scaled inputs ready for gradient computation.
+        """
         if step_sizes_and_alphas is None:
             # retrieve step size and scaling factor for specified
             # approximation method
