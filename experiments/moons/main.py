@@ -166,20 +166,26 @@ def main(
         baselines[:, 1] = -0.5
 
         if "geodesic_integrated_gradients" in explainers:
-            for n in range(5, 20, 5):
+            for n in [5]:
                 explainer = GeodesicIntegratedGradients(net)
                 _attr = th.zeros_like(x_test)
+                paths = []  
 
                 for target in range(2):
-                    _attr[y_test == target] = explainer.attribute(
-                        x_test[y_test == target],
-                        baselines=baselines[y_test == target],
+                    target_mask = y_test == target
+                    attribution, gig_path = explainer.attribute(
+                        x_test[target_mask],
+                        baselines=baselines[target_mask],
                         target=target,
                         n_neighbors=n,
                         internal_batch_size=200,
-                    ).float()
+                        return_paths=True,
+                    )
+                    _attr[target_mask] = attribution.float()
+                    paths.append(gig_path)  
 
-                attr[f"geodesic_integrated_gradients_{str(n)}"] = _attr
+                attr[f"geodesic_integrated_gradients_{str(n)}"] = (_attr, paths)
+
 
         if "enhanced_integrated_gradients" in explainers:
             for n in range(5, 20, 5):
@@ -230,13 +236,31 @@ def main(
         # Eval
         with lock:
             for k, v in attr.items():
+                if "geodesic_integrated_gradients" in k:
+                    _attr, paths = v
+                else:
+                    _attr = v
+                    paths = None
+
                 scatter = plt.scatter(
                     x_test[:, 0].cpu(),
                     x_test[:, 1].cpu(),
-                    c=v.abs().sum(-1).detach().cpu(),
+                    c=_attr.abs().sum(-1).detach().cpu(),
                 )
                 cbar = plt.colorbar(scatter)
                 cbar.ax.tick_params(labelsize=20)
+
+                if paths:
+                    for target_paths in paths:
+                        for input_baseline_path in target_paths[:1]:
+                            input_baseline_path = input_baseline_path.cpu().numpy()
+                            # Plot the path
+                            plt.plot(input_baseline_path[:, 0], input_baseline_path[:, 1], linestyle='--', color='gray', alpha=0.7)
+                            # Mark the baseline point
+                            plt.scatter(input_baseline_path[0, 0], input_baseline_path[0, 1], color='red', marker='x', s=100, label='Baseline')
+                            # Mark the input point
+                            plt.scatter(input_baseline_path[-1, 0], input_baseline_path[-1, 1], color='blue', marker='o', s=100, label='Input')
+
                 plt.savefig(f"{path}/{k}_{str(noise)}.pdf")
                 plt.close()
 
@@ -251,9 +275,14 @@ def main(
 
             # Write purity
             for k, v in attr.items():
+                if "geodesic_integrated_gradients" in k:
+                    _attr, _ = v
+                else:
+                    _attr = v
+
                 topk_idx = th.topk(
-                    v.abs().sum(-1),
-                    int(len(v.abs().sum(-1)) * 0.5),
+                    _attr.abs().sum(-1),
+                    int(len(_attr.abs().sum(-1)) * 0.5),
                     sorted=False,
                     largest=False,
                 ).indices
@@ -265,8 +294,8 @@ def main(
                 fp.write(
                     f"{th.cat(pred).argmax(-1)[topk_idx].float().mean():.4},"
                 )
-                fp.write(f"{v.abs().sum(-1)[y_test == 0].std():.4},")
-                fp.write(f"{v.abs().sum(-1)[y_test == 1].std():.4}")
+                fp.write(f"{_attr.abs().sum(-1)[y_test == 0].std():.4},")
+                fp.write(f"{_attr.abs().sum(-1)[y_test == 1].std():.4}")
                 fp.write("\n")
 
 

@@ -361,12 +361,28 @@ class GeodesicIntegratedGradients(GradientAttribution):
         is_inputs_tuple,
         return_curvature,
         return_convergence_delta,
+        return_paths=False,
         **kwargs
     ):
         """
-        Formats the output including optional metrics (curvature and convergence delta).
+        Formats the output including optional metrics (curvature, convergence delta, and paths).
+        
+        When return_paths is True, returns the sequence of points connecting each 
+        input-baseline pair in the correct order.
         """
         curvature = None
+        paths = None
+        
+        if return_paths:
+            # Get the ordered sequence of points for each input-baseline pair
+            paths = tuple(
+                [data[path].clone() for path, data in zip(paths_split, kwargs['data'])]
+                for paths_split in (
+                    torch.split(path[:, 0], lengths) 
+                    for path, lengths in zip(kwargs['paths'], kwargs['paths_len'])
+                )
+            )
+            
         if return_curvature:
             curvature = self.compute_curvature(
                 inputs=kwargs['inputs'],
@@ -387,19 +403,22 @@ class GeodesicIntegratedGradients(GradientAttribution):
                 additional_forward_args=kwargs['additional_forward_args'],
                 target=kwargs['target'],
             )
+            
+            # Build return tuple based on what's requested
+            result = [_format_output(is_inputs_tuple, total_grads), delta]
             if curvature is not None:
-                return (
-                    _format_output(is_inputs_tuple, total_grads),
-                    delta,
-                    _format_output(is_inputs_tuple, curvature),
-                )
-            return _format_output(is_inputs_tuple, total_grads), delta
+                result.append(_format_output(is_inputs_tuple, curvature))
+            if paths is not None:
+                result.append(_format_output(is_inputs_tuple, paths))
+            return tuple(result)
 
+        # Build return tuple based on what's requested
+        result = [_format_output(is_inputs_tuple, total_grads)]
         if curvature is not None:
-            return _format_output(
-                is_inputs_tuple, total_grads
-            ), _format_output(is_inputs_tuple, curvature)
-        return _format_output(is_inputs_tuple, total_grads)
+            result.append(_format_output(is_inputs_tuple, curvature))
+        if paths is not None:
+            result.append(_format_output(is_inputs_tuple, paths))
+        return tuple(result) if len(result) > 1 else result[0]
 
     # The following overloaded method signatures correspond to the case where
     # return_convergence_delta is False, then only attributions are returned,
@@ -462,6 +481,7 @@ class GeodesicIntegratedGradients(GradientAttribution):
         return_convergence_delta: bool = False,
         distance: str = "geodesic",
         show_progress: bool = False,
+        return_paths: bool = False,
         **kwargs,
     ) -> Union[
         TensorOrTupleOfTensorsGeneric,
@@ -711,6 +731,7 @@ class GeodesicIntegratedGradients(GradientAttribution):
             is_inputs_tuple,
             return_curvature,
             return_convergence_delta,
+            return_paths=return_paths,
             inputs=inputs,
             baselines=baselines,
             data=data,
@@ -718,6 +739,7 @@ class GeodesicIntegratedGradients(GradientAttribution):
             idx=idx,
             grads_idx=grads_idx,
             paths_len=paths_len,
+            paths=paths, 
             additional_forward_args=additional_forward_args,
             target=target
         )
