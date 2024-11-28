@@ -7,6 +7,8 @@
 .DS_Store
 docs/.DS_Store
 dist
+figures
+*.csv
 
 # Pytest
 .htmlcov
