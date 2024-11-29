@@ -19,6 +19,8 @@ from captum.attr import (
 )
 
 from geodesic.geodesic_ig import GeodesicIntegratedGradients
+from geodesic.svi_ig import SVI_IG
+
 from geodesic.models.mlp import MLP
 from geodesic.models.net import Net
 
@@ -167,22 +169,32 @@ def main(
 
         if "geodesic_integrated_gradients" in explainers:
             for n in [5]:
-                explainer = GeodesicIntegratedGradients(net)
+                # explainer = GeodesicIntegratedGradients(net)
+                svi_ig = SVI_IG(net)
                 _attr = th.zeros_like(x_test)
                 paths = []  
 
+                # for target in range(2):
+                #     target_mask = y_test == target
+                #     attribution, gig_path = explainer.attribute(
+                #         x_test[target_mask],
+                #         baselines=baselines[target_mask],
+                #         target=target,
+                #         n_neighbors=n,
+                #         internal_batch_size=200,
+                #         return_paths=True,
+                #     )
+                #     _attr[target_mask] = attribution.float()
+                #     paths.append(gig_path)  
                 for target in range(2):
                     target_mask = y_test == target
-                    attribution, gig_path = explainer.attribute(
+                    attribution, gig_path = svi_ig.attribute(
                         x_test[target_mask],
                         baselines=baselines[target_mask],
                         target=target,
-                        n_neighbors=n,
-                        internal_batch_size=200,
-                        return_paths=True,
                     )
                     _attr[target_mask] = attribution.float()
-                    paths.append(gig_path)  
+                    paths.append(gig_path)
 
                 attr[f"geodesic_integrated_gradients_{str(n)}"] = (_attr, paths)
 
@@ -315,7 +327,7 @@ def parse_args():
     parser.add_argument(
         "--n-samples",
         type=int,
-        default=10000,
+        default=1000,
         help="Number of samples in the dataset.",
     )
     parser.add_argument(
