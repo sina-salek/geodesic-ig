@@ -262,19 +262,32 @@ def main(
                 cbar = plt.colorbar(scatter)
                 cbar.ax.tick_params(labelsize=20)
 
-                if paths:
-                    for target_paths in paths:
-                        for input_baseline_path in target_paths[:1]:
-                            input_baseline_path = input_baseline_path.cpu().numpy()
-                            # Plot the path
-                            plt.plot(input_baseline_path[:, 0], input_baseline_path[:, 1], linestyle='--', color='gray', alpha=0.7)
-                            # Mark the baseline point
-                            plt.scatter(input_baseline_path[0, 0], input_baseline_path[0, 1], color='red', marker='x', s=100, label='Baseline')
-                            # Mark the input point
-                            plt.scatter(input_baseline_path[-1, 0], input_baseline_path[-1, 1], color='blue', marker='o', s=100, label='Input')
+            if paths is not None:  # Check if we have paths to plot
+                # paths is the optimized_paths tensor with shape [n_steps, batch, features]
+                # Let's plot a few example paths
+                n_paths_to_plot = 5  # Number of paths to plot
+                path_indices = th.randint(0, paths.shape[1], (n_paths_to_plot,))  # Randomly select paths
+                
+                for idx in path_indices:
+                    # Extract single path: shape [n_steps, features]
+                    single_path = paths[:, idx, :].cpu().numpy()
+                    
+                    # Plot the path
+                    plt.plot(single_path[:, 0], single_path[:, 1], 
+                            linestyle='--', color='gray', alpha=0.7)
+                    
+                    # Mark the baseline point (start of path)
+                    plt.scatter(single_path[0, 0], single_path[0, 1], 
+                            color='red', marker='x', s=100, label='Baseline')
+                    
+                    # Mark the input point (end of path)
+                    plt.scatter(single_path[-1, 0], single_path[-1, 1], 
+                            color='blue', marker='o', s=100, label='Input')
 
-                plt.savefig(f"{path}/{k}_{str(noise)}.pdf")
-                plt.close()
+            # Only show legend once
+            handles, labels = plt.gca().get_legend_handles_labels()
+            by_label = dict(zip(labels, handles))
+            plt.legend(by_label.values(), by_label.keys())
 
         with open("results.csv", "a") as fp, lock:
             # Write acc

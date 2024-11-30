@@ -36,6 +36,7 @@ class SVI_IG(GradientAttribution):
     ) -> None:
         GradientAttribution.__init__(self, forward_func)
         self._multiply_by_inputs = multiply_by_inputs
+        self.last_batch_size = None 
 
     def potential_energy(self, inputs: Tensor, baselines: Tensor, grads: Tensor, beta: float) -> Tensor:
         """
@@ -72,7 +73,13 @@ class SVI_IG(GradientAttribution):
         n_steps = self.n_steps  # Number of steps along the path
         input_tensor = inputs[0]
         baseline_tensor = baselines[0]
-        # batch_size = inputs.size(0)
+        batch_size = input_tensor.size(0)
+
+        # Clear and reinitialize parameters if batch size changed
+        if self.last_batch_size is not None and self.last_batch_size != batch_size:
+            print(f"Batch size changed from {self.last_batch_size} to {batch_size}, clearing param store")
+            pyro.clear_param_store()
+        self.last_batch_size = batch_size
         
         # Create a straight-line path between baselines and inputs
         alphas = torch.linspace(0, 1, steps=n_steps).unsqueeze(1).to(input_tensor.device)
@@ -122,6 +129,11 @@ class SVI_IG(GradientAttribution):
         """
         input_tensor = inputs[0]
         baseline_tensor = baselines[0]
+        batch_size = input_tensor.shape[0] 
+
+        if hasattr(self, 'last_batch_size') and self.last_batch_size != batch_size:
+            pyro.clear_param_store()
+        self.last_batch_size = batch_size
         # Create learnable parameters for the path deviations
         alphas = torch.linspace(0, 1, steps=self.n_steps).unsqueeze(1).to(input_tensor.device)
         alphas = alphas.view(-1, 1, 1)  # Shape: [n_steps, 1, 1]
@@ -187,6 +199,11 @@ class SVI_IG(GradientAttribution):
         delta_opt = pyro.param("delta_loc").detach()
         optimized_path = straight_line + delta_opt
 
+        # Verify that the path starts at baseline and ends at input
+        assert torch.allclose(optimized_path[0], baseline_expanded[0]), "Path doesn't start at baseline"
+        assert torch.allclose(optimized_path[-1], input_expanded[0]), "Path doesn't end at input"
+
+
         return optimized_path
 
     @log_usage()
@@ -226,7 +243,7 @@ class SVI_IG(GradientAttribution):
 
         
         # TODO: add the batched version as well
-        attributions, optimized_paths = self._attribute(
+        attributions, paths = self._attribute(
                 inputs=formatted_inputs,
                 baselines=formatted_baselines,
                 target=target,
@@ -235,7 +252,7 @@ class SVI_IG(GradientAttribution):
                 method=method,
             )
         
-        return _format_output(is_inputs_tuple, attributions), optimized_paths
+        return _format_output(is_inputs_tuple, attributions), paths
     
 
     
