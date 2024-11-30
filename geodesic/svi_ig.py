@@ -38,95 +38,70 @@ class SVI_IG(GradientAttribution):
         self._multiply_by_inputs = multiply_by_inputs
         self.last_batch_size = None 
 
-    def potential_energy(self, inputs: Tensor, baselines: Tensor, grads: Tensor, beta: float) -> Tensor:
+    def _get_straight_line(self, inputs: Tensor, baselines: Tensor, n_steps: int) -> Tensor:
+        """Helper function to compute the straight line path once."""
+        alphas = torch.linspace(0, 1, steps=n_steps, device=inputs.device).view(-1, 1, 1)
+        input_expanded = inputs.unsqueeze(0)
+        baseline_expanded = baselines.unsqueeze(0)
+        return baseline_expanded + alphas * (input_expanded - baseline_expanded)
+
+
+    def potential_energy(self, path: Tensor, straight_line: Tensor, beta: float) -> Tensor:
         """
         The potential energy encourages the path between input and baseline pairs to be as short as possible, whilst
         avoiding regions of high curvature. 
-        
-        Args:
-            inputs: The model input
-            baselines: The baseline input (usually zero)
-            grads: The gradients at the current points
-            beta: The weight of the curvature penalty relative to the distance penalty
-            
-        Returns:
-            Tensor: The potential energy at the current points
         """
-        # Distance penalty: Euclidean distance from the straight line
-        straight_line = baselines + (inputs - baselines)  # straight line between baseline and input
-        distance_penalty = torch.norm(grads - straight_line, p=2, dim=-1)
+        # Distance penalty: How far the path deviates from the straight line
+        distance_penalty = torch.norm(path - straight_line , p=2, dim=-1)  # Distance from straight line 
         
-        # Curvature penalty: magnitude of gradients
-        curvature_penalty = torch.norm(grads, p=2, dim=-1)
-        
-        # Total potential energy
-        energy = distance_penalty + beta * curvature_penalty
-        
-        return energy
-    
-    def model(self, inputs: Tensor, baselines: Tensor, beta: float):
-        """
-        Pyro model for optimizing the paths between inputs and baselines.
-        We define a probabilistic model over the paths, where the paths are
-        encouraged to have low potential energy as defined by the potential_energy function.
-        """
-        n_steps = self.n_steps  # Number of steps along the path
-        input_tensor = inputs[0]
-        baseline_tensor = baselines[0]
-        batch_size = input_tensor.size(0)
-
-        # Clear and reinitialize parameters if batch size changed
-        if self.last_batch_size is not None and self.last_batch_size != batch_size:
-            print(f"Batch size changed from {self.last_batch_size} to {batch_size}, clearing param store")
-            pyro.clear_param_store()
-        self.last_batch_size = batch_size
-        
-        # Create a straight-line path between baselines and inputs
-        alphas = torch.linspace(0, 1, steps=n_steps).unsqueeze(1).to(input_tensor.device)
-        alphas = alphas.view(-1, 1, 1)
-
-        input_expanded = input_tensor.unsqueeze(0)     # Shape: [1, batch, features]
-        baseline_expanded = baseline_tensor.unsqueeze(0)  # Shape: [1, batch, features]
-
-        straight_line = baseline_expanded + alphas * (input_expanded - baseline_expanded)
-        
-        # Sample deviations from the straight-line path
-        delta = pyro.sample(
-            "path_delta",
-            dist.Normal(torch.zeros_like(straight_line), 1.0).to_event(straight_line.dim())
-        )
-        
-        # The optimized path is the straight line plus deviations
-        path = straight_line + delta
-        path.requires_grad_()
-        
-        # Compute gradients along the path
+        # Curvature penalty: magnitude of model gradients along the path
         outputs = self.forward_func(path)
-        grads = torch.autograd.grad(
+        path_grads = torch.autograd.grad(
             outputs,
             path,
             grad_outputs=torch.ones_like(outputs),
             create_graph=True,
             retain_graph=True,
         )[0]
+        curvature_penalty = torch.norm(path_grads, p=2, dim=-1)
+        
+        return distance_penalty + beta * curvature_penalty
+        
+    def model(self, inputs: Tensor, baselines: Tensor, beta: float):
+    
+        input_tensor = inputs[0]
+        baseline_tensor = baselines[0]
+        batch_size = input_tensor.size(0)
+
+        if self.last_batch_size is not None and self.last_batch_size != batch_size:
+            print(f"Batch size changed from {self.last_batch_size} to {batch_size}, clearing param store")
+            pyro.clear_param_store()
+        self.last_batch_size = batch_size
+        
+        # Create a straight-line path between baselines and inputs
+        straight_line = self._get_straight_line(input_tensor, baseline_tensor, self.n_steps)
+        alphas = torch.linspace(0, 1, steps=self.n_steps, device=input_tensor.device).view(-1, 1, 1)
+        
+        # Sample path deviations
+        delta = pyro.sample(
+            "path_delta",
+            dist.Normal(torch.zeros_like(straight_line), 1.0).to_event(straight_line.dim())
+        )
+        
+        # Zero out the deviations at start and end points
+        delta = delta * (1 - (alphas == 0).float()) * (1 - (alphas == 1).float())
+        
+        # The optimized path is the straight line plus deviations
+        path = straight_line + delta
+        path.requires_grad_()
         
         # Compute the potential energy of the path
-        energy = self.potential_energy(input_tensor, baseline_tensor, grads, beta)
+        energy = self.potential_energy(path, straight_line, beta)
         
         # Include the potential energy in the model's log probability
         pyro.factor("energy", -energy.sum())
         
     def guide(self, inputs: Tensor, baselines: Tensor, beta: float):
-        """
-        Pyro guide (variational distribution) for the paths.
-        We learn a Gaussian distribution over the path deviations from the straight line,
-        with learnable mean and scale parameters for each point along the path.
-        
-        Args:
-            inputs: The target input points (used for shape/device information)
-            baselines: The starting points
-            beta: Not directly used in guide, but kept for interface consistency
-        """
         input_tensor = inputs[0]
         baseline_tensor = baselines[0]
         batch_size = input_tensor.shape[0] 
@@ -134,15 +109,10 @@ class SVI_IG(GradientAttribution):
         if hasattr(self, 'last_batch_size') and self.last_batch_size != batch_size:
             pyro.clear_param_store()
         self.last_batch_size = batch_size
-        # Create learnable parameters for the path deviations
-        alphas = torch.linspace(0, 1, steps=self.n_steps).unsqueeze(1).to(input_tensor.device)
-        alphas = alphas.view(-1, 1, 1)  # Shape: [n_steps, 1, 1]
-    
-        # Expand tensors for broadcasting
-        input_expanded = input_tensor.unsqueeze(0)     # Shape: [1, batch, features]
-        baseline_expanded = baseline_tensor.unsqueeze(0)  # Shape: [1, batch, features]
-
-        straight_line = baseline_expanded + alphas * (input_expanded - baseline_expanded)
+        
+        # Get straight line path once using the helper method
+        straight_line = self._get_straight_line(input_tensor, baseline_tensor, self.n_steps)
+        alphas = torch.linspace(0, 1, steps=self.n_steps, device=input_tensor.device).view(-1, 1, 1)
         
         # Initialize parameters with appropriate shapes
         delta_loc = pyro.param(
@@ -150,18 +120,26 @@ class SVI_IG(GradientAttribution):
             lambda: torch.zeros_like(straight_line)
         )
         
+        # Zero out the location parameters at start and end points
+        delta_loc = delta_loc * (1 - (alphas == 0).float()) * (1 - (alphas == 1).float())
+        
+        # For scale, use a small positive value at endpoints
         delta_scale = pyro.param(
             "delta_scale",
             lambda: 0.1 * torch.ones_like(straight_line),
             constraint=dist.constraints.positive
         )
         
-        # Sample the path deviations using these learned parameters
+        # Instead of zeroing scale, make it very small at endpoints
+        endpoint_mask = (1 - (alphas == 0).float()) * (1 - (alphas == 1).float())
+        delta_scale = delta_scale * endpoint_mask + 1e-6 * (1 - endpoint_mask)
+        
+        # Sample the path deviations
         pyro.sample(
             "path_delta",
             dist.Normal(delta_loc, delta_scale).to_event(straight_line.dim())
         )
-        
+
     def _optimize_paths(
         self,
         inputs: Tensor,
@@ -218,6 +196,9 @@ class SVI_IG(GradientAttribution):
         internal_batch_size: Union[None, int] = None,
         return_convergence_delta: bool = False,
         return_paths: bool = True,
+        beta: float = 0.3,
+        num_iterations: int = 1000,
+        learning_rate: float = 0.01,
     ) -> Union[
         TensorOrTupleOfTensorsGeneric, Tuple[TensorOrTupleOfTensorsGeneric, Tensor]
     ]:
@@ -250,6 +231,9 @@ class SVI_IG(GradientAttribution):
                 additional_forward_args=additional_forward_args,
                 n_steps=n_steps,
                 method=method,
+                beta=beta,
+                num_iterations=num_iterations,
+                learning_rate=learning_rate,
             )
         
         return _format_output(is_inputs_tuple, attributions), paths
@@ -265,7 +249,11 @@ class SVI_IG(GradientAttribution):
         n_steps: int = 50,
         method: str = "gausslegendre",
         step_sizes_and_alphas: Union[None, Tuple[List[float], List[float]]] = None,
+        num_iterations: int = 1000,
+        beta: float = 0.3,
+        learning_rate: float = 0.01,
     ) -> Tuple[Tensor, ...]:
+        
         if step_sizes_and_alphas is None:
             step_sizes_func, alphas_func = approximation_parameters(method)
             step_sizes, alphas = step_sizes_func(n_steps), alphas_func(n_steps)
@@ -273,7 +261,7 @@ class SVI_IG(GradientAttribution):
             step_sizes, alphas = step_sizes_and_alphas
 
         # First, optimize the paths between inputs and baselines
-        optimized_paths = self._optimize_paths(inputs, baselines, 0.01)
+        optimized_paths = self._optimize_paths(inputs, baselines, beta, num_iterations, lr=learning_rate)
 
         # We need to compute gradients for each step along the path
         all_grads = []
