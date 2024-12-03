@@ -183,8 +183,10 @@ def main(
                     attribution, gig_path = svi_ig.attribute(
                         x_test[target_mask],
                         baselines=baselines[target_mask],
+                        # augmentation_data=x_test[target_mask], # uncomment to use augmentation data
                         target=target,
                         n_steps=n_steps,
+                        n_neighbors=n,
                         beta=beta,
                         num_iterations=num_iterations,
                         learning_rate=learning_rate,
@@ -337,7 +339,7 @@ def parse_args():
     parser.add_argument(
         "--n-samples",
         type=int,
-        default=1000,
+        default=10000,
         help="Number of samples in the dataset.",
     )
     parser.add_argument(
@@ -373,7 +375,7 @@ def parse_args():
     parser.add_argument(
         "--beta",
         type=float,
-        default=0.7,
+        default=100,
         help="Beta parameter for the potential energy. Used in the SVI-IG.",
     )
     parser.add_argument(
@@ -385,7 +387,7 @@ def parse_args():
     parser.add_argument(
         "--n-steps",
         type=int,
-        default=50,
+        default=500,
         help="Number of points generated along the geodesic path. Used in the SVI-IG.",
     )
     parser.add_argument(
