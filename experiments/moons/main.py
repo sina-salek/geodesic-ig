@@ -19,6 +19,8 @@ from captum.attr import (
 )
 
 from geodesic.geodesic_ig import GeodesicIntegratedGradients
+from geodesic.svi_ig import SVI_IG
+
 from geodesic.models.mlp import MLP
 from geodesic.models.net import Net
 
@@ -35,6 +37,10 @@ def main(
     device: str = "cpu",
     seed: int = 42,
     deterministic: bool = False,
+    beta: float = 0.3,
+    num_iterations: int = 1000,
+    n_steps: int = 100,
+    learning_rate: float = 0.01,
 ):
     # If deterministic, seed everything
     if deterministic:
@@ -167,22 +173,26 @@ def main(
 
         if "geodesic_integrated_gradients" in explainers:
             for n in [5]:
-                explainer = GeodesicIntegratedGradients(net)
+                # explainer = GeodesicIntegratedGradients(net)
+                svi_ig = SVI_IG(net)
                 _attr = th.zeros_like(x_test)
                 paths = []  
 
                 for target in range(2):
                     target_mask = y_test == target
-                    attribution, gig_path = explainer.attribute(
+                    attribution, gig_path = svi_ig.attribute(
                         x_test[target_mask],
                         baselines=baselines[target_mask],
+                        # augmentation_data=x_test[target_mask], # uncomment to use augmentation data
                         target=target,
+                        n_steps=n_steps,
                         n_neighbors=n,
-                        internal_batch_size=200,
-                        return_paths=True,
+                        beta=beta,
+                        num_iterations=num_iterations,
+                        learning_rate=learning_rate,
                     )
                     _attr[target_mask] = attribution.float()
-                    paths.append(gig_path)  
+                    paths.append(gig_path)
 
                 attr[f"geodesic_integrated_gradients_{str(n)}"] = (_attr, paths)
 
@@ -250,17 +260,31 @@ def main(
                 cbar = plt.colorbar(scatter)
                 cbar.ax.tick_params(labelsize=20)
 
-                if paths:
-                    for target_paths in paths:
-                        for input_baseline_path in target_paths[:1]:
-                            input_baseline_path = input_baseline_path.cpu().numpy()
-                            # Plot the path
-                            plt.plot(input_baseline_path[:, 0], input_baseline_path[:, 1], linestyle='--', color='gray', alpha=0.7)
-                            # Mark the baseline point
-                            plt.scatter(input_baseline_path[0, 0], input_baseline_path[0, 1], color='red', marker='x', s=100, label='Baseline')
-                            # Mark the input point
-                            plt.scatter(input_baseline_path[-1, 0], input_baseline_path[-1, 1], color='blue', marker='o', s=100, label='Input')
+                class_index = 0
+                if paths is not None:  # Check if we have paths to plot
+                    # paths is the optimized_paths tensor with shape [n_steps, batch, features]
+                    n_paths_to_plot = 10  # Number of paths to plot
+                    path_indices = th.randint(0, paths[class_index].shape[1], (n_paths_to_plot,))  
+                    
+                    for idx in path_indices:
+                        # Extract single path: shape [n_steps, features]
+                        single_path = paths[class_index][:, idx, :].cpu().numpy()
+                        
+                        # Plot the path
+                        plt.plot(single_path[:, 0], single_path[:, 1], 
+                                linestyle='--', color='gray', marker='o', alpha=0.7)
+                        
+                        # Mark the baseline point (start of path)
+                        plt.scatter(single_path[0, 0], single_path[0, 1], 
+                                color='red', marker='x', s=100, label='Baseline')
+                        
+                        # Mark the input point (end of path)
+                        plt.scatter(single_path[-1, 0], single_path[-1, 1], 
+                                color='blue', marker='o', s=100, label='Input')
 
+                handles, labels = plt.gca().get_legend_handles_labels()
+                by_label = dict(zip(labels, handles))
+                plt.legend(by_label.values(), by_label.keys())
                 plt.savefig(f"{path}/{k}_{str(noise)}.pdf")
                 plt.close()
 
@@ -348,6 +372,30 @@ def parse_args():
         action="store_true",
         help="Whether to make training deterministic or not.",
     )
+    parser.add_argument(
+        "--beta",
+        type=float,
+        default=100,
+        help="Beta parameter for the potential energy. Used in the SVI-IG.",
+    )
+    parser.add_argument(
+        "--num-iterations",
+        type=int,
+        default=1000,
+        help="Number of iterations for the optimization. Used in the SVI-IG.",
+    )
+    parser.add_argument(
+        "--n-steps",
+        type=int,
+        default=500,
+        help="Number of points generated along the geodesic path. Used in the SVI-IG.",
+    )
+    parser.add_argument(
+        "--learning-rate",
+        type=float,
+        default=1e-3,
+        help="Learning rate for the optimization. Used in the SVI-IG.",
+    )
     return parser.parse_args()
 
 
@@ -361,4 +409,8 @@ if __name__ == "__main__":
         device=args.device,
         seed=args.seed,
         deterministic=args.deterministic,
+        beta=args.beta,
+        num_iterations=args.num_iterations,
+        n_steps=args.n_steps,
+        learning_rate=args.learning_rate,
     )
