@@ -116,8 +116,7 @@ class MLP(nn.Module):
             norm = [NORMS[norm] for _ in range(length - 1)]
         if isinstance(activations, str):
             activations = [
-                copy.deepcopy(ACTIVATIONS[activations])
-                for _ in range(length - 1)
+                copy.deepcopy(ACTIVATIONS[activations]) for _ in range(length - 1)
             ]
         if isinstance(activation_final, str):
             activation_final = copy.deepcopy(ACTIVATIONS[activation_final])

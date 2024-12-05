@@ -85,7 +85,8 @@ class IntegratedGradients(GradientAttribution):
         internal_batch_size: Union[None, int] = None,
         *,
         return_convergence_delta: Literal[True],
-    ) -> Tuple[TensorOrTupleOfTensorsGeneric, Tensor]: ...
+    ) -> Tuple[TensorOrTupleOfTensorsGeneric, Tensor]:
+        ...
 
     @typing.overload
     # pyre-fixme[43]: The implementation of `attribute` does not accept all possible
@@ -100,7 +101,8 @@ class IntegratedGradients(GradientAttribution):
         method: str = "gausslegendre",
         internal_batch_size: Union[None, int] = None,
         return_convergence_delta: Literal[False] = False,
-    ) -> TensorOrTupleOfTensorsGeneric: ...
+    ) -> TensorOrTupleOfTensorsGeneric:
+        ...
 
     @log_usage()
     def attribute(  # type: ignore

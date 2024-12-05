@@ -59,9 +59,7 @@ def main(
     for noise in noises:
         # Create dataset
         x, y = make_moons(n_samples=n_samples, noise=noise, random_state=seed)
-        x_train, x_test, y_train, y_test = train_test_split(
-            x, y, random_state=seed
-        )
+        x_train, x_test, y_train, y_test = train_test_split(x, y, random_state=seed)
 
         # Convert to tensors
         x_train = th.from_numpy(x_train).float()
@@ -176,7 +174,7 @@ def main(
                 # explainer = GeodesicIntegratedGradients(net)
                 svi_ig = SVI_IG(net)
                 _attr = th.zeros_like(x_test)
-                paths = []  
+                paths = []
 
                 for target in range(2):
                     target_mask = y_test == target
@@ -195,7 +193,6 @@ def main(
                     paths.append(gig_path)
 
                 attr[f"geodesic_integrated_gradients_{str(n)}"] = (_attr, paths)
-
 
         if "enhanced_integrated_gradients" in explainers:
             for n in range(5, 20, 5):
@@ -264,23 +261,43 @@ def main(
                 if paths is not None:  # Check if we have paths to plot
                     # paths is the optimized_paths tensor with shape [n_steps, batch, features]
                     n_paths_to_plot = 10  # Number of paths to plot
-                    path_indices = th.randint(0, paths[class_index].shape[1], (n_paths_to_plot,))  
-                    
+                    path_indices = th.randint(
+                        0, paths[class_index].shape[1], (n_paths_to_plot,)
+                    )
+
                     for idx in path_indices:
                         # Extract single path: shape [n_steps, features]
                         single_path = paths[class_index][:, idx, :].cpu().numpy()
-                        
+
                         # Plot the path
-                        plt.plot(single_path[:, 0], single_path[:, 1], 
-                                linestyle='--', color='gray', marker='o', alpha=0.7)
-                        
+                        plt.plot(
+                            single_path[:, 0],
+                            single_path[:, 1],
+                            linestyle="--",
+                            color="gray",
+                            marker="o",
+                            alpha=0.7,
+                        )
+
                         # Mark the baseline point (start of path)
-                        plt.scatter(single_path[0, 0], single_path[0, 1], 
-                                color='red', marker='x', s=100, label='Baseline')
-                        
+                        plt.scatter(
+                            single_path[0, 0],
+                            single_path[0, 1],
+                            color="red",
+                            marker="x",
+                            s=100,
+                            label="Baseline",
+                        )
+
                         # Mark the input point (end of path)
-                        plt.scatter(single_path[-1, 0], single_path[-1, 1], 
-                                color='blue', marker='o', s=100, label='Input')
+                        plt.scatter(
+                            single_path[-1, 0],
+                            single_path[-1, 1],
+                            color="blue",
+                            marker="o",
+                            s=100,
+                            label="Input",
+                        )
 
                 handles, labels = plt.gca().get_legend_handles_labels()
                 by_label = dict(zip(labels, handles))
@@ -315,9 +332,7 @@ def main(
                 fp.write(str(noise) + ",")
                 fp.write("softplus," if softplus else "relu,")
                 fp.write(k + ",")
-                fp.write(
-                    f"{th.cat(pred).argmax(-1)[topk_idx].float().mean():.4},"
-                )
+                fp.write(f"{th.cat(pred).argmax(-1)[topk_idx].float().mean():.4},")
                 fp.write(f"{_attr.abs().sum(-1)[y_test == 0].std():.4},")
                 fp.write(f"{_attr.abs().sum(-1)[y_test == 1].std():.4}")
                 fp.write("\n")

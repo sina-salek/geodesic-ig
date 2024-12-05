@@ -28,9 +28,7 @@ def _add_temporal_mask(
 ):
     # Format input data
     inputs = _format_inputs(inputs)
-    additional_forward_args = _format_additional_forward_args(
-        additional_forward_args
-    )
+    additional_forward_args = _format_additional_forward_args(additional_forward_args)
 
     # Inputs is only of length one
     data = inputs[0]
@@ -39,8 +37,7 @@ def _add_temporal_mask(
     temporal_mask = torch.ones((data.shape[0], data.shape[1], data.shape[1]))
     temporal_mask = torch.tril(temporal_mask)
     temporal_mask = temporal_mask.reshape(
-        (data.shape[0] * data.shape[1], data.shape[1])
-        + (1,) * len(data.shape[2:])
+        (data.shape[0] * data.shape[1], data.shape[1]) + (1,) * len(data.shape[2:])
     )
 
     # Expand data and args along the first dim
@@ -98,9 +95,7 @@ def _slice_to_time(
     args_copy = copy.deepcopy(args)
     is_args_tuple = tuple(isinstance(arg, tuple) for arg in args_copy)
     args_copy = tuple(_format_inputs(arg) for arg in args_copy)
-    args_copy = tuple(
-        tuple(x[:, :time, ...] for x in arg) for arg in args_copy
-    )
+    args_copy = tuple(tuple(x[:, :time, ...] for x in arg) for arg in args_copy)
 
     kwargs_copy = copy.deepcopy(kwargs)
 
@@ -123,9 +118,7 @@ def _slice_to_time(
         additional_forward_args = _format_additional_forward_args(
             kwargs_copy["additional_forward_args"]
         )
-        assert len(additional_forward_args) == len(
-            temporal_additional_forward_args
-        ), (
+        assert len(additional_forward_args) == len(temporal_additional_forward_args), (
             "Length mismatch between additional_forward_args "
             "and temporal_additional_forward_args"
         )
@@ -158,12 +151,9 @@ def _slice_to_time(
         if task in ["binary", "multiclass"]:
             partial_targets = torch.argmax(partial_targets, -1)
         elif task == "multilabel":
-            partial_targets = (
-                torch.sigmoid(partial_targets) > threshold
-            ).long()
+            partial_targets = (torch.sigmoid(partial_targets) > threshold).long()
             partial_targets = tuple(
-                partial_targets[..., i]
-                for i in range(partial_targets.shape[-1])
+                partial_targets[..., i] for i in range(partial_targets.shape[-1])
             )
 
         kwargs_copy["target"] = partial_targets

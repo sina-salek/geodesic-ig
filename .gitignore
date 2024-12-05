@@ -8,6 +8,8 @@
 docs/.DS_Store
 dist
 figures
+weights
+data
 *.csv
 
 # Pytest

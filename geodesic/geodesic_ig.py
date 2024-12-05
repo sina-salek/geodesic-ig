@@ -151,32 +151,32 @@ class GeodesicIntegratedGradients(GradientAttribution):
                 warnings.warn(
                     "The knn graph is disconnected. You should increase n_neighbors."
                 )
-                
+
     def fit_knn_if_needed(self, inputs, baselines, n_neighbors, kwargs):
         """
         This function fits the NearestNeighbors model if it is not already provided.
 
-        If the NearestNeighbors model is not provided, it initializes and fits the model 
-        using the provided inputs. It also checks if the k-nearest neighbors graph is 
-        connected and raises a warning if it is not, suggesting to increase the number 
-        of neighbors. Additionally, it concatenates the input data with baselines and 
+        If the NearestNeighbors model is not provided, it initializes and fits the model
+        using the provided inputs. It also checks if the k-nearest neighbors graph is
+        connected and raises a warning if it is not, suggesting to increase the number
+        of neighbors. Additionally, it concatenates the input data with baselines and
         any pre-existing data before fitting the model.
 
         Args:
-            inputs (Tensor or tuple of Tensors): The input data for which the NearestNeighbors 
+            inputs (Tensor or tuple of Tensors): The input data for which the NearestNeighbors
                 model needs to be fitted.
-            baselines (Tensor or tuple of Tensors): The baseline data used for comparison with 
+            baselines (Tensor or tuple of Tensors): The baseline data used for comparison with
                 the inputs.
-            n_neighbors (int or tuple of ints, optional): The number of neighbors to use for 
-                the NearestNeighbors model. If not provided, it uses the value from the instance 
+            n_neighbors (int or tuple of ints, optional): The number of neighbors to use for
+                the NearestNeighbors model. If not provided, it uses the value from the instance
                 variable.
             kwargs: Additional keyword arguments to pass to the NearestNeighbors model.
 
         Returns:
-            tuple: A tuple containing the indices, k-nearest neighbors, distances for the 
-                fitted NearestNeighbors model, the NearestNeighbors instance, and the 
-                concatenated data. The concatenated data is returned to ensure that the 
-                model is fitted on the complete dataset, including inputs, baselines, 
+            tuple: A tuple containing the indices, k-nearest neighbors, distances for the
+                fitted NearestNeighbors model, the NearestNeighbors instance, and the
+                concatenated data. The concatenated data is returned to ensure that the
+                model is fitted on the complete dataset, including inputs, baselines,
                 and any pre-existing data.
         """
         n_neighbors = n_neighbors or self.n_neighbors
@@ -207,8 +207,7 @@ class GeodesicIntegratedGradients(GradientAttribution):
             data = tuple(torch.cat([x, y]) for x, y in zip(inputs, baselines))
         else:
             data = tuple(
-                torch.cat([x, y, z])
-                for x, y, z in zip(self.data, inputs, baselines)
+                torch.cat([x, y, z]) for x, y, z in zip(self.data, inputs, baselines)
             )
 
         # Get knns
@@ -218,13 +217,15 @@ class GeodesicIntegratedGradients(GradientAttribution):
             n_neighbors=n_neighbors,
         )
         return idx, knns, dists, nn, data
-    
-    def augment_data_with_steiner_points_if_provided(self, data, dists, idx, knns, nn, n_neighbors, n_steiner = None):
+
+    def augment_data_with_steiner_points_if_provided(
+        self, data, dists, idx, knns, nn, n_neighbors, n_steiner=None
+    ):
         """
         Augments the input data with Steiner points if the number of Steiner points is provided.
 
-        Steiner points are additional points added to the dataset to improve the connectivity 
-        and quality of the k-nearest neighbors graph. This is particularly useful when the 
+        Steiner points are additional points added to the dataset to improve the connectivity
+        and quality of the k-nearest neighbors graph. This is particularly useful when the
         original data points are sparse or not well-connected.
 
         Args:
@@ -272,7 +273,7 @@ class GeodesicIntegratedGradients(GradientAttribution):
                 n_neighbors=n_neighbors,
             )
         return knns, idx, data
-    
+
     def compute_astar_paths(self, data, idx, knns, grads_norm, inputs):
         """
         Creates undirected graph and computes A* paths between inputs and baselines.
@@ -287,8 +288,7 @@ class GeodesicIntegratedGradients(GradientAttribution):
         # Get input and baseline indices
         if self.data is not None:
             inputs_idx = tuple(
-                range(len(x), len(x) + len(y))
-                for x, y in zip(self.data, inputs)
+                range(len(x), len(x) + len(y)) for x, y in zip(self.data, inputs)
             )
             baselines_idx = tuple(
                 range(len(x) + len(y), len(x) + 2 * len(y))
@@ -305,7 +305,7 @@ class GeodesicIntegratedGradients(GradientAttribution):
                 for i, j in tqdm(
                     zip(input_idx, baseline_idx),
                     desc="Computing A* paths",
-                    total=len(input_idx)
+                    total=len(input_idx),
                 )
             ]
             for graph, input_idx, baseline_idx, d in zip(
@@ -348,62 +348,60 @@ class GeodesicIntegratedGradients(GradientAttribution):
             torch.split(grad, split_size_or_sections=path_len, dim=0)
             for grad, path_len in zip(total_grads, paths_len)
         )
-        total_grads = tuple(
-            tuple(x.sum(0) for x in grad) for grad in total_grads
-        )
+        total_grads = tuple(tuple(x.sum(0) for x in grad) for grad in total_grads)
         total_grads = tuple(torch.stack(grad) for grad in total_grads)
 
         return total_grads
 
     def format_output_with_optional_metrics(
-        self, 
-        total_grads, 
+        self,
+        total_grads,
         is_inputs_tuple,
         return_curvature,
         return_convergence_delta,
         return_paths=False,
-        **kwargs
+        **kwargs,
     ):
         """
         Formats the output including optional metrics (curvature, convergence delta, and paths).
-        
-        When return_paths is True, returns the sequence of points connecting each 
+
+        When return_paths is True, returns the sequence of points connecting each
         input-baseline pair in the correct order.
         """
         curvature = None
         paths = None
-        
+
         if return_paths:
             # Get the ordered sequence of points for each input-baseline pair
             paths = tuple(
-                [data[path].clone() for path, data in zip(paths_split, kwargs['data'])]
+                [data[path].clone() for path, data in zip(paths_split, kwargs["data"])]
                 for paths_split in (
-                    torch.split(path[:, 0], lengths) 
-                    for path, lengths in zip(kwargs['paths'], kwargs['paths_len'])
+                    torch.split(path[:, 0], lengths)
+                    for path, lengths in zip(kwargs["paths"], kwargs["paths_len"])
                 )
             )
-            
+
         if return_curvature:
             curvature = self.compute_curvature(
-                inputs=kwargs['inputs'],
-                baselines=kwargs['baselines'],
-                data=kwargs['data'],
-                knns=kwargs['knns'],
-                idx=kwargs['idx'],
-                grads_idx=kwargs['grads_idx'],
-                paths_len=kwargs['paths_len'],
+                inputs=kwargs["inputs"],
+                baselines=kwargs["baselines"],
+                data=kwargs["data"],
+                knns=kwargs["knns"],
+                idx=kwargs["idx"],
+                grads_idx=kwargs["grads_idx"],
+                paths_len=kwargs["paths_len"],
             )
 
         if return_convergence_delta:
-            start_point, end_point = kwargs['baselines'], kwargs['inputs']
+            start_point, end_point = kwargs["baselines"], kwargs["inputs"]
             delta = self.compute_convergence_delta(
                 total_grads,
                 start_point,
                 end_point,
-                additional_forward_args=kwargs['additional_forward_args'],
-                target=kwargs['target'],
+                additional_forward_args=kwargs["additional_forward_args"],
+                target=kwargs["target"],
             )
-            
+
             # Build return tuple based on what's requested
             result = [_format_output(is_inputs_tuple, total_grads), delta]
             if curvature is not None:
@@ -670,11 +668,17 @@ class GeodesicIntegratedGradients(GradientAttribution):
                 an indication of the true curvature of the input space.
         """
 
-        inputs, baselines, is_inputs_tuple = data_and_params_validator(inputs, baselines, n_steps, method, distance, additional_forward_args)
+        inputs, baselines, is_inputs_tuple = data_and_params_validator(
+            inputs, baselines, n_steps, method, distance, additional_forward_args
+        )
 
-        idx, knns, dists, nn, data = self.fit_knn_if_needed(inputs, baselines, n_neighbors, kwargs)
+        idx, knns, dists, nn, data = self.fit_knn_if_needed(
+            inputs, baselines, n_neighbors, kwargs
+        )
 
-        knns, idx, data = self.augment_data_with_steiner_points_if_provided(data, dists, idx, knns, nn, n_neighbors, n_steiner)
+        knns, idx, data = self.augment_data_with_steiner_points_if_provided(
+            data, dists, idx, knns, nn, n_neighbors, n_steiner
+        )
 
         # Compute grads for inputs and baselines
         if internal_batch_size is not None:
@@ -716,18 +720,22 @@ class GeodesicIntegratedGradients(GradientAttribution):
         # Get grad indexes, these are the indexes of the gradients that are used to process the path gradients and formatting outputs
         grads_idx = tuple(
             [
-                torch.where((id == i) * (knn == j) + (id == j) * (knn == i))[0][0].item()
+                torch.where((id == i) * (knn == j) + (id == j) * (knn == i))[0][
+                    0
+                ].item()
                 for i, j in zip(path[:, 0], path[:, 1])
             ]
             for id, knn, path in zip(idx, knns, paths)
         )
 
         # Process gradients along paths
-        total_grads = self.process_path_gradients(paths, paths_len, knns, grads_idx, total_grads)
+        total_grads = self.process_path_gradients(
+            paths, paths_len, knns, grads_idx, total_grads
+        )
 
         # Handle optional return values (curvature and convergence delta)
         return self.format_output_with_optional_metrics(
-            total_grads, 
+            total_grads,
             is_inputs_tuple,
             return_curvature,
             return_convergence_delta,
@@ -739,11 +747,10 @@ class GeodesicIntegratedGradients(GradientAttribution):
             idx=idx,
             grads_idx=grads_idx,
             paths_len=paths_len,
-            paths=paths, 
+            paths=paths,
             additional_forward_args=additional_forward_args,
-            target=target
+            target=target,
         )
-
 
     def _attribute(
         self,
@@ -753,9 +760,7 @@ class GeodesicIntegratedGradients(GradientAttribution):
         additional_forward_args: Any = None,
         n_steps: int = 50,
         method: str = "gausslegendre",
-        step_sizes_and_alphas: Union[
-            None, Tuple[List[float], List[float]]
-        ] = None,
+        step_sizes_and_alphas: Union[None, Tuple[List[float], List[float]]] = None,
     ) -> Tuple[Tuple[Tensor, ...], Tuple[Tensor, ...]]:
         """
         Prepares and scales inputs for gradient computation as part of the attribution process.
@@ -828,9 +833,7 @@ class GeodesicIntegratedGradients(GradientAttribution):
 
         # Reshape scaled_grads
         scaled_grads = tuple(
-            scaled_grad.reshape(
-                (n_steps, grad.shape[0] // n_steps) + grad.shape[1:]
-            )
+            scaled_grad.reshape((n_steps, grad.shape[0] // n_steps) + grad.shape[1:])
             for scaled_grad, grad in zip(scaled_grads, grads)
         )
 
@@ -846,12 +849,8 @@ class GeodesicIntegratedGradients(GradientAttribution):
         # Multiply by inputs - baselines
         grads_norm = tuple(
             grad_norm
-            * torch.linalg.norm(
-                (input - baseline).reshape(len(input), -1), dim=1
-            )
-            for grad_norm, input, baseline in zip(
-                grads_norm, inputs, baselines
-            )
+            * torch.linalg.norm((input - baseline).reshape(len(input), -1), dim=1)
+            for grad_norm, input, baseline in zip(grads_norm, inputs, baselines)
         )
 
         # aggregates across all steps for each tensor in the input tuple
@@ -867,9 +866,7 @@ class GeodesicIntegratedGradients(GradientAttribution):
         if self.multiplies_by_inputs:
             total_grads = tuple(
                 total_grad * (input - baseline)
-                for total_grad, input, baseline in zip(
-                    total_grads, inputs, baselines
-                )
+                for total_grad, input, baseline in zip(total_grads, inputs, baselines)
             )
 
         return grads_norm, total_grads
@@ -920,9 +917,7 @@ class GeodesicIntegratedGradients(GradientAttribution):
                         norm = torch.linalg.norm(
                             (
                                 torch.cat([input_i] * len(input_j), dim=0)
-                                - input_j.repeat_interleave(
-                                    len(input_i), dim=0
-                                )
+                                - input_j.repeat_interleave(len(input_i), dim=0)
                             ).reshape(len(input_i) * len(input_j), -1),
                             dim=1,
                         )
@@ -949,17 +944,12 @@ class GeodesicIntegratedGradients(GradientAttribution):
         )
 
         # Get idx and knns
+        idx = tuple(torch.from_numpy(graph.tocoo().row).long() for graph in graphs)
         idx = tuple(
-            torch.from_numpy(graph.tocoo().row).long() for graph in graphs
-        )
-        idx = tuple(
-            torch.cat([i, a], dim=0) if len(a) > 0 else i
-            for i, a in zip(idx, add_idx)
+            torch.cat([i, a], dim=0) if len(a) > 0 else i for i, a in zip(idx, add_idx)
         )
 
-        knns = tuple(
-            torch.from_numpy(graph.tocoo().col).long() for graph in graphs
-        )
+        knns = tuple(torch.from_numpy(graph.tocoo().col).long() for graph in graphs)
         knns = tuple(
             torch.cat([k, a], dim=0) if len(a) > 0 else k
             for k, a in zip(knns, add_knns)
@@ -1005,9 +995,7 @@ class GeodesicIntegratedGradients(GradientAttribution):
 
         # Sum over points and paths
         # and stack result
-        distances_tpl = tuple(
-            tuple(x.sum(0) for x in dist) for dist in distances_tpl
-        )
+        distances_tpl = tuple(tuple(x.sum(0) for x in dist) for dist in distances_tpl)
         distances_tpl = tuple(torch.stack(dist) for dist in distances_tpl)
 
         # Compute euclidean distance between inputs and baselines
@@ -1022,8 +1010,7 @@ class GeodesicIntegratedGradients(GradientAttribution):
         # The curvature is the diff between path-based distance and euclidean
         # distance.
         curvature = tuple(
-            dist - euclidean
-            for dist, euclidean in zip(distances_tpl, euclidean_tpl)
+            dist - euclidean for dist, euclidean in zip(distances_tpl, euclidean_tpl)
         )
 
         return curvature

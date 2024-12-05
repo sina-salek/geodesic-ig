@@ -12,6 +12,7 @@ from typing import Tuple
 
 from geodesic.utils.tqdm import get_progress_bars
 
+
 def _geodesic_batch_attribution(
     attr_method,
     inputs: Tuple[Tensor, ...],
@@ -68,12 +69,10 @@ def _geodesic_batch_attribution(
             total_grads = partial_grads
         else:
             grads_norm = tuple(
-                th.cat([x, y], dim=0)
-                for x, y in zip(grads_norm, partial_grads_norm)
+                th.cat([x, y], dim=0) for x, y in zip(grads_norm, partial_grads_norm)
             )
             total_grads = tuple(
-                th.cat([x, y], dim=0)
-                for x, y in zip(total_grads, partial_grads)
+                th.cat([x, y], dim=0) for x, y in zip(total_grads, partial_grads)
             )
 
     return grads_norm, total_grads
