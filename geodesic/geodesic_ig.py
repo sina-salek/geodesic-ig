@@ -188,7 +188,7 @@ class GeodesicIntegratedGradients(GradientAttribution):
 
             nn = tuple(
                 NearestNeighbors(n_neighbors=n, **kwargs).fit(
-                    X=x.reshape(len(x), -1).cpu()
+                    X=x.reshape(len(x), -1).detach().numpy()
                 )
                 for x, n in zip(inputs, n_neighbors)
             )
