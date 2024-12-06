@@ -25,3 +25,6 @@ lightning_logs
 
 # Latex
 out
+
+# IDE
+.vscode
