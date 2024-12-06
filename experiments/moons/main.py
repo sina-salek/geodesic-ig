@@ -170,8 +170,11 @@ def main(
         baselines[:, 1] = -0.5
 
         if "geodesic_integrated_gradients" in explainers:
+            # from geodesic.svi_ig_copy import SVI_IG
             for n in [5]:
                 # explainer = GeodesicIntegratedGradients(net)
+                # svi_ig = IntegratedGradients(net)
+
                 svi_ig = SVI_IG(net)
                 _attr = th.zeros_like(x_test)
                 paths = []
@@ -189,6 +192,7 @@ def main(
                         num_iterations=num_iterations,
                         learning_rate=learning_rate,
                     )
+                    gig_path = gig_path[0]
                     _attr[target_mask] = attribution.float()
                     paths.append(gig_path)
 
@@ -354,7 +358,7 @@ def parse_args():
     parser.add_argument(
         "--n-samples",
         type=int,
-        default=10000,
+        default=1000,
         help="Number of samples in the dataset.",
     )
     parser.add_argument(
@@ -402,7 +406,7 @@ def parse_args():
     parser.add_argument(
         "--n-steps",
         type=int,
-        default=500,
+        default=100,
         help="Number of points generated along the geodesic path. Used in the SVI-IG.",
     )
     parser.add_argument(
