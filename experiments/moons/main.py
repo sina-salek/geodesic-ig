@@ -179,13 +179,16 @@ def main(
                 _attr = th.zeros_like(x_test)
                 paths = []
 
+            
+
                 for target in range(2):
+                    predictions = net(x_test[target_mask])
                     target_mask = y_test == target
                     attribution, gig_path = svi_ig.attribute(
                         x_test[target_mask],
                         baselines=baselines[target_mask],
                         # augmentation_data=x_test[target_mask], # uncomment to use augmentation data
-                        target=target,
+                        target=predictions.argmax(-1), 
                         n_steps=n_steps,
                         n_neighbors=n,
                         beta=beta,
@@ -204,10 +207,11 @@ def main(
                 _attr = th.zeros_like(x_test)
 
                 for target in range(2):
+                    predictions = net(x_test[y_test == target])
                     _attr[y_test == target] = explainer.attribute(
                         x_test[y_test == target],
                         baselines=baselines[y_test == target],
-                        target=target,
+                        target=predictions.argmax(-1),
                         n_neighbors=n,
                         internal_batch_size=200,
                         distance="euclidean",
