@@ -113,26 +113,42 @@ class SVI_IG(GradientAttribution):
         return (distance_penalty + beta * curvature_penalty).sum()
 
     def model(self, initial_paths: Tensor, beta: float):
-        """Pyro model for sampling geodesic paths."""
-        path_mean = pyro.param("path_mean", initial_paths, constraint=dist.constraints.real)
-        path_var = pyro.param("path_var", torch.ones_like(initial_paths), constraint=dist.constraints.positive)
-
-        # sample path from normal distribution with correct event dimensions
-        pyro.sample("path", dist.Normal(path_mean, path_var).to_event(2))
-
-        # compute potential energy
-        potential_energy = self.potential_energy(path_mean, initial_paths, beta)
-        pyro.factor("potential_energy", potential_energy)
+        """Model samples path deviations without reshaping."""
+        # Sample path deviations directly
+        delta = pyro.sample(
+            "path_delta",
+            dist.Normal(torch.zeros_like(initial_paths), 1.0).to_event(initial_paths.dim())
+        )
+        
+        # Create path with gradients
+        path = (initial_paths + delta).requires_grad_()
+        
+        energy = self.potential_energy(path, initial_paths, beta)
+        pyro.factor("energy", -energy.sum())
 
     def guide(self, initial_paths: Tensor, beta: float):
-        """Pyro guide for sampling geodesic paths."""
-        path_mean = pyro.param("path_mean", initial_paths, constraint=dist.constraints.real)
-        path_var = pyro.param("path_var", torch.ones_like(initial_paths), constraint=dist.constraints.positive)
-
-        # sample path from normal distribution with correct event dimensions
-        pyro.sample("path", dist.Normal(path_mean, path_var).to_event(2))
-
-        return path_mean, path_var
+        """Guide learns optimal deviations without reshaping."""
+        # Learn parameters directly in original shape
+        delta_loc = pyro.param(
+            "delta_loc",
+            lambda: torch.zeros_like(initial_paths)
+        )
+        delta_scale = pyro.param(
+            "delta_scale",
+            lambda: 0.1 * torch.ones_like(initial_paths),
+            constraint=dist.constraints.positive
+        )
+        
+        
+        # Sample and create path
+        pyro.sample(
+            "path_delta",
+            dist.Normal(delta_loc, delta_scale).to_event(initial_paths.dim())
+        )
+        
+        # optimized_path = (initial_paths + delta_loc * mask).requires_grad_()
+        optimized_path = (initial_paths + delta_loc ).requires_grad_()
+        return optimized_path
 
 
     def _optimize_paths(
@@ -162,7 +178,7 @@ class SVI_IG(GradientAttribution):
         # Sample optimized paths
         with torch.no_grad():
             # Use guide to get mean of learned path distribution
-            optimized_paths = self.guide(initial_paths, beta)[0] 
+            optimized_paths = self.guide(initial_paths, beta)
             
         return optimized_paths
     
