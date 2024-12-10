@@ -16,6 +16,8 @@ from captum.attr._utils.common import (
     _validate_input,
 )
 
+from geodesic.svi_batching import _batch_attribution
+
 from captum.attr._utils.approximation_methods import approximation_parameters
 
 
@@ -109,28 +111,30 @@ class SVI_IG(GradientAttribution):
         )[0]
         curvature_penalty = torch.norm(path_grads, p=2, dim=-1)
         
-        # New endpoint connectivity penalty
-        batch_size = path.shape[0] // self.n_steps
-        path_reshaped = path.view(self.n_steps, batch_size, -1)
-        initial_reshaped = initial_paths.view(self.n_steps, batch_size, -1)
+        # # New endpoint connectivity penalty
+        # batch_size = path.shape[0] // self.n_steps
+        # path_reshaped = path.view(self.n_steps, batch_size, -1)
+        # initial_reshaped = initial_paths.view(self.n_steps, batch_size, -1)
         
-        # Get actual and desired endpoints
-        start_points = path_reshaped[0]
-        end_points = path_reshaped[-1]
-        target_starts = initial_reshaped[0]
-        target_ends = initial_reshaped[-1]
+        # # Get actual and desired endpoints
+        # start_points = path_reshaped[0]
+        # end_points = path_reshaped[-1]
+        # target_starts = initial_reshaped[0]
+        # target_ends = initial_reshaped[-1]
         
-        # Compute endpoint penalties that scale with beta
-        endpoint_penalty = (torch.norm(start_points - target_starts, p=2, dim=-1) + 
-                        torch.norm(end_points - target_ends, p=2, dim=-1))
+        # # Compute endpoint penalties that scale with beta
+        # endpoint_penalty = (torch.norm(start_points - target_starts, p=2, dim=-1) + 
+        #                 torch.norm(end_points - target_ends, p=2, dim=-1))
         
-        # Reshape endpoint penalty to match batch size
-        endpoint_penalty = endpoint_penalty.view(batch_size, -1)
+        # # Reshape endpoint penalty to match batch size
+        # endpoint_penalty = endpoint_penalty.view(batch_size, -1)
         
-        # Combine all penalties
-        total_penalty = (distance_penalty + 
-                        beta * curvature_penalty + 
-                        beta * 10.0 * endpoint_penalty).sum()
+        # # Combine all penalties
+        # total_penalty = (distance_penalty + 
+        #                 beta * curvature_penalty + 
+        #                 beta * 10.0 * endpoint_penalty).sum()
+
+        total_penalty = (distance_penalty + beta * curvature_penalty).sum()
         
         return total_penalty
 
@@ -248,21 +252,34 @@ class SVI_IG(GradientAttribution):
         )
 
         _validate_input(formatted_inputs, formatted_baselines, n_steps, method)
-
-        # TODO: add the batched version as well
-        attributions, paths = self._attribute(
-            inputs=formatted_inputs,
-            baselines=formatted_baselines,
-            augmentation_data=augmentation_data,
-            target=target,
-            additional_forward_args=additional_forward_args,
-            n_steps=n_steps,
-            n_neighbors=n_neighbors,
-            method=method,
-            beta=beta,
-            num_iterations=num_iterations,
-            learning_rate=learning_rate,
-        )
+        paths = None
+        if internal_batch_size is not None:
+            num_examples = formatted_inputs[0].shape[0]
+            attributions = _batch_attribution(
+                self,
+                num_examples,
+                internal_batch_size,
+                n_steps,
+                inputs=formatted_inputs,
+                baselines=formatted_baselines,
+                target=target,
+                additional_forward_args=additional_forward_args,
+                method=method,
+            )
+        else:
+            attributions, paths = self._attribute(
+                inputs=formatted_inputs,
+                baselines=formatted_baselines,
+                augmentation_data=augmentation_data,
+                target=target,
+                additional_forward_args=additional_forward_args,
+                n_steps=n_steps,
+                n_neighbors=n_neighbors,
+                method=method,
+                beta=beta,
+                num_iterations=num_iterations,
+                learning_rate=learning_rate,
+            )
 
         return _format_output(is_inputs_tuple, attributions), paths
 
@@ -375,81 +392,3 @@ class SVI_IG(GradientAttribution):
                 for total_grad, input, baseline in zip(total_grads, inputs, baselines)
             )
         return attributions, optimized_paths
-
-    
-    def _batch_attribution(
-        self,
-        attr_method,
-        num_examples,
-        internal_batch_size,
-        n_steps,
-        include_endpoint=False,
-        **kwargs,
-    ):
-        """
-        This method applies internal batching to given attribution method, dividing
-        the total steps into batches and running each independently and sequentially,
-        adding each result to compute the total attribution.
-
-        Step sizes and alphas are spliced for each batch and passed explicitly for each
-        call to _attribute.
-
-        kwargs include all argument necessary to pass to each attribute call, except
-        for n_steps, which is computed based on the number of steps for the batch.
-
-        include_endpoint ensures that one step overlaps between each batch, which
-        is necessary for some methods, particularly LayerConductance.
-        """
-        if internal_batch_size < num_examples:
-            warnings.warn(
-                "Internal batch size cannot be less than the number of input examples. "
-                "Defaulting to internal batch size of %d equal to the number of examples."
-                % num_examples
-            )
-        # Number of steps for each batch
-        step_count = max(1, internal_batch_size // num_examples)
-        if include_endpoint:
-            if step_count < 2:
-                step_count = 2
-                warnings.warn(
-                    "This method computes finite differences between evaluations at "
-                    "consecutive steps, so internal batch size must be at least twice "
-                    "the number of examples. Defaulting to internal batch size of %d"
-                    " equal to twice the number of examples." % (2 * num_examples)
-                )
-
-        total_attr = None
-        cumulative_steps = 0
-        step_sizes_func, alphas_func = approximation_parameters(kwargs["method"])
-        full_step_sizes = step_sizes_func(n_steps)
-        full_alphas = alphas_func(n_steps)
-
-        while cumulative_steps < n_steps:
-            start_step = cumulative_steps
-            end_step = min(start_step + step_count, n_steps)
-            batch_steps = end_step - start_step
-
-            if include_endpoint:
-                batch_steps -= 1
-
-            step_sizes = full_step_sizes[start_step:end_step]
-            alphas = full_alphas[start_step:end_step]
-            current_attr, current_paths= attr_method._attribute(
-                **kwargs, n_steps=batch_steps, step_sizes_and_alphas=(step_sizes, alphas)
-            )
-
-            if total_attr is None:
-                total_attr = current_attr
-            else:
-                if isinstance(total_attr, Tensor):
-                    total_attr = total_attr + current_attr.detach()
-                else:
-                    total_attr = tuple(
-                        current.detach() + prev_total
-                        for current, prev_total in zip(current_attr, total_attr)
-                    )
-            if include_endpoint and end_step < n_steps:
-                cumulative_steps = end_step - 1
-            else:
-                cumulative_steps = end_step
-        return total_attr

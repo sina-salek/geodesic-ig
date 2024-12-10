@@ -194,11 +194,15 @@ def main(
                         beta=beta,
                         num_iterations=num_iterations,
                         learning_rate=learning_rate,
-                        method='riemann_trapezoid'
+                        method='riemann_trapezoid',
+                        internal_batch_size=200,
                     )
-                    gig_path = gig_path[0]
+                    if gig_path is not None:
+                        gig_path = gig_path[0] 
+                        paths.append(gig_path)
+                    else:
+                        paths = None
                     _attr[target_mask] = attribution.float()
-                    paths.append(gig_path)
 
                 attr[f"geodesic_integrated_gradients_{str(n)}"] = (_attr, paths)
 
@@ -357,7 +361,7 @@ def parse_args():
         "--explainers",
         type=str,
         default=[
-            "integrated_gradients",
+            # "integrated_gradients",
             "geodesic_integrated_gradients",
         ],
         nargs="+",
@@ -403,7 +407,7 @@ def parse_args():
     parser.add_argument(
         "--beta",
         type=float,
-        default=0,
+        default=100,
         help="Beta parameter for the potential energy. Used in the SVI-IG.",
     )
     parser.add_argument(
