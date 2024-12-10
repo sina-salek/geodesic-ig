@@ -38,51 +38,33 @@ class SVI_IG(GradientAttribution):
     ) -> None:
         GradientAttribution.__init__(self, forward_func)
         self._multiply_by_inputs = multiply_by_inputs
-        self.last_batch_size = None
+        self.last_batch_sizes = None
 
-    def _get_straight_line(
-        self, 
-        inputs: Tuple[Tensor, ...], 
-        baselines: Tuple[Union[Tensor, int, float], ...],
-        n_steps: int
-    ) -> Tuple[Tensor, ...]:
-        """
-        Helper function to compute straight line paths.
-        """
-        paths = []
-        for input, baseline in zip(inputs, baselines):
-            # Convert baseline to tensor if needed
-            if not isinstance(baseline, Tensor):
-                baseline = torch.tensor(baseline, device=input.device, dtype=input.dtype)
+    def _check_batch_size(self, current_batch_sizes: Tuple[int, ...]) -> bool:
+        """Check if batch sizes changed and need param store cleared"""
+        if self.last_batch_sizes is None:
+            self.last_batch_sizes = current_batch_sizes
+            return False
             
-            # Expand baseline to match input shape if needed
-            if baseline.shape != input.shape:
-                baseline = baseline.expand_as(input)
-                
-            # Get input shape and batch size
-            batch_size = input.shape[0]
-            feature_dims = input.shape[1:]
+        if self.last_batch_sizes != current_batch_sizes:
+            sizes_str = ", ".join(
+                f"tensor_{i}: {old} -> {new}" 
+                for i, (old, new) in enumerate(zip(self.last_batch_sizes, current_batch_sizes))
+            )
+            print(f"Batch sizes changed ({sizes_str}), clearing param store")
+            pyro.clear_param_store()
+            self.last_batch_sizes = current_batch_sizes
+            return True
             
-            # Create alphas [n_steps]
-            alphas = torch.linspace(0, 1, steps=n_steps, device=input.device)
-            
-            # Reshape input and baseline for broadcasting
-            input_expanded = input.unsqueeze(0)  # [1, batch_size, *feature_dims]
-            baseline_expanded = baseline.unsqueeze(0)  # [1, batch_size, *feature_dims]
-            
-            # Reshape alphas for broadcasting with input dimensions
-            alphas = alphas.view(n_steps, 1, *([1] * len(feature_dims)))  # [n_steps, 1, 1, ...]
-            
-            # Compute interpolated path
-            path = baseline_expanded + alphas * (input_expanded - baseline_expanded)  # [n_steps, batch_size, *feature_dims]
-            paths.append(path)
+        return False
 
-        return tuple(paths)
+
     def _get_approx_paths(
         self,
         inputs: Tensor,
         baselines: Tensor,
         augmentation_data: Tensor,
+        alphas: Tensor,
         n_steps: int,
         n_neighbors: int,
     ) -> Tensor:
@@ -104,262 +86,86 @@ class SVI_IG(GradientAttribution):
         # with this, or we should refactor this code to use the same methodology as Joseph's.
         pass
 
-    def potential_energy(
-        self, 
-        paths: Tuple[Tensor, ...], 
-        initial_paths: Tuple[Tensor, ...], 
-        beta: float
-    ) -> Tensor:
+    def potential_energy(self, path: Tensor, initial_paths: Tensor, beta: float) -> Tensor:
         """
-        Compute potential energy across all input tensors.
-        
         Args:
-            paths: Tuple of current path tensors
-            initial_paths: Tuple of initial path tensors
-            beta: Weight for curvature penalty
-            
+            path: Current path points [n_steps * batch_size, n_features]
+            initial_paths: Initial path points [n_steps * batch_size, n_features]
+            beta: Weight of curvature penalty
         Returns:
-            Combined potential energy scalar
+            Total potential energy (scalar)
         """
-        # Compute penalties for each tensor
-        energies = []
-        for path, init_path in zip(paths, initial_paths):
-            # Distance penalty
-            distance_penalty = torch.norm(path - init_path, p=2, dim=-1)
-            
-            # Curvature penalty
-            outputs = self.forward_func(path)
-            path_grads = torch.autograd.grad(
-                outputs,
-                path,
-                grad_outputs=torch.ones_like(outputs),
-                create_graph=True,
-                retain_graph=True,
-            )[0]
-            curvature_penalty = torch.norm(path_grads, p=2, dim=-1)
-            
-            # Combine penalties for this tensor
-            energy = distance_penalty + beta * curvature_penalty
-            energies.append(energy)
+        # Distance penalty
+        distance_penalty = torch.norm(path - initial_paths, p=2, dim=-1)
         
-        # Sum energies across all tensors
-        total_energy = sum(energies)
+        # Curvature penalty
+        outputs = self.forward_func(path)
+        path_grads = torch.autograd.grad(
+            outputs,
+            path,
+            grad_outputs=torch.ones_like(outputs),
+            create_graph=True,
+            retain_graph=True,
+        )[0]
+        curvature_penalty = torch.norm(path_grads, p=2, dim=-1)
         
-        return total_energy
+        # Sum for total energy
+        return (distance_penalty + beta * curvature_penalty).sum()
 
-    def model(
-        self, 
-        inputs: Tuple[Tensor, ...], 
-        baselines: Tuple[Union[Tensor, int, float], ...],
-        initial_paths: Tuple[Tensor, ...],
-        beta: float
-    ):
-        """Probabilistic model for path optimization that handles tuple inputs."""
-        input_tensor = inputs[0]  # Use first tensor for device/dtype
-        dtype = input_tensor.dtype
-        batch_size = input_tensor.size(0)
+    def model(self, initial_paths: Tensor, beta: float):
+        """Pyro model for sampling geodesic paths."""
+        path_mean = pyro.param("path_mean", initial_paths, constraint=dist.constraints.real)
+        path_var = pyro.param("path_var", torch.ones_like(initial_paths), constraint=dist.constraints.positive)
 
-        if self.last_batch_size is not None and self.last_batch_size != batch_size:
-            print(
-                f"Batch size changed from {self.last_batch_size} to {batch_size}, clearing param store"
-            )
-            pyro.clear_param_store()
-        self.last_batch_size = batch_size
+        # sample path from normal distribution with correct event dimensions
+        pyro.sample("path", dist.Normal(path_mean, path_var).to_event(2))
 
-        alphas = torch.linspace(
-            0, 1, steps=self.n_steps, device=input_tensor.device, dtype=dtype
-        ).view(-1, 1, 1)
+        # compute potential energy
+        potential_energy = self.potential_energy(path_mean, initial_paths, beta)
+        pyro.factor("potential_energy", potential_energy)
 
-        # Sample path deviations for each tensor
-        deltas = tuple(
-            pyro.sample(
-                f"path_delta_{i}",
-                dist.Normal(torch.zeros_like(path), 1.0).to_event(path.dim()),
-            )
-            for i, path in enumerate(initial_paths)
-        )
+    def guide(self, initial_paths: Tensor, beta: float):
+        """Pyro guide for sampling geodesic paths."""
+        path_mean = pyro.param("path_mean", initial_paths, constraint=dist.constraints.real)
+        path_var = pyro.param("path_var", torch.ones_like(initial_paths), constraint=dist.constraints.positive)
 
-        # Zero out the deviations at start and end points for each path
-        deltas = tuple(
-            delta * (1 - (alphas == 0).float()) * (1 - (alphas == 1).float())
-            for delta in deltas
-        )
+        # sample path from normal distribution with correct event dimensions
+        pyro.sample("path", dist.Normal(path_mean, path_var).to_event(2))
 
-        # The optimized paths are the initial paths plus deviations
-        paths = tuple(
-            init_path + delta
-            for init_path, delta in zip(initial_paths, deltas)
-        )
-        
-        # Enable gradients for all paths
-        for path in paths:
-            path.requires_grad_()
+        return path_mean, path_var
 
-        # Compute the potential energy of all paths
-        energy = self.potential_energy(paths, initial_paths, beta)
-
-        # Include the potential energy in the model's log probability
-        pyro.factor("energy", -energy.sum())
-
-    def guide(
-        self, 
-        inputs: Tuple[Tensor, ...], 
-        baselines: Tuple[Union[Tensor, int, float], ...],
-        initial_paths: Tuple[Tensor, ...],
-        beta: float
-    ):
-        """
-        Variational guide for SVI that handles tuple inputs.
-        """
-        input_tensor = inputs[0]  # Use first tensor for device/dtype
-        dtype = input_tensor.dtype
-        batch_size = input_tensor.shape[0]
-
-        if hasattr(self, "last_batch_size") and self.last_batch_size != batch_size:
-            pyro.clear_param_store()
-        self.last_batch_size = batch_size
-
-        alphas = torch.linspace(
-            0, 1, steps=self.n_steps, device=input_tensor.device, dtype=dtype
-        ).view(-1, 1, 1)
-
-        # Initialize parameters for each tensor in the tuple
-        delta_locs = tuple(
-            pyro.param(f"delta_loc_{i}", lambda: torch.zeros_like(path))
-            for i, path in enumerate(initial_paths)
-        )
-
-        # Zero out the location parameters at start and end points for each tensor
-        delta_locs = tuple(
-            loc * (1 - (alphas == 0).float()) * (1 - (alphas == 1).float())
-            for loc in delta_locs
-        )
-
-        # Initialize scale parameters for each tensor
-        delta_scales = tuple(
-            pyro.param(
-                f"delta_scale_{i}",
-                lambda: 0.1 * torch.ones_like(path),
-                constraint=dist.constraints.positive,
-            )
-            for i, path in enumerate(initial_paths)
-        )
-
-        # Handle endpoints for scales
-        endpoint_mask = (1 - (alphas == 0).float()) * (1 - (alphas == 1).float())
-        delta_scales = tuple(
-            scale * endpoint_mask + 1e-6 * (1 - endpoint_mask)
-            for scale in delta_scales
-        )
-
-        # Sample path deltas for each tensor
-        for i, (loc, scale, path) in enumerate(zip(delta_locs, delta_scales, initial_paths)):
-            pyro.sample(
-                f"path_delta_{i}",
-                dist.Normal(loc, scale).to_event(path.dim()),
-            )
 
     def _optimize_paths(
         self,
-        inputs: Tuple[Tensor, ...],
-        baselines: Tuple[Union[Tensor, int, float], ...],
-        augmentation_data: Optional[Tensor] = None,
-        n_neighbors: Optional[int] = None,
-        beta: float = 0.3,
+        initial_paths: Tensor,
+        beta_decay_rate: float, 
+        current_beta: float = 0.3,
         num_iterations: int = 1000,
         lr: float = 1e-2,
-    ) -> Tuple[Tensor, ...]:
-        """
-        Optimize paths between inputs and baselines using SVI.
+    ) -> Tensor:
+        """Optimize paths between inputs and baselines using SVI."""
         
-        Args:
-            inputs: Tuple of input tensors
-            baselines: Tuple of baseline tensors or values
-            augmentation_data: Optional tensor for path augmentation
-            n_neighbors: Number of neighbors for augmented paths
-            beta: Weight for curvature penalty
-            num_iterations: Number of optimization iterations
-            lr: Learning rate
-            
-        Returns:
-            Tuple of optimized path tensors
-        """
-        if augmentation_data is not None:
-            initial_paths = tuple(
-                self._get_approx_paths(
-                    input_tensor,
-                    baseline_tensor,
-                    augmentation_data,
-                    self.n_steps,
-                    n_neighbors,
-                )
-                for input_tensor, baseline_tensor in zip(inputs, baselines)
-            )
-            beta = 1 / beta if beta > 1 else beta
-            current_beta = beta * 10
-            decay_rate = (current_beta * beta) ** (1 / num_iterations)
-        else:
-            initial_paths = self._get_straight_line(inputs, baselines, self.n_steps)
-            current_beta = beta
-            decay_rate = 1
-
+        # Setup optimizer and inference
         optimizer = Adam({"lr": lr})
-        svi = SVI(
-            lambda inputs, baselines, initial_paths, beta: self.model(
-                inputs, baselines, initial_paths, beta
-            ),
-            lambda inputs, baselines, initial_paths, beta: self.guide(
-                inputs, baselines, initial_paths, beta
-            ),
-            optimizer,
-            loss=Trace_ELBO(),
-        )
-
-        for i in range(num_iterations):
-            current_beta *= decay_rate
-            loss = svi.step(inputs, baselines, initial_paths, current_beta)
-
-            if i % 100 == 0:
-                print(f"Iteration {i} - Loss: {loss} - Beta: {current_beta}")
-
-        # Get deltas for each tensor in the tuple
-        try:
-            delta_opts = tuple(
-                pyro.param(f"delta_loc_{i}").detach()
-                for i in range(len(inputs))
-            )
-        except KeyError as e:
-            raise KeyError(
-                f"Could not find parameter {e}. Available parameters: {list(pyro.get_param_store().keys())}"
-            )
-
-        optimized_paths = tuple(
-            init_path + delta
-            for init_path, delta in zip(initial_paths, delta_opts)
-        )
-
-        # Verification code remains the same
-        rtol = 1e-4
-        atol = 1e-4
+        svi = SVI(self.model, self.guide, optimizer, loss=Trace_ELBO())
         
-        for path, input_tensor, baseline_tensor in zip(optimized_paths, inputs, baselines):
-            if not torch.allclose(path[-1], input_tensor, rtol=rtol, atol=atol):
-                max_diff = (path[-1] - input_tensor).abs().max()
-                mean_diff = (path[-1] - input_tensor).abs().mean()
-                print(f"Maximum difference: {max_diff}")
-                print(f"Mean difference: {mean_diff}")
-                print(f"Shape of input_tensor: {input_tensor.shape}")
-                print(f"Shape of optimized_path: {path.shape}")
+        # Run optimization with decaying beta
+        beta = current_beta
+        for step in range(num_iterations):
+            # Optimize
+            loss = svi.step(initial_paths, beta)
+            beta *= beta_decay_rate
+            
+            if step % 100 == 0:
+                print(f"Step {step}: loss = {loss:.3f}, beta = {beta:.3f}")
                 
-            assert torch.allclose(
-                path[0], baseline_tensor, rtol=rtol, atol=atol
-            ), "Path doesn't start at baseline"
-            assert torch.allclose(
-                path[-1], input_tensor, rtol=rtol, atol=atol
-            ), "Path doesn't end at input"
-
+        # Sample optimized paths
+        with torch.no_grad():
+            # Use guide to get mean of learned path distribution
+            optimized_paths = self.guide(initial_paths, beta)[0] 
+            
         return optimized_paths
-
+    
     @log_usage()
     def attribute(
         self,
@@ -431,60 +237,181 @@ class SVI_IG(GradientAttribution):
         additional_forward_args: Optional[object] = None,
         n_steps: int = 50,
         n_neighbors: int = 20,
-        method: str = "gausslegendre",
+        method: Union[None, str] = None,
         step_sizes_and_alphas: Union[None, Tuple[List[float], List[float]]] = None,
         num_iterations: int = 1000,
         beta: float = 0.3,
         learning_rate: float = 0.01,
     ) -> Tuple[Tensor, ...]:
+        
         if step_sizes_and_alphas is None:
             step_sizes_func, alphas_func = approximation_parameters(method)
             step_sizes, alphas = step_sizes_func(n_steps), alphas_func(n_steps)
         else:
             step_sizes, alphas = step_sizes_and_alphas
 
-        optimized_paths = self._optimize_paths(
-            inputs,
-            baselines,
-            augmentation_data,
-            n_neighbors,
-            beta,
-            num_iterations,
-            lr=learning_rate,
+        straight_line_tuple = tuple(
+            torch.cat(
+                [baseline + alpha * (input - baseline) for alpha in alphas], dim=0
+            ).requires_grad_()
+            for input, baseline in zip(inputs, baselines)
+        ) # straight line between input and baseline. Dim of each tensor in tuple: [n_steps * batch_size, n_features]
+
+        if augmentation_data is not None:
+            initial_paths = self._get_approx_paths(
+                    inputs,
+                    baselines,
+                    augmentation_data,
+                    alphas,
+                    self.n_steps,
+                    n_neighbors,  
+                )
+            
+            beta = 1 / beta if beta > 1 else beta
+            current_beta = beta * 10
+            beta_decay_rate = (current_beta * beta) ** (1 / num_iterations)
+        else:
+            initial_paths = straight_line_tuple
+            current_beta = beta
+            beta_decay_rate = 1
+
+        optimized_paths = tuple(
+            self._optimize_paths(
+                init_path,
+                beta_decay_rate,
+                current_beta,
+                num_iterations,
+                lr=learning_rate
+            )
+            for init_path in initial_paths
         )
 
-        # Initialize accumulated gradients
-        accumulated_grads = tuple(torch.zeros_like(input) for input in inputs)
-        
-        # Compute and accumulate gradients along the path
-        for i, step_size in enumerate(step_sizes):
-            path_points = tuple(path[i] for path in optimized_paths)
-            for point in path_points:
-                point.requires_grad_()
 
-            grads = self.gradient_func(
-                forward_fn=self.forward_func,
-                inputs=path_points,
-                target_ind=target,
-                additional_forward_args=additional_forward_args,
+        additional_forward_args = _format_additional_forward_args(
+            additional_forward_args
+        )
+        # apply number of steps to additional forward args
+        # currently, number of steps is applied only to additional forward arguments
+        # that are nd-tensors. It is assumed that the first dimension is
+        # the number of batches.
+        # dim -> (bsz * #steps x additional_forward_args[0].shape[1:], ...)
+        input_additional_args = (
+            _expand_additional_forward_args(additional_forward_args, n_steps)
+            if additional_forward_args is not None
+            else None
+        )
+        expanded_target = _expand_target(target, n_steps)
+
+        # grads: dim -> (bsz * #steps x inputs[0].shape[1:], ...)
+        grads = self.gradient_func(
+            forward_fn=self.forward_func,
+            inputs=optimized_paths,
+            target_ind=expanded_target,
+            additional_forward_args=input_additional_args,
+        )
+
+        # flattening grads so that we can multilpy it with step-size
+        # calling contiguous to avoid `memory whole` problems
+        scaled_grads = [
+            grad.contiguous().view(n_steps, -1)
+            * torch.tensor(step_sizes).view(n_steps, 1).to(grad.device)
+            for grad in grads
+        ]
+
+        # aggregates across all steps for each tensor in the input tuple
+        # total_grads has the same dimensionality as inputs
+        total_grads = tuple(
+            _reshape_and_sum(
+                scaled_grad, n_steps, grad.shape[0] // n_steps, grad.shape[1:]
             )
+            for (scaled_grad, grad) in zip(scaled_grads, grads)
+        )
 
-            # Accumulate scaled gradients
-            accumulated_grads = tuple(
-                acc_grad + grad * step_size 
-                for acc_grad, grad in zip(accumulated_grads, grads)
-            )
-
-            for point in path_points:
-                point.requires_grad_(False)
-
-        # Compute final attributions
-        if self._multiply_by_inputs:
-            attributions = tuple(
-                acc_grad * (input - baseline)
-                for acc_grad, input, baseline in zip(accumulated_grads, inputs, baselines)
-            )
+        # computes attribution for each tensor in input tuple
+        # attributions has the same dimensionality as inputs
+        if not self.multiplies_by_inputs:
+            attributions = total_grads
         else:
-            attributions = accumulated_grads
-
+            attributions = tuple(
+                total_grad * (input - baseline)
+                for total_grad, input, baseline in zip(total_grads, inputs, baselines)
+            )
         return attributions, optimized_paths
+
+    
+    def _batch_attribution(
+        self,
+        attr_method,
+        num_examples,
+        internal_batch_size,
+        n_steps,
+        include_endpoint=False,
+        **kwargs,
+    ):
+        """
+        This method applies internal batching to given attribution method, dividing
+        the total steps into batches and running each independently and sequentially,
+        adding each result to compute the total attribution.
+
+        Step sizes and alphas are spliced for each batch and passed explicitly for each
+        call to _attribute.
+
+        kwargs include all argument necessary to pass to each attribute call, except
+        for n_steps, which is computed based on the number of steps for the batch.
+
+        include_endpoint ensures that one step overlaps between each batch, which
+        is necessary for some methods, particularly LayerConductance.
+        """
+        if internal_batch_size < num_examples:
+            warnings.warn(
+                "Internal batch size cannot be less than the number of input examples. "
+                "Defaulting to internal batch size of %d equal to the number of examples."
+                % num_examples
+            )
+        # Number of steps for each batch
+        step_count = max(1, internal_batch_size // num_examples)
+        if include_endpoint:
+            if step_count < 2:
+                step_count = 2
+                warnings.warn(
+                    "This method computes finite differences between evaluations at "
+                    "consecutive steps, so internal batch size must be at least twice "
+                    "the number of examples. Defaulting to internal batch size of %d"
+                    " equal to twice the number of examples." % (2 * num_examples)
+                )
+
+        total_attr = None
+        cumulative_steps = 0
+        step_sizes_func, alphas_func = approximation_parameters(kwargs["method"])
+        full_step_sizes = step_sizes_func(n_steps)
+        full_alphas = alphas_func(n_steps)
+
+        while cumulative_steps < n_steps:
+            start_step = cumulative_steps
+            end_step = min(start_step + step_count, n_steps)
+            batch_steps = end_step - start_step
+
+            if include_endpoint:
+                batch_steps -= 1
+
+            step_sizes = full_step_sizes[start_step:end_step]
+            alphas = full_alphas[start_step:end_step]
+            current_attr, current_paths= attr_method._attribute(
+                **kwargs, n_steps=batch_steps, step_sizes_and_alphas=(step_sizes, alphas)
+            )
+
+            if total_attr is None:
+                total_attr = current_attr
+            else:
+                if isinstance(total_attr, Tensor):
+                    total_attr = total_attr + current_attr.detach()
+                else:
+                    total_attr = tuple(
+                        current.detach() + prev_total
+                        for current, prev_total in zip(current_attr, total_attr)
+                    )
+            if include_endpoint and end_step < n_steps:
+                cumulative_steps = end_step - 1
+            else:
+                cumulative_steps = end_step
+        return total_attr
