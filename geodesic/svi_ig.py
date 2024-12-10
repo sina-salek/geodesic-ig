@@ -95,10 +95,10 @@ class SVI_IG(GradientAttribution):
         Returns:
             Total potential energy (scalar)
         """
-        # Distance penalty
+        # distance penalty
         distance_penalty = torch.norm(path - initial_paths, p=2, dim=-1)
         
-        # Curvature penalty
+        # curvature penalty
         outputs = self.forward_func(path)
         path_grads = torch.autograd.grad(
             outputs,
@@ -109,8 +109,30 @@ class SVI_IG(GradientAttribution):
         )[0]
         curvature_penalty = torch.norm(path_grads, p=2, dim=-1)
         
-        # Sum for total energy
-        return (distance_penalty + beta * curvature_penalty).sum()
+        # New endpoint connectivity penalty
+        batch_size = path.shape[0] // self.n_steps
+        path_reshaped = path.view(self.n_steps, batch_size, -1)
+        initial_reshaped = initial_paths.view(self.n_steps, batch_size, -1)
+        
+        # Get actual and desired endpoints
+        start_points = path_reshaped[0]
+        end_points = path_reshaped[-1]
+        target_starts = initial_reshaped[0]
+        target_ends = initial_reshaped[-1]
+        
+        # Compute endpoint penalties that scale with beta
+        endpoint_penalty = (torch.norm(start_points - target_starts, p=2, dim=-1) + 
+                        torch.norm(end_points - target_ends, p=2, dim=-1))
+        
+        # Reshape endpoint penalty to match batch size
+        endpoint_penalty = endpoint_penalty.view(batch_size, -1)
+        
+        # Combine all penalties
+        total_penalty = (distance_penalty + 
+                        beta * curvature_penalty + 
+                        beta * 10.0 * endpoint_penalty).sum()
+        
+        return total_penalty
 
     def model(self, initial_paths: Tensor, beta: float):
         """Model samples path deviations without reshaping."""
