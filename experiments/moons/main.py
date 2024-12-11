@@ -194,9 +194,7 @@ def main(
                         beta=beta,
                         num_iterations=num_iterations,
                         learning_rate=learning_rate,
-                        method='riemann_trapezoid',
                         return_paths=True,
-                        # internal_batch_size=200,
                     )
                     if gig_path is not None:
                         gig_path = gig_path[0] 
@@ -240,7 +238,7 @@ def main(
                 x_test,
                 baselines=baselines,
                 target=y_test,
-                # internal_batch_size=200,
+                internal_batch_size=200,
             )
 
         if "smooth_grad" in explainers:
@@ -372,7 +370,7 @@ def parse_args():
     parser.add_argument(
         "--n-samples",
         type=int,
-        default=1000,
+        default=10000,
         help="Number of samples in the dataset.",
     )
     parser.add_argument(
@@ -408,7 +406,7 @@ def parse_args():
     parser.add_argument(
         "--beta",
         type=float,
-        default=100,
+        default=1,
         help="Beta parameter for the potential energy. Used in the SVI-IG.",
     )
     parser.add_argument(
