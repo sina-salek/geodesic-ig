@@ -7,28 +7,20 @@ from torch.nn import Linear, Sequential, BatchNorm1d, ReLU, Dropout
 from torch_geometric.nn import GINConv, GINEConv
 from torch_geometric.nn import global_add_pool
 
-torch.manual_seed(0)
+seed = 0
+torch.manual_seed(seed)
 
 current_path = os.path.dirname(os.path.realpath(__file__))
 data_path = os.path.join(current_path, "..", "data", "proteins")
-dataset = TUDataset(root=data_path, name="PROTEINS").shuffle()
+dataset = TUDataset(root=data_path, name="PROTEINS")
 
-train_dataset = dataset[: int(len(dataset) * 0.8)]
-val_dataset = dataset[int(len(dataset) * 0.8) : int(len(dataset) * 0.9)]
-test_dataset = dataset[int(len(dataset) * 0.9) :]
-
-
-train_loader = DataLoader(train_dataset, batch_size=64, shuffle=True)
-val_loader = DataLoader(val_dataset, batch_size=64, shuffle=True)
-test_loader = DataLoader(test_dataset, batch_size=64, shuffle=True)
-
+graph_idx = 0
 print(f"Dataset: {dataset}")
 print("-----------------------")
 print(f"Number of graphs: {len(dataset)}")
-print(f"Number of nodes: {dataset[0].x.shape[0]}")
+print(f"Number of nodes in graph number {graph_idx}: {dataset[graph_idx].x.shape[0]}")
 print(f"Number of features: {dataset.num_features}")
 print(f"Number of classes: {dataset.num_classes}")
-
 
 class GIN(torch.nn.Module):
     def __init__(self, dim_h):
@@ -158,11 +150,27 @@ gin = GIN(dim_h=32)
 model_path = os.path.join(current_path, "weights")
 if not os.path.exists(model_path):
     os.makedirs(model_path)
+
+
 if len(os.listdir(model_path)) == 0:
-   gin = train(gin, train_loader)
-   torch.save(gin.state_dict(), os.path.join(model_path, "gin.pth"))
+    dataset = dataset.shuffle()
+    train_dataset = dataset[: int(len(dataset) * 0.8)]
+    val_dataset = dataset[int(len(dataset) * 0.8) : int(len(dataset) * 0.9)]
+    test_dataset = dataset[int(len(dataset) * 0.9) :]
+
+
+    train_loader = DataLoader(train_dataset, batch_size=64)
+    val_loader = DataLoader(val_dataset, batch_size=64)
+    test_loader = DataLoader(test_dataset, batch_size=64)
+    gin = train(gin, train_loader)
+    torch.save(gin.state_dict(), os.path.join(model_path, "gin.pth"))
+
+    torch.save(train_loader, os.path.join(model_path, "train_loader.pth"))
+    torch.save(val_loader, os.path.join(model_path, "val_loader.pth"))
+    torch.save(test_loader, os.path.join(model_path, "test_loader.pth"))
 else:
-   gin.load_state_dict(torch.load(os.path.join(model_path, "gin.pth"))) 
+    gin.load_state_dict(torch.load(os.path.join(model_path, "gin.pth"))) 
+    test_loader = torch.load(os.path.join(model_path, "test_loader.pth"))
 
 test_loss, test_acc, test_f1 = test(gin, test_loader)
 print(
@@ -188,7 +196,7 @@ if PLOTTING:
       G = to_networkx(dataset[i], to_undirected=True)
       nx.draw_networkx(
          G,
-         pos=nx.spring_layout(G, seed=0),
+         pos=nx.spring_layout(G, seed=seed),
          with_labels=False,
          node_size=10,
          node_color=color,
@@ -205,19 +213,17 @@ from torch_geometric.explain import Explanation
 from geodesic.svi_ig import SVI_IG
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-data = next(iter(test_loader)).to(device)
 
-node_idx = 0
+
+data = dataset[graph_idx].to(device)
+
+# explore the role of node index. Node classification vs graph classification
+node_idx = None
 mask_type = "node_and_edge"
 
 captum_model = to_captum_model(gin, mask_type=mask_type, output_idx=node_idx)
 inputs, additional_forward_args = to_captum_input(data.x, data.edge_index, mask_type)
 additional_forward_args = (*additional_forward_args, data.batch)
-
-data_x_baseline = torch.zeros(data.x.shape, device=device)
-data_edge_baseline = torch.zeros(data.edge_index.shape, device=device)
-baseline, _ = to_captum_input(data_x_baseline, data_edge_baseline, mask_type)
-
 
 # ig = IntegratedGradients(captum_model)
 ig = SVI_IG(captum_model)
@@ -231,13 +237,16 @@ ig_attr = ig.attribute(
     additional_forward_args=additional_forward_args,
     internal_batch_size=1,
     n_steps=100,
+    # svi_ig parameters
+    beta = 1.0,
+    num_iterations=1000,
+    learning_rate=0.01,
 )
 
 
 # Extract attributions
 node_mask = ig_attr[0].squeeze().detach()  # Node attributions
 edge_mask = ig_attr[1].squeeze().detach()  # Edge attributions
-
 
 
 # Create explanation object
