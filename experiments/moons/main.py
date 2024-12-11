@@ -195,7 +195,8 @@ def main(
                         num_iterations=num_iterations,
                         learning_rate=learning_rate,
                         method='riemann_trapezoid',
-                        internal_batch_size=200,
+                        return_paths=True,
+                        # internal_batch_size=200,
                     )
                     if gig_path is not None:
                         gig_path = gig_path[0] 
