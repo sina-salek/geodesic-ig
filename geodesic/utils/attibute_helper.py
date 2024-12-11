@@ -4,7 +4,10 @@ import torch
 from captum.attr._utils.common import _format_input_baseline, _validate_input
 from captum._utils.common import _is_tuple
 
-def data_and_params_validator(inputs, baselines, n_steps, method, distance, additional_forward_args=None):
+
+def data_and_params_validator(
+    inputs, baselines, n_steps, method, distance, additional_forward_args=None
+):
     # Keeps track whether original input is a tuple or not before
     # converting it into a tuple.
     is_inputs_tuple = _is_tuple(inputs)

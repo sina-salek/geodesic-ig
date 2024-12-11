@@ -28,6 +28,17 @@ from geodesic.models.net import Net
 cm_bright = ListedColormap(["#FF0000", "#0000FF"])
 warnings.filterwarnings("ignore")
 
+current_path = os.path.dirname(os.path.realpath(__file__))
+model_path = os.path.join(current_path, "weights")
+data_path = os.path.join(current_path, "data")
+figure_path = os.path.join(current_path, "figures")
+
+if not os.path.exists(model_path):
+    os.makedirs(model_path)
+if not os.path.exists(data_path):
+    os.makedirs(data_path)
+if not os.path.exists(figure_path):
+    os.makedirs(figure_path)
 
 def main(
     explainers: List[str],
@@ -57,40 +68,11 @@ def main(
 
     # Loop over noises
     for noise in noises:
-        # Create dataset
-        x, y = make_moons(n_samples=n_samples, noise=noise, random_state=seed)
-        x_train, x_test, y_train, y_test = train_test_split(
-            x, y, random_state=seed
-        )
-
-        # Convert to tensors
-        x_train = th.from_numpy(x_train).float()
-        x_test = th.from_numpy(x_test).float()
-        y_train = th.from_numpy(y_train).long()
-        y_test = th.from_numpy(y_test).long()
-
-        # Create dataset and batchify
-        train = TensorDataset(x_train, y_train)
-        test = TensorDataset(x_test, y_test)
-
-        train_loader = DataLoader(train, batch_size=32, shuffle=True)
-        test_loader = DataLoader(test, batch_size=32, shuffle=False)
-
         # Create model
         net = Net(
             MLP(units=[2, 10, 10, 2], activation_final="log_softmax"),
             loss="nll",
         )
-
-        # Fit model
-        trainer = Trainer(
-            max_epochs=50,
-            accelerator=accelerator,
-            devices=device_id,
-            deterministic=deterministic,
-        )
-        trainer.fit(net, train_loader)
-
         if softplus:
             _net = Net(
                 MLP(
@@ -103,21 +85,71 @@ def main(
             _net.load_state_dict(net.state_dict())
             net = _net
 
-        # Set model to eval
-        net.eval()
+        if len(os.listdir(model_path)) == 0:
+            # Create dataset
+            x, y = make_moons(n_samples=n_samples, noise=noise, random_state=seed)
+            x_train, x_test, y_train, y_test = train_test_split(x, y, random_state=seed)
 
-        # Set model to device
-        net.to(device)
+            # Convert to tensors
+            x_train = th.from_numpy(x_train).float()
+            x_test = th.from_numpy(x_test).float()
+            y_train = th.from_numpy(y_train).long()
+            y_test = th.from_numpy(y_test).long()
 
-        # Disable cudnn if using cuda accelerator.
-        # Please see https://captum.ai/docs/faq#how-can-i-resolve-cudnn-rnn-backward-error-for-rnn-or-lstm-network
-        # for more information.
-        if accelerator == "cuda":
-            th.backends.cudnn.enabled = False
+            # Create dataset and batchify
+            train = TensorDataset(x_train, y_train)
+            test = TensorDataset(x_test, y_test)
 
-        # Set data to device
-        x_test = x_test.to(device)
-        y_test = y_test.to(device)
+            train_loader = DataLoader(train, batch_size=32, shuffle=True)
+            test_loader = DataLoader(test, batch_size=32, shuffle=False)
+
+            
+            # Fit model
+            trainer = Trainer(
+                max_epochs=50,
+                accelerator=accelerator,
+                devices=device_id,
+                deterministic=deterministic,
+            )
+            trainer.fit(net, train_loader)
+            
+            # Save model
+            th.save(net.state_dict(), os.path.join(model_path, "net.pth"))
+            # save data
+            th.save(x_train, os.path.join(data_path, "x_train.pth"))
+            th.save(x_test, os.path.join(data_path, "x_test.pth"))
+
+            th.save(y_train, os.path.join(data_path, "y_train.pth"))
+            th.save(y_test, os.path.join(data_path, "y_test.pth"))
+            # save data loader
+            th.save(test_loader, os.path.join(data_path, "test_loader.pth"))
+
+            th.save(trainer, os.path.join(model_path, "trainer.pth"))
+
+        else:
+            
+            net.load_state_dict(th.load(os.path.join(model_path, "net.pth")))
+            x_test = th.load(os.path.join(data_path, "x_test.pth"))
+            y_test = th.load(os.path.join(data_path, "y_test.pth"))
+            test_loader = th.load(os.path.join(data_path, "test_loader.pth"))
+            trainer = th.load(os.path.join(model_path, "trainer.pth"))
+
+
+            # Set model to eval
+            net.eval()
+
+            # Set model to device
+            net.to(device)
+
+            # Disable cudnn if using cuda accelerator.
+            # Please see https://captum.ai/docs/faq#how-can-i-resolve-cudnn-rnn-backward-error-for-rnn-or-lstm-network
+            # for more information.
+            if accelerator == "cuda":
+                th.backends.cudnn.enabled = False
+
+            # Set data to device
+            x_test = x_test.to(device)
+            y_test = y_test.to(device)
 
         # Get predictions
         pred = trainer.predict(net, test_loader)
@@ -126,42 +158,6 @@ def main(
         acc = (th.cat(pred).argmax(-1) == y_test).float().mean()
         print("acc: ", acc)
 
-        # If acc lower than .9, continue
-        if acc < 0.91:
-            print("Accuracy too low, skipping...")
-            continue
-
-        # Create dir to save figures
-        with lock:
-            path = f"figures/{'softplus' if softplus else 'relu'}/{str(seed)}"
-            os.makedirs(path, exist_ok=True)
-
-            # Set ticks size
-            plt.rc("xtick", labelsize=20)
-            plt.rc("ytick", labelsize=20)
-
-            # Save plots of true values and predictions
-            scatter = plt.scatter(
-                x_test[:, 0].cpu(),
-                x_test[:, 1].cpu(),
-                c=y_test.cpu(),
-                cmap=cm_bright,
-                edgecolors="k",
-            )
-            plt.legend(*scatter.legend_elements(), fontsize=20)
-            plt.savefig(f"{path}/true_labels_{str(noise)}.pdf")
-            plt.close()
-
-            scatter = plt.scatter(
-                x_test[:, 0].cpu(),
-                x_test[:, 1].cpu(),
-                c=th.cat(pred).argmax(-1).cpu(),
-                cmap=cm_bright,
-                edgecolors="k",
-            )
-            plt.legend(*scatter.legend_elements(), fontsize=20)
-            plt.savefig(f"{path}/preds_{str(noise)}.pdf")
-            plt.close()
 
         # Create dict of attr
         attr = dict()
@@ -172,30 +168,44 @@ def main(
         baselines[:, 1] = -0.5
 
         if "geodesic_integrated_gradients" in explainers:
+            import pyro
+            # from geodesic.svi_ig_copy import SVI_IG
             for n in [5]:
                 # explainer = GeodesicIntegratedGradients(net)
+                # svi_ig = IntegratedGradients(net)
+
                 svi_ig = SVI_IG(net)
                 _attr = th.zeros_like(x_test)
-                paths = []  
+                paths = []
 
                 for target in range(2):
+
+                    pyro.clear_param_store()
+                    
                     target_mask = y_test == target
+                    predictions = net(x_test[target_mask])
                     attribution, gig_path = svi_ig.attribute(
                         x_test[target_mask],
                         baselines=baselines[target_mask],
                         # augmentation_data=x_test[target_mask], # uncomment to use augmentation data
-                        target=target,
+                        target=predictions.argmax(-1), 
                         n_steps=n_steps,
                         n_neighbors=n,
                         beta=beta,
                         num_iterations=num_iterations,
                         learning_rate=learning_rate,
+                        method='riemann_trapezoid',
+                        return_paths=True,
+                        # internal_batch_size=200,
                     )
+                    if gig_path is not None:
+                        gig_path = gig_path[0] 
+                        paths.append(gig_path)
+                    else:
+                        paths = None
                     _attr[target_mask] = attribution.float()
-                    paths.append(gig_path)
 
                 attr[f"geodesic_integrated_gradients_{str(n)}"] = (_attr, paths)
-
 
         if "enhanced_integrated_gradients" in explainers:
             for n in range(5, 20, 5):
@@ -203,10 +213,11 @@ def main(
                 _attr = th.zeros_like(x_test)
 
                 for target in range(2):
+                    predictions = net(x_test[y_test == target])
                     _attr[y_test == target] = explainer.attribute(
                         x_test[y_test == target],
                         baselines=baselines[y_test == target],
-                        target=target,
+                        target=predictions.argmax(-1),
                         n_neighbors=n,
                         internal_batch_size=200,
                         distance="euclidean",
@@ -229,7 +240,7 @@ def main(
                 x_test,
                 baselines=baselines,
                 target=y_test,
-                internal_batch_size=200,
+                # internal_batch_size=200,
             )
 
         if "smooth_grad" in explainers:
@@ -261,31 +272,55 @@ def main(
                 cbar.ax.tick_params(labelsize=20)
 
                 class_index = 0
-                if paths is not None:  # Check if we have paths to plot
-                    # paths is the optimized_paths tensor with shape [n_steps, batch, features]
-                    n_paths_to_plot = 10  # Number of paths to plot
-                    path_indices = th.randint(0, paths[class_index].shape[1], (n_paths_to_plot,))  
+                
+                if paths is not None:
+                    class_path = paths[class_index]
+                    n_paths_to_plot = 10
                     
-                    for idx in path_indices:
-                        # Extract single path: shape [n_steps, features]
-                        single_path = paths[class_index][:, idx, :].cpu().numpy()
-                        
-                        # Plot the path
-                        plt.plot(single_path[:, 0], single_path[:, 1], 
-                                linestyle='--', color='gray', marker='o', alpha=0.7)
-                        
-                        # Mark the baseline point (start of path)
-                        plt.scatter(single_path[0, 0], single_path[0, 1], 
-                                color='red', marker='x', s=100, label='Baseline')
-                        
-                        # Mark the input point (end of path)
-                        plt.scatter(single_path[-1, 0], single_path[-1, 1], 
-                                color='blue', marker='o', s=100, label='Input')
+                    # Get number of samples for this class
+                    trg_mask = y_test == class_index
+                    n_samples = x_test[trg_mask].shape[0]
+                    
+                    # Sample random indices
+                    path_indices = th.randint(0, n_samples, (n_paths_to_plot,))
 
-                handles, labels = plt.gca().get_legend_handles_labels()
-                by_label = dict(zip(labels, handles))
-                plt.legend(by_label.values(), by_label.keys())
-                plt.savefig(f"{path}/{k}_{str(noise)}.pdf")
+                    for i, idx in enumerate(path_indices):
+                        # Extract single path [n_steps, features]
+                        n_samples = x_test[trg_mask].shape[0]
+                        single_path = class_path.view(n_steps, n_samples, -1)[:, idx, :].detach().numpy()
+
+                        # Plot path
+                        plt.plot(
+                            single_path[:, 0],
+                            single_path[:, 1],
+                            linestyle="--",
+                            color="gray",
+                            marker="o",
+                            alpha=0.7,
+                        )
+
+                        # Plot endpoints
+                        baseline_label = "Baseline" if i == 0 else None
+                        input_label = "Input" if i == 0 else None
+                        
+                        plt.scatter(
+                            single_path[0, 0], 
+                            single_path[0, 1],
+                            color="red", 
+                            marker="x", 
+                            s=100,
+                            label=baseline_label
+                        )
+                        plt.scatter(
+                            single_path[-1, 0], 
+                            single_path[-1, 1],
+                            color="blue", 
+                            marker="o", 
+                            s=100,
+                            label=input_label
+                        )
+                # save figure
+                plt.savefig(os.path.join(figure_path, f"{k}_{noise}.png"))
                 plt.close()
 
         with open("results.csv", "a") as fp, lock:
@@ -315,9 +350,7 @@ def main(
                 fp.write(str(noise) + ",")
                 fp.write("softplus," if softplus else "relu,")
                 fp.write(k + ",")
-                fp.write(
-                    f"{th.cat(pred).argmax(-1)[topk_idx].float().mean():.4},"
-                )
+                fp.write(f"{th.cat(pred).argmax(-1)[topk_idx].float().mean():.4},")
                 fp.write(f"{_attr.abs().sum(-1)[y_test == 0].std():.4},")
                 fp.write(f"{_attr.abs().sum(-1)[y_test == 1].std():.4}")
                 fp.write("\n")
@@ -329,8 +362,8 @@ def parse_args():
         "--explainers",
         type=str,
         default=[
+            # "integrated_gradients",
             "geodesic_integrated_gradients",
-            "integrated_gradients",
         ],
         nargs="+",
         metavar="N",
@@ -339,7 +372,7 @@ def parse_args():
     parser.add_argument(
         "--n-samples",
         type=int,
-        default=10000,
+        default=1000,
         help="Number of samples in the dataset.",
     )
     parser.add_argument(
@@ -387,7 +420,7 @@ def parse_args():
     parser.add_argument(
         "--n-steps",
         type=int,
-        default=500,
+        default=100,
         help="Number of points generated along the geodesic path. Used in the SVI-IG.",
     )
     parser.add_argument(

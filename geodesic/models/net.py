@@ -90,9 +90,7 @@ class Net(pl.LightningModule):
         else:
             self.net = nn.Sequential()
             for i, layer in enumerate(layers):
-                self.net.add_module(
-                    f"{layer.__class__.__name__.lower()}_{i}", layer
-                )
+                self.net.add_module(f"{layer.__class__.__name__.lower()}_{i}", layer)
 
         if isinstance(loss, str):
             if loss == "soft_cross_entropy":

@@ -8,6 +8,8 @@
 docs/.DS_Store
 dist
 figures
+weights
+data
 *.csv
 
 # Pytest
@@ -23,3 +25,6 @@ lightning_logs
 
 # Latex
 out
+
+# IDE
+.vscode
