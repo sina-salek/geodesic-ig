@@ -24,6 +24,10 @@ def _batch_attribution(
     num_examples,
     internal_batch_size,
     n_steps,
+    augmentation_data,
+    beta,
+    num_iterations,
+    learning_rate,
     include_endpoint=False,
     **kwargs,
 ):
@@ -76,7 +80,7 @@ def _batch_attribution(
         step_sizes = full_step_sizes[start_step:end_step]
         alphas = full_alphas[start_step:end_step]
         current_attr, current_path = attr_method._attribute(
-            **kwargs, n_steps=batch_steps, step_sizes_and_alphas=(step_sizes, alphas)
+            **kwargs, n_steps=batch_steps, step_sizes_and_alphas=(step_sizes, alphas), augmentation_data=augmentation_data, beta=beta, num_iterations=num_iterations, learning_rate=learning_rate
         )
 
         if total_attr is None:
