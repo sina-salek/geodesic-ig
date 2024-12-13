@@ -356,6 +356,9 @@ class SVI_IG(GradientAttribution):
         )
         expanded_target = _expand_target(target, n_steps)
 
+
+        # TODO: Whilst generally works as expected, there are not many points on the high curvature regions. 
+        # Need to be interpolated, to have uniform number of points along the path.
         optimized_paths = self._optimize_paths(
                 initial_paths,
                 input_additional_args,
