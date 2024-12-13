@@ -87,8 +87,19 @@ class ModelManifoldGeodesicFlow(nn.Module):
         restoration = -0.1 * deviation  # Weak spring force
         
         return torch.cat([dev_velocity, a + restoration], dim=-1)
-
-    def integrate(self, x0, x1, n_steps=50):
+    
+    def integrate(self, x0, x1, n_steps=50, rand_scale=0.2, seed=None):
+        """
+        Args:
+            x0: Starting point
+            x1: Ending point 
+            n_steps: Number of integration steps
+            rand_scale: Scale of randomization (0.0-1.0), default 0.2
+            seed: Random seed for reproducibility
+        """
+        if seed is not None:
+            torch.manual_seed(seed)
+            
         self.x0 = x0
         self.x1 = x1
         
@@ -103,13 +114,20 @@ class ModelManifoldGeodesicFlow(nn.Module):
         eigenvals, eigenvecs = torch.linalg.eigh(G_mid)
         max_curve_dir = eigenvecs[:, -1]
         
-        # Project perpendicular to path
-        max_curve_dir = max_curve_dir - (max_curve_dir @ straight_dir) * straight_dir
-        max_curve_dir = max_curve_dir / (torch.norm(max_curve_dir) + 1e-8)
+        # Add random perturbation to direction
+        rand_dir = torch.randn_like(max_curve_dir)
+        rand_dir = rand_dir - (rand_dir @ straight_dir) * straight_dir
+        rand_dir = rand_dir / (torch.norm(rand_dir) + 1e-8)
         
-        # Initial conditions with moderate velocity
-        scale = torch.sqrt(eigenvals[-1]) * 0.1
-        velocity0 = scale * max_curve_dir
+        # Mix original and random directions
+        mixed_dir = max_curve_dir + rand_scale * rand_dir
+        mixed_dir = mixed_dir - (mixed_dir @ straight_dir) * straight_dir
+        mixed_dir = mixed_dir / (torch.norm(mixed_dir) + 1e-8)
+        
+        # Random velocity scaling
+        base_scale = torch.sqrt(eigenvals[-1]) * 0.1
+        rand_factor = 1.0 + rand_scale * (2 * torch.rand(1) - 1)
+        velocity0 = base_scale * rand_factor * mixed_dir
         deviation0 = torch.zeros_like(x0)
         
         state0 = torch.cat([deviation0, velocity0])
@@ -365,7 +383,7 @@ class OdeIG(GradientAttribution):
                 additional_forward_args=additional_forward_args,
                 target=target,
             )
-            # return _format_output(is_inputs_tuple, attributions), delta
+
         returned_variables = []
         returned_variables.append(formatted_outputs)
         if return_paths:
