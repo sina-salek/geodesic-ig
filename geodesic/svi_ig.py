@@ -101,42 +101,10 @@ class SVI_IG(GradientAttribution):
             torch.norm(path_grads[i], p=2, dim=-1) for i in range(len(path_grads))
         )
 
-        endpoint_penalties = tuple(
-                        torch.zeros_like(distance_penalties[i]) for i in range(len(distance_penalties))
-                    )
-        
-        # TODO: It seems when there is no internal batch size, the endpoint penalties are needed to make sure the paths are close to what's needed when beta has high value.
-        # Generally, the solution shouldn't need this, as the parameters should be set such that the curvature avoidance and closeness to straight line should be enough for
-        #  geodesic estimation. But in practice, finding good parameters seems to be hard. In the long run a major change might be needed to make the solution more robust.
-        if self.internal_batch_size is None:
-            # Get batch sizes and reshape paths
-            batch_sizes = tuple(p.shape[0] // self.n_steps for p in path)
-            
-            path_reshaped = tuple(
-                p.view(self.n_steps, bs, -1) 
-                for p, bs in zip(path, batch_sizes)
-            )
-            
-            initial_reshaped = tuple(
-                p.view(self.n_steps, bs, -1)
-                for p, bs in zip(initial_paths, batch_sizes)
-            )
-
-            # Extract endpoints
-            start_points = tuple(p[0] for p in path_reshaped)
-            end_points = tuple(p[-1] for p in path_reshaped)
-            target_starts = tuple(p[0] for p in initial_reshaped)
-            target_ends = tuple(p[-1] for p in initial_reshaped)
-
-            # Calculate endpoint penalties
-            endpoint_penalties = tuple(
-                (torch.norm(s - ts, p=2, dim=-1) + torch.norm(e - te, p=2, dim=-1)).view(bs, -1)
-                for s, e, ts, te, bs in zip(start_points, end_points, target_starts, target_ends, batch_sizes)
-            )
                         
         total_penalty = sum(
             (
-                distance_penalties[i] + beta * curvature_penalties[i]+ beta * 10.0 * endpoint_penalties[i]
+                distance_penalties[i] - beta * curvature_penalties[i]
             ).sum() 
             for i in range(len(distance_penalties))
         )
@@ -317,7 +285,7 @@ class SVI_IG(GradientAttribution):
                 additional_forward_args=additional_forward_args,
                 target=target,
             )
-            # return _format_output(is_inputs_tuple, attributions), delta
+
         returned_variables = []
         returned_variables.append(formatted_outputs)
         if return_paths:
