@@ -33,6 +33,8 @@ from tqdm import tqdm
 
 
 class ModelManifoldGeodesicFlow(nn.Module):
+    # TODO: need to experiment with curvature-aware restoration force
+    # as well as better momentum control depending on gradient of metric tensor
     def __init__(self, forward_func):
         super().__init__()
         self.forward_func = forward_func
@@ -50,7 +52,7 @@ class ModelManifoldGeodesicFlow(nn.Module):
                 ]
                 Js.append(J_i)
             J = torch.stack(Js)
-            # Add larger regularization
+            # Add small identity matrix to ensure positive definiteness
             G = J.T @ J + 1e-4 * torch.eye(J.shape[-1], device=x.device)
         return G
 
@@ -83,7 +85,7 @@ class ModelManifoldGeodesicFlow(nn.Module):
         a = a / (torch.norm(dev_velocity) + 1e-6)
 
         # Add restoration force towards straight line
-        restoration = -0.1 * deviation  # Weak spring force
+        restoration = -0.1 * deviation 
 
         return torch.cat([dev_velocity, a + restoration], dim=-1)
 
@@ -166,6 +168,9 @@ class OdeIG(GradientAttribution):
 
         flow = ModelManifoldGeodesicFlow(self.forward_func)
 
+        # TODO: The way we get baseline and input is a bit idiosyncratic. It's a 
+        # remnant of the svi implementation where we needed to start with a straight line.
+        # I borrowed code from that to quickly implement this. But need to tidy up in the next iteration.
         # Process each tensor in tuple
         optimized_paths = []
         for tensor in initial_paths:
