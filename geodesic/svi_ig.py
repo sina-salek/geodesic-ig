@@ -68,12 +68,13 @@ class SVI_IG(GradientAttribution):
         # TODO: Use Joseph's implementation of the KNN/A* to get the shortest path with augmentation data.
         pass
 
-    def potential_energy(self, 
-                         path: Tuple[Tensor, ...], 
-                         initial_paths: Tuple[Tensor, ...], 
-                         beta: float,
-                         input_additional_args: Tuple[Tensor, ...]
-        ) -> Tensor:
+    def potential_energy(
+        self,
+        path: Tuple[Tensor, ...],
+        initial_paths: Tuple[Tensor, ...],
+        beta: float,
+        input_additional_args: Tuple[Tensor, ...],
+    ) -> Tensor:
         """
         Args:
             path: Current path points [n_steps * batch_size, n_features]
@@ -84,93 +85,72 @@ class SVI_IG(GradientAttribution):
         """
         # distance penalty
         distance_penalties = tuple(
-            torch.norm(path[i] - initial_paths[i], p=2, dim=-1) for i in range(len(path))
+            torch.norm(path[i] - initial_paths[i], p=2, dim=-1)
+            for i in range(len(path))
         )
-        
+
         # curvature penalty
         with torch.autograd.set_grad_enabled(True):
-            outputs = _run_forward(self.forward_func, path, additional_forward_args=input_additional_args)
+            outputs = _run_forward(
+                self.forward_func, path, additional_forward_args=input_additional_args
+            )
             path_grads = torch.autograd.grad(
                 outputs,
                 path,
                 grad_outputs=torch.ones_like(outputs),
                 create_graph=True,
-                retain_graph=True
+                retain_graph=True,
             )
         curvature_penalties = tuple(
             torch.norm(path_grads[i], p=2, dim=-1) for i in range(len(path_grads))
         )
 
-        endpoint_penalties = tuple(
-                        torch.zeros_like(distance_penalties[i]) for i in range(len(distance_penalties))
-                    )
-        
-        # TODO: It seems when there is no internal batch size, the endpoint penalties are needed to make sure the paths are close to what's needed when beta has high value.
-        # Generally, the solution shouldn't need this, as the parameters should be set such that the curvature avoidance and closeness to straight line should be enough for
-        #  geodesic estimation. But in practice, finding good parameters seems to be hard. In the long run a major change might be needed to make the solution more robust.
-        if self.internal_batch_size is None:
-            # Get batch sizes and reshape paths
-            batch_sizes = tuple(p.shape[0] // self.n_steps for p in path)
-            
-            path_reshaped = tuple(
-                p.view(self.n_steps, bs, -1) 
-                for p, bs in zip(path, batch_sizes)
-            )
-            
-            initial_reshaped = tuple(
-                p.view(self.n_steps, bs, -1)
-                for p, bs in zip(initial_paths, batch_sizes)
-            )
-
-            # Extract endpoints
-            start_points = tuple(p[0] for p in path_reshaped)
-            end_points = tuple(p[-1] for p in path_reshaped)
-            target_starts = tuple(p[0] for p in initial_reshaped)
-            target_ends = tuple(p[-1] for p in initial_reshaped)
-
-            # Calculate endpoint penalties
-            endpoint_penalties = tuple(
-                (torch.norm(s - ts, p=2, dim=-1) + torch.norm(e - te, p=2, dim=-1)).view(bs, -1)
-                for s, e, ts, te, bs in zip(start_points, end_points, target_starts, target_ends, batch_sizes)
-            )
-                        
         total_penalty = sum(
-            (
-                distance_penalties[i] + beta * curvature_penalties[i]+ beta * 10.0 * endpoint_penalties[i]
-            ).sum() 
+            (distance_penalties[i] - beta * curvature_penalties[i]).sum()
             for i in range(len(distance_penalties))
         )
 
         return total_penalty
 
-    def model(self, initial_paths: Tuple[Tensor, ...], beta: float, input_additional_args: Tuple[Tensor, ...]):
+    def model(
+        self,
+        initial_paths: Tuple[Tensor, ...],
+        beta: float,
+        input_additional_args: Tuple[Tensor, ...],
+    ):
         """Model samples path deviations without reshaping."""
         # Sample path deviations directly
         delta_tuple = tuple(
             pyro.sample(
                 f"path_delta_{i}",
-                dist.Normal(torch.zeros_like(initial_paths[i]), 1.0).to_event(initial_paths[i].dim())
+                dist.Normal(torch.zeros_like(initial_paths[i]), 1.0).to_event(
+                    initial_paths[i].dim()
+                ),
             )
             for i in range(len(initial_paths))
         )
-        
+
         # Create path with gradients
         paths = tuple(
             (initial_paths[i] + delta_tuple[i]).requires_grad_()
             for i in range(len(initial_paths))
         )
-        
-        energy = self.potential_energy(paths, initial_paths, beta, input_additional_args)
+
+        energy = self.potential_energy(
+            paths, initial_paths, beta, input_additional_args
+        )
         pyro.factor("energy", -energy)
 
-    def guide(self, initial_paths: Tuple[Tensor, ...], beta: float, input_additional_args: Tuple[Tensor, ...]):
+    def guide(
+        self,
+        initial_paths: Tuple[Tensor, ...],
+        beta: float,
+        input_additional_args: Tuple[Tensor, ...],
+    ):
         """Guide learns optimal deviations without reshaping."""
         # Learn parameters directly in original shape
         delta_locs = tuple(
-            pyro.param(
-                f"delta_loc_{i}",
-                lambda: torch.zeros_like(initial_paths[i])
-            )
+            pyro.param(f"delta_loc_{i}", lambda: torch.zeros_like(initial_paths[i]))
             for i in range(len(initial_paths))
         )
 
@@ -178,58 +158,58 @@ class SVI_IG(GradientAttribution):
             pyro.param(
                 f"delta_scale_{i}",
                 lambda: 0.1 * torch.ones_like(initial_paths[i]),
-                constraint=dist.constraints.positive
+                constraint=dist.constraints.positive,
             )
             for i in range(len(initial_paths))
         )
-        
+
         # Sample and create path
         for i in range(len(initial_paths)):
             pyro.sample(
                 f"path_delta_{i}",
-                dist.Normal(delta_locs[i], delta_scales[i]).to_event(initial_paths[i].dim())
+                dist.Normal(delta_locs[i], delta_scales[i]).to_event(
+                    initial_paths[i].dim()
+                ),
             )
 
-        
         optimized_paths = tuple(
             (initial_paths[i] + delta_locs[i]).requires_grad_()
             for i in range(len(initial_paths))
         )
         return optimized_paths
 
-
     def _optimize_paths(
         self,
         initial_paths: Tuple[Tensor, ...],
         input_additional_args: Tuple[Tensor, ...],
-        beta_decay_rate: float, 
+        beta_decay_rate: float,
         current_beta: float = 0.3,
         num_iterations: int = 1000,
         lr: float = 1e-2,
     ) -> Tensor:
         """Optimize paths between inputs and baselines using SVI."""
-        
+
         # Setup optimizer and inference
         optimizer = Adam({"lr": lr})
         svi = SVI(self.model, self.guide, optimizer, loss=Trace_ELBO(retain_graph=True))
-        
+
         # Run optimization with decaying beta
         beta = current_beta
         for step in range(num_iterations):
             # Optimize
             loss = svi.step(initial_paths, beta, input_additional_args)
             beta *= beta_decay_rate
-            
+
             if step % 100 == 0:
                 print(f"Step {step}: loss = {loss:.3f}, beta = {beta:.3f}")
-                
+
         # Sample optimized paths
         with torch.no_grad():
             # Use guide to get mean of learned path distribution
             optimized_paths = self.guide(initial_paths, beta, input_additional_args)
-            
+
         return optimized_paths
-    
+
     @log_usage()
     def attribute(
         self,
@@ -317,14 +297,18 @@ class SVI_IG(GradientAttribution):
                 additional_forward_args=additional_forward_args,
                 target=target,
             )
-            # return _format_output(is_inputs_tuple, attributions), delta
+
         returned_variables = []
         returned_variables.append(formatted_outputs)
         if return_paths:
             returned_variables.append(paths)
         if return_convergence_delta:
             returned_variables.append(delta)
-        return tuple(returned_variables) if len(returned_variables) > 1 else formatted_outputs
+        return (
+            tuple(returned_variables)
+            if len(returned_variables) > 1
+            else formatted_outputs
+        )
 
     def _attribute(
         self,
@@ -341,7 +325,7 @@ class SVI_IG(GradientAttribution):
         beta: float = 0.3,
         learning_rate: float = 0.01,
     ) -> Tuple[Tensor, ...]:
-        
+
         if step_sizes_and_alphas is None:
             step_sizes_func, alphas_func = approximation_parameters(method)
             step_sizes, alphas = step_sizes_func(n_steps), alphas_func(n_steps)
@@ -353,18 +337,18 @@ class SVI_IG(GradientAttribution):
                 [baseline + alpha * (input - baseline) for alpha in alphas], dim=0
             ).requires_grad_()
             for input, baseline in zip(inputs, baselines)
-        ) # straight line between input and baseline. Dim of each tensor in tuple: [n_steps * batch_size, n_features]
+        )  # straight line between input and baseline. Dim of each tensor in tuple: [n_steps * batch_size, n_features]
 
         if augmentation_data is not None:
             initial_paths = self._get_approx_paths(
-                    inputs,
-                    baselines,
-                    augmentation_data,
-                    alphas,
-                    self.n_steps,
-                    n_neighbors,  
-                )
-            
+                inputs,
+                baselines,
+                augmentation_data,
+                alphas,
+                self.n_steps,
+                n_neighbors,
+            )
+
             beta = 1 / beta if beta > 1 else beta
             current_beta = beta * 10
             beta_decay_rate = (current_beta * beta) ** (1 / num_iterations)
@@ -388,14 +372,16 @@ class SVI_IG(GradientAttribution):
         )
         expanded_target = _expand_target(target, n_steps)
 
+        # TODO: Whilst generally works as expected, there are not many points on the high curvature regions.
+        # Need to be interpolated, to have uniform number of points along the path.
         optimized_paths = self._optimize_paths(
-                initial_paths,
-                input_additional_args,
-                beta_decay_rate,
-                current_beta,
-                num_iterations,
-                lr=learning_rate
-            )
+            initial_paths,
+            input_additional_args,
+            beta_decay_rate,
+            current_beta,
+            num_iterations,
+            lr=learning_rate,
+        )
 
         # grads: dim -> (bsz * #steps x inputs[0].shape[1:], ...)
         grads = self.gradient_func(
