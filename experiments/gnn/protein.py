@@ -22,6 +22,7 @@ print(f"Number of nodes in graph number {graph_idx}: {dataset[graph_idx].x.shape
 print(f"Number of features: {dataset.num_features}")
 print(f"Number of classes: {dataset.num_classes}")
 
+
 class GIN(torch.nn.Module):
     def __init__(self, dim_h):
         super(GIN, self).__init__()
@@ -158,7 +159,6 @@ if len(os.listdir(model_path)) == 0:
     val_dataset = dataset[int(len(dataset) * 0.8) : int(len(dataset) * 0.9)]
     test_dataset = dataset[int(len(dataset) * 0.9) :]
 
-
     train_loader = DataLoader(train_dataset, batch_size=64)
     val_loader = DataLoader(val_dataset, batch_size=64)
     test_loader = DataLoader(test_dataset, batch_size=64)
@@ -169,7 +169,7 @@ if len(os.listdir(model_path)) == 0:
     torch.save(val_loader, os.path.join(model_path, "val_loader.pth"))
     torch.save(test_loader, os.path.join(model_path, "test_loader.pth"))
 else:
-    gin.load_state_dict(torch.load(os.path.join(model_path, "gin.pth"))) 
+    gin.load_state_dict(torch.load(os.path.join(model_path, "gin.pth")))
     test_loader = torch.load(os.path.join(model_path, "test_loader.pth"))
 
 test_loss, test_acc, test_f1 = test(gin, test_loader)
@@ -186,25 +186,25 @@ from torch_geometric.utils import to_networkx
 PLOTTING = False
 
 if PLOTTING:
-   fig, ax = plt.subplots(4, 4)
+    fig, ax = plt.subplots(4, 4)
 
-   for i, data in enumerate(dataset[-16:]):
-      out = gin(data.x, data.edge_index, data.batch)
-      color = "green" if out.argmax(dim=1) == data.y else "red"
-      ix = np.unravel_index(i, ax.shape)
-      ax[ix].axis("off")
-      G = to_networkx(dataset[i], to_undirected=True)
-      nx.draw_networkx(
-         G,
-         pos=nx.spring_layout(G, seed=seed),
-         with_labels=False,
-         node_size=10,
-         node_color=color,
-         width=0.8,
-         ax=ax[ix],
-      )
+    for i, data in enumerate(dataset[-16:]):
+        out = gin(data.x, data.edge_index, data.batch)
+        color = "green" if out.argmax(dim=1) == data.y else "red"
+        ix = np.unravel_index(i, ax.shape)
+        ax[ix].axis("off")
+        G = to_networkx(dataset[i], to_undirected=True)
+        nx.draw_networkx(
+            G,
+            pos=nx.spring_layout(G, seed=seed),
+            with_labels=False,
+            node_size=10,
+            node_color=color,
+            width=0.8,
+            ax=ax[ix],
+        )
 
-   plt.show()
+    plt.show()
 
 
 from captum.attr import IntegratedGradients
@@ -238,7 +238,7 @@ ig_attr = ig.attribute(
     internal_batch_size=1,
     n_steps=100,
     # svi_ig parameters
-    beta = 1.0,
+    beta=1.0,
     num_iterations=1000,
     learning_rate=0.01,
 )

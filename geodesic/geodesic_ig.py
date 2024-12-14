@@ -34,6 +34,7 @@ from geodesic.utils.a_star_path import astar_path
 from geodesic.utils.common import unsqueeze_like
 from geodesic.utils.batching import _geodesic_batch_attribution
 
+
 class GeodesicIntegratedGradients(GradientAttribution):
     r"""
     Geodesic Integrated Gradients.
@@ -170,8 +171,7 @@ class GeodesicIntegratedGradients(GradientAttribution):
         distance: str = "geodesic",
         show_progress: bool = False,
         **kwargs,
-    ) -> TensorOrTupleOfTensorsGeneric:
-        ...
+    ) -> TensorOrTupleOfTensorsGeneric: ...
 
     @typing.overload
     def attribute(
@@ -191,8 +191,7 @@ class GeodesicIntegratedGradients(GradientAttribution):
         distance: str = "geodesic",
         show_progress: bool = False,
         **kwargs,
-    ) -> Tuple[TensorOrTupleOfTensorsGeneric, Tensor]:
-        ...
+    ) -> Tuple[TensorOrTupleOfTensorsGeneric, Tensor]: ...
 
     @log_usage()
     def attribute(  # type: ignore
@@ -406,9 +405,11 @@ class GeodesicIntegratedGradients(GradientAttribution):
 
         # If baseline is float or int, create a tensor
         baselines = tuple(
-            torch.ones_like(input) * baseline
-            if isinstance(baseline, (int, float))
-            else baseline
+            (
+                torch.ones_like(input) * baseline
+                if isinstance(baseline, (int, float))
+                else baseline
+            )
             for input, baseline in zip(inputs, baselines)
         )
 
@@ -457,8 +458,7 @@ class GeodesicIntegratedGradients(GradientAttribution):
             data = tuple(torch.cat([x, y]) for x, y in zip(inputs, baselines))
         else:
             data = tuple(
-                torch.cat([x, y, z])
-                for x, y, z in zip(self.data, inputs, baselines)
+                torch.cat([x, y, z]) for x, y, z in zip(self.data, inputs, baselines)
             )
 
         # Get knns
@@ -551,8 +551,7 @@ class GeodesicIntegratedGradients(GradientAttribution):
         # Compute A* paths
         if self.data is not None:
             inputs_idx = tuple(
-                range(len(x), len(x) + len(y))
-                for x, y in zip(self.data, inputs)
+                range(len(x), len(x) + len(y)) for x, y in zip(self.data, inputs)
             )
             baselines_idx = tuple(
                 range(len(x) + len(y), len(x) + 2 * len(y))
@@ -584,9 +583,9 @@ class GeodesicIntegratedGradients(GradientAttribution):
         # Get grad indexes
         grads_idx = tuple(
             [
-                torch.where((id == i) * (knn == j) + (id == j) * (knn == i))[
+                torch.where((id == i) * (knn == j) + (id == j) * (knn == i))[0][
                     0
-                ][0].item()
+                ].item()
                 for i, j in zip(path[:, 0], path[:, 1])
             ]
             for id, knn, path in zip(idx, knns, paths)
@@ -617,9 +616,7 @@ class GeodesicIntegratedGradients(GradientAttribution):
 
         # Sum over points and paths
         # and stack result
-        total_grads = tuple(
-            tuple(x.sum(0) for x in grad) for grad in total_grads
-        )
+        total_grads = tuple(tuple(x.sum(0) for x in grad) for grad in total_grads)
         total_grads = tuple(torch.stack(grad) for grad in total_grads)
 
         formatted_outputs = _format_output(is_inputs_tuple, total_grads)
@@ -647,7 +644,7 @@ class GeodesicIntegratedGradients(GradientAttribution):
                 additional_forward_args=additional_forward_args,
                 target=target,
             )
-            
+
         returned_variables = []
         returned_variables.append(formatted_outputs)
         if return_convergence_delta:
@@ -656,7 +653,11 @@ class GeodesicIntegratedGradients(GradientAttribution):
             returned_variables.append(curvature)
         if return_paths:
             returned_variables.append((paths, paths_len))
-        return tuple(returned_variables) if len(returned_variables) > 1 else formatted_outputs
+        return (
+            tuple(returned_variables)
+            if len(returned_variables) > 1
+            else formatted_outputs
+        )
 
     def _attribute(
         self,
@@ -666,9 +667,7 @@ class GeodesicIntegratedGradients(GradientAttribution):
         additional_forward_args: Any = None,
         n_steps: int = 50,
         method: str = "gausslegendre",
-        step_sizes_and_alphas: Union[
-            None, Tuple[List[float], List[float]]
-        ] = None,
+        step_sizes_and_alphas: Union[None, Tuple[List[float], List[float]]] = None,
     ) -> (Tuple[Tensor, ...], Tuple[Tensor, ...]):
         if step_sizes_and_alphas is None:
             # retrieve step size and scaling factor for specified
@@ -721,9 +720,7 @@ class GeodesicIntegratedGradients(GradientAttribution):
 
         # Reshape scaled_grads
         scaled_grads = tuple(
-            scaled_grad.reshape(
-                (n_steps, grad.shape[0] // n_steps) + grad.shape[1:]
-            )
+            scaled_grad.reshape((n_steps, grad.shape[0] // n_steps) + grad.shape[1:])
             for scaled_grad, grad in zip(scaled_grads, grads)
         )
 
@@ -739,12 +736,8 @@ class GeodesicIntegratedGradients(GradientAttribution):
         # Multiply by inputs - baselines
         grads_norm = tuple(
             grad_norm
-            * torch.linalg.norm(
-                (input - baseline).reshape(len(input), -1), dim=1
-            )
-            for grad_norm, input, baseline in zip(
-                grads_norm, inputs, baselines
-            )
+            * torch.linalg.norm((input - baseline).reshape(len(input), -1), dim=1)
+            for grad_norm, input, baseline in zip(grads_norm, inputs, baselines)
         )
 
         # aggregates across all steps for each tensor in the input tuple
@@ -760,9 +753,7 @@ class GeodesicIntegratedGradients(GradientAttribution):
         if self.multiplies_by_inputs:
             total_grads = tuple(
                 total_grad * (input - baseline)
-                for total_grad, input, baseline in zip(
-                    total_grads, inputs, baselines
-                )
+                for total_grad, input, baseline in zip(total_grads, inputs, baselines)
             )
 
         return grads_norm, total_grads
@@ -813,9 +804,7 @@ class GeodesicIntegratedGradients(GradientAttribution):
                         norm = torch.linalg.norm(
                             (
                                 torch.cat([input_i] * len(input_j), dim=0)
-                                - input_j.repeat_interleave(
-                                    len(input_i), dim=0
-                                )
+                                - input_j.repeat_interleave(len(input_i), dim=0)
                             ).reshape(len(input_i) * len(input_j), -1),
                             dim=1,
                         )
@@ -842,17 +831,12 @@ class GeodesicIntegratedGradients(GradientAttribution):
         )
 
         # Get idx and knns
+        idx = tuple(torch.from_numpy(graph.tocoo().row).long() for graph in graphs)
         idx = tuple(
-            torch.from_numpy(graph.tocoo().row).long() for graph in graphs
-        )
-        idx = tuple(
-            torch.cat([i, a], dim=0) if len(a) > 0 else i
-            for i, a in zip(idx, add_idx)
+            torch.cat([i, a], dim=0) if len(a) > 0 else i for i, a in zip(idx, add_idx)
         )
 
-        knns = tuple(
-            torch.from_numpy(graph.tocoo().col).long() for graph in graphs
-        )
+        knns = tuple(torch.from_numpy(graph.tocoo().col).long() for graph in graphs)
         knns = tuple(
             torch.cat([k, a], dim=0) if len(a) > 0 else k
             for k, a in zip(knns, add_knns)
@@ -898,9 +882,7 @@ class GeodesicIntegratedGradients(GradientAttribution):
 
         # Sum over points and paths
         # and stack result
-        distances_tpl = tuple(
-            tuple(x.sum(0) for x in dist) for dist in distances_tpl
-        )
+        distances_tpl = tuple(tuple(x.sum(0) for x in dist) for dist in distances_tpl)
         distances_tpl = tuple(torch.stack(dist) for dist in distances_tpl)
 
         # Compute euclidean distance between inputs and baselines
@@ -915,8 +897,7 @@ class GeodesicIntegratedGradients(GradientAttribution):
         # The curvature is the diff between path-based distance and euclidean
         # distance.
         curvature = tuple(
-            dist - euclidean
-            for dist, euclidean in zip(distances_tpl, euclidean_tpl)
+            dist - euclidean for dist, euclidean in zip(distances_tpl, euclidean_tpl)
         )
 
         return curvature

@@ -44,6 +44,7 @@ if not os.path.exists(data_path):
 if not os.path.exists(figure_path):
     os.makedirs(figure_path)
 
+
 def main(
     explainers: List[str],
     n_samples: int,
@@ -107,7 +108,6 @@ def main(
             train_loader = DataLoader(train, batch_size=32, shuffle=True)
             test_loader = DataLoader(test, batch_size=32, shuffle=False)
 
-            
             # Fit model
             trainer = Trainer(
                 max_epochs=50,
@@ -116,7 +116,7 @@ def main(
                 deterministic=deterministic,
             )
             trainer.fit(net, train_loader)
-            
+
             # Save model
             th.save(net.state_dict(), os.path.join(model_path, "net.pth"))
             # save data
@@ -131,13 +131,12 @@ def main(
             th.save(trainer, os.path.join(model_path, "trainer.pth"))
 
         else:
-            
+
             net.load_state_dict(th.load(os.path.join(model_path, "net.pth")))
             x_test = th.load(os.path.join(data_path, "x_test.pth"))
             y_test = th.load(os.path.join(data_path, "y_test.pth"))
             test_loader = th.load(os.path.join(data_path, "test_loader.pth"))
             trainer = th.load(os.path.join(model_path, "trainer.pth"))
-
 
             # Set model to eval
             net.eval()
@@ -162,7 +161,6 @@ def main(
         acc = (th.cat(pred).argmax(-1) == y_test).float().mean()
         print("acc: ", acc)
 
-
         # Create dict of attr
         attr = dict()
 
@@ -170,7 +168,6 @@ def main(
         baselines = th.zeros_like(x_test).to(device)
         baselines[:, 0] = -0.5
         baselines[:, 1] = -0.5
-
 
         # Create scatter plot of probability differences, used to verify completeness axiom
         # Get predictions for both data and baselines
@@ -182,14 +179,13 @@ def main(
 
         # Create scatter plot
         plt.figure(figsize=(10, 8))
-        scatter = plt.scatter(x_test[:, 0], x_test[:, 1], 
-                            c=prob_diff,
-                            cmap='viridis',
-                            s=50)
-        plt.colorbar(scatter, label='Probability Difference')
-        plt.xlabel('Feature 1')
-        plt.ylabel('Feature 2')
-        plt.title('Data Points Colored by Model-Baseline Probability Difference')
+        scatter = plt.scatter(
+            x_test[:, 0], x_test[:, 1], c=prob_diff, cmap="viridis", s=50
+        )
+        plt.colorbar(scatter, label="Probability Difference")
+        plt.xlabel("Feature 1")
+        plt.ylabel("Feature 2")
+        plt.title("Data Points Colored by Model-Baseline Probability Difference")
         plt.savefig(os.path.join(figure_path, f"prob_diff_{noise}.png"))
         plt.close()
 
@@ -210,7 +206,7 @@ def main(
                 return_paths=True,
             )
             if gig_path is not None:
-                gig_path = gig_path[0] 
+                gig_path = gig_path[0]
                 paths.append(gig_path)
             else:
                 paths = None
@@ -226,16 +222,16 @@ def main(
             attribution, gig_path = ode_ig.attribute(
                 x_test,
                 baselines=baselines,
-                target=predictions, 
+                target=predictions,
                 n_steps=n_steps,
                 return_paths=True,
             )
             if gig_path is not None:
-                gig_path = gig_path[0] 
+                gig_path = gig_path[0]
                 paths.append(gig_path)
             else:
                 paths = None
-            _attr= attribution.float()
+            _attr = attribution.float()
 
             attr[f"ode_integrated_gradients"] = (_attr, paths)
         if "geodesic_integrated_gradients" in explainers:
@@ -248,18 +244,18 @@ def main(
                 for target in range(2):
 
                     pyro.clear_param_store()
-                    
+
                     target_mask = predictions == target
                     gig_path = None
                     attribution = geodesic_ig.attribute(
                         x_test[target_mask],
                         baselines=baselines[target_mask],
-                        target=target, 
+                        target=target,
                         n_steps=n_steps,
                         n_neighbors=n,
                     )
                     if gig_path is not None:
-                        gig_path = gig_path[0] 
+                        gig_path = gig_path[0]
                         paths.append(gig_path)
                     else:
                         paths = None
@@ -336,38 +332,44 @@ def main(
 
                 # Create mesh grid
                 xx, yy = np.meshgrid(
-                    np.linspace(x_min, x_max, 100),
-                    np.linspace(y_min, y_max, 100)
+                    np.linspace(x_min, x_max, 100), np.linspace(y_min, y_max, 100)
                 )
 
-
                 # Stack coordinates
-                mesh_coords = th.FloatTensor(np.column_stack([xx.ravel(), yy.ravel()])).requires_grad_(True)
+                mesh_coords = th.FloatTensor(
+                    np.column_stack([xx.ravel(), yy.ravel()])
+                ).requires_grad_(True)
 
                 # Get gradients across mesh
 
                 mesh_preds = net(mesh_coords)
                 mesh_grads = th.autograd.grad(mesh_preds.sum(), mesh_coords)[0]
-                
+
                 grad_magnitude = mesh_grads.norm(dim=1).reshape(100, 100)
 
                 # Add contour plot
-                plt.contour(xx, yy, grad_magnitude.cpu(), levels=10, cmap='viridis', alpha=0.5)
+                plt.contour(
+                    xx, yy, grad_magnitude.cpu(), levels=10, cmap="viridis", alpha=0.5
+                )
 
-                
                 if paths is not None:
-                
+
                     n_paths_to_plot = 10
-                    
+
                     # Get number of samples for this class
                     n_samples = x_test.shape[0]
-                    
+
                     # Sample random indices
                     path_indices = th.randint(0, n_samples, (n_paths_to_plot,))
 
                     for i, idx in enumerate(path_indices):
                         # Extract single path [n_steps, features]
-                        single_path = paths[0].view(n_steps, n_samples, -1)[:, idx, :].detach().numpy()
+                        single_path = (
+                            paths[0]
+                            .view(n_steps, n_samples, -1)[:, idx, :]
+                            .detach()
+                            .numpy()
+                        )
 
                         # Plot path
                         plt.plot(
@@ -382,22 +384,22 @@ def main(
                         # Plot endpoints
                         baseline_label = "Baseline" if i == 0 else None
                         input_label = "Input" if i == 0 else None
-                        
+
                         plt.scatter(
-                            single_path[0, 0], 
+                            single_path[0, 0],
                             single_path[0, 1],
-                            color="red", 
-                            marker="x", 
+                            color="red",
+                            marker="x",
                             s=100,
-                            label=baseline_label
+                            label=baseline_label,
                         )
                         plt.scatter(
-                            single_path[-1, 0], 
+                            single_path[-1, 0],
                             single_path[-1, 1],
-                            color="blue", 
-                            marker="o", 
+                            color="blue",
+                            marker="o",
                             s=100,
-                            label=input_label
+                            label=input_label,
                         )
                 # save figure
                 plt.savefig(os.path.join(figure_path, f"{k}_{noise}.png"))

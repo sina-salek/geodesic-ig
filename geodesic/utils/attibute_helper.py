@@ -16,9 +16,11 @@ def data_and_params_validator(
 
     # If baseline is float or int, create a tensor
     baselines = tuple(
-        torch.ones_like(input) * baseline
-        if isinstance(baseline, (int, float))
-        else baseline
+        (
+            torch.ones_like(input) * baseline
+            if isinstance(baseline, (int, float))
+            else baseline
+        )
         for input, baseline in zip(inputs, baselines)
     )
 
