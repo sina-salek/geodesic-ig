@@ -17,7 +17,6 @@ from captum.attr._utils.common import (
     _validate_input,
 )
 
-from geodesic.ode_batching import _batch_attribution
 
 from captum.attr._utils.approximation_methods import approximation_parameters
 
@@ -162,9 +161,7 @@ class OdeIG(GradientAttribution):
 
     def _optimize_paths(self, inputs, baselines, input_additional_args):
         # Get dimensions from first tensor in tuple
-        n_samples = tuple(
-            input.shape[0] for input in inputs
-        )
+
         n_steps = self.n_steps
 
         flow = ModelManifoldGeodesicFlow(self.forward_func)
@@ -308,16 +305,8 @@ class OdeIG(GradientAttribution):
         _validate_input(formatted_inputs, formatted_baselines, n_steps)
         paths = None
         if internal_batch_size is not None:
-            num_examples = formatted_inputs[0].shape[0]
-            attributions = _batch_attribution(
-                self,
-                num_examples,
-                internal_batch_size,
-                n_steps,
-                inputs=formatted_inputs,
-                baselines=formatted_baselines,
-                target=target,
-                additional_forward_args=additional_forward_args,
+            raise NotImplementedError(
+                "Internal batch size is not supported yet for OdeIG"
             )
         else:
             attributions, paths = self._attribute(
