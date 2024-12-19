@@ -93,8 +93,8 @@ class BatchedModelManifoldGeodesicFlow(nn.Module):
         
         dG = torch.zeros(batch_size, G.shape[1], G.shape[2], x.shape[1], device=x.device)
         x_flat = x.flatten(start_dim=1)
-        for i in tqdm(range(G.shape[1]), desc='Computing Christoffel symbols'):
-            for j in tqdm(range(G.shape[2]), desc='Computing Christoffel symbols (inner loop)', leave=False):
+        for i in range(G.shape[1]):
+            for j in range(G.shape[2]):
                 g_ij = G[:, i, j]
                 dg_ij = torch.autograd.grad(g_ij.sum(), x_flat, create_graph=True, retain_graph=True)[0]
                 dG[:, i, j] = dg_ij
