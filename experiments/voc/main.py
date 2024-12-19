@@ -90,8 +90,8 @@ def main(
 
     
     # Get data transform
-    image_size = 256
-    centre_crop = 256
+    image_size = 32
+    centre_crop = 32
     transform = T.Compose(
         [
             T.Resize(image_size),
@@ -237,8 +237,10 @@ def main(
     if "ode_integrated_gradients" in explainers:
         from geodesic.ode_ig import OdeIG
         explainer = OdeIG(resnet)
+        baseline = th.zeros_like(x_test)
         _attr = explainer.attribute(
             x_test,
+            baselines=baseline,
             target=y_test,
         )
         attr["ode_integrated_gradients"] = _attr
@@ -264,10 +266,10 @@ def parse_args():
         "--explainers",
         type=str,
         default=[
-            "geodesic_integrated_gradients",
+            # "geodesic_integrated_gradients",
             # "svi_integrated_gradients",
-            "integrated_gradients",
-            # "ode_integrated_gradients"
+            # "integrated_gradients",
+            "ode_integrated_gradients"
 
         ],
         nargs="+",
