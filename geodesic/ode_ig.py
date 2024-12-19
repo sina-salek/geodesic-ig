@@ -31,122 +31,103 @@ from torchdiffeq import odeint
 from tqdm import tqdm
 
 
-class ModelManifoldGeodesicFlow(nn.Module):
-    # TODO: need to experiment with curvature-aware restoration force
-    # as well as better momentum control depending on gradient of metric tensor
+class BatchedModelManifoldGeodesicFlow(nn.Module):
     def __init__(self, forward_func):
         super().__init__()
         self.forward_func = forward_func
-
-    def get_metric_tensor(self, x):
-        """Compute metric tensor with better numerical stability"""
+        
+    def get_metric_tensor(self, x_batch):
+        """Vectorized metric tensor computation"""
+        batch_size = x_batch.shape[0]
         with torch.enable_grad():
-            x.requires_grad_(True)
-            f = self.forward_func(x)
+            x_batch.requires_grad_(True)
+            f_batch = self.forward_func(x_batch)
+            
             Js = []
-            for i in range(f.numel()):
-                f_i = f.view(-1)[i]
-                J_i = torch.autograd.grad(f_i, x, create_graph=True, retain_graph=True)[
-                    0
-                ]
+            for i in range(f_batch.shape[1]):  # Iterate over output dimensions
+                f_i = f_batch[:, i]
+                J_i = torch.autograd.grad(f_i.sum(), x_batch, create_graph=True, retain_graph=True)[0]
                 Js.append(J_i)
-            J = torch.stack(Js)
-            # Add small identity matrix to ensure positive definiteness
-            G = J.T @ J + 1e-4 * torch.eye(J.shape[-1], device=x.device)
+            
+            J = torch.stack(Js, dim=1)  # [batch, out_dim, in_dim]
+            G = torch.bmm(J.transpose(1, 2), J)  # [batch, in_dim, in_dim]
+            G = G + 1e-4 * torch.eye(G.shape[-1], device=x_batch.device)[None].expand(batch_size, -1, -1)
         return G
 
-    def forward(self, t, state):
-        deviation, dev_velocity = torch.chunk(state, 2, dim=-1)
-
-        # Window function to ensure zero deviation at endpoints
-        window = 4 * t * (1 - t)  # Peaks at t=0.5, zero at t=0,1
-
-        x_straight = self.x0 + t * (self.x1 - self.x0)
-        x = x_straight + window * deviation  # Apply window to deviation
+    def forward(self, t, state_batch):
+        batch_size = state_batch.shape[0] // 2
+        deviation, dev_velocity = state_batch.chunk(2, dim=0)
+        
+        window = 4 * t * (1 - t)
+        x_straight = self.x0_batch + t.view(-1, 1) * (self.x1_batch - self.x0_batch)
+        x = x_straight + window * deviation
 
         G = self.get_metric_tensor(x)
-
-        # Compute dG and Christoffel symbols as before
-        dG = torch.zeros(x.shape[0], G.shape[0], G.shape[1])
-        for i in range(G.shape[0]):
-            for j in range(G.shape[1]):
-                g_ij = G[i, j]
-                dg_ij = torch.autograd.grad(
-                    g_ij, x, create_graph=True, retain_graph=True
-                )[0]
+        
+        # Vectorized Christoffel computation
+        dG = torch.zeros(batch_size, G.shape[1], G.shape[2], x.shape[1], device=x.device)
+        for i in range(G.shape[1]):
+            for j in range(G.shape[2]):
+                g_ij = G[:, i, j]
+                dg_ij = torch.autograd.grad(g_ij.sum(), x, create_graph=True, retain_graph=True)[0]
                 dG[:, i, j] = dg_ij
+        
+        dG = dG / (torch.sqrt((dG ** 2).sum(dim=(1,2,3), keepdim=True)) + 1e-6)
+        Gamma = 0.5 * (dG + dG.permute(0, 2, 1, 3) - dG.permute(0, 3, 1, 2))
+        
+        # Compute accelerations
+        a = -torch.einsum('bijk,bj,bk->bi', Gamma, dev_velocity, dev_velocity)
+        a = a / (torch.norm(dev_velocity, dim=1, keepdim=True) + 1e-6)
+        
+        restoration = -0.1 * deviation
+        
+        return torch.cat([dev_velocity, a + restoration], dim=0)
 
-        dG = dG / (torch.norm(dG) + 1e-6)
-        Gamma = 0.5 * (dG + dG.permute(0, 2, 1) - dG.permute(2, 0, 1))
-
-        # Compute acceleration including window effect
-        a = -torch.einsum("ijk,j,k->i", Gamma, dev_velocity, dev_velocity)
-        a = a / (torch.norm(dev_velocity) + 1e-6)
-
-        # Add restoration force towards straight line
-        restoration = -0.1 * deviation 
-
-        return torch.cat([dev_velocity, a + restoration], dim=-1)
-
-    def integrate(self, x0, x1, n_steps=50, rand_scale=0.2, seed=None):
-        """
-        Args:
-            x0: Starting point
-            x1: Ending point
-            n_steps: Number of integration steps
-            rand_scale: Scale of randomization (0.0-1.0), default 0.2
-            seed: Random seed for reproducibility
-        """
-        if seed is not None:
-            torch.manual_seed(seed)
-
-        self.x0 = x0
-        self.x1 = x1
-
-        t = torch.linspace(0, 1, n_steps)
-
-        # Get metric at midpoint for initial conditions
-        x_mid = 0.5 * (x0 + x1)
+    def integrate_batch(self, x0_batch, x1_batch, n_steps=50, rand_scale=0.2):
+        """Batched integration"""
+        self.x0_batch = x0_batch
+        self.x1_batch = x1_batch
+        batch_size = x0_batch.shape[0]
+        
+        t = torch.linspace(0, 1, n_steps, device=x0_batch.device)
+        
+        # Compute initial conditions for all examples in batch
+        x_mid = 0.5 * (x0_batch + x1_batch)
         G_mid = self.get_metric_tensor(x_mid)
-
-        # Compute initial deviation direction
-        straight_dir = (x1 - x0) / torch.norm(x1 - x0)
+        
+        straight_dir = (x1_batch - x0_batch) / torch.norm(x1_batch - x0_batch, dim=1, keepdim=True)
         eigenvals, eigenvecs = torch.linalg.eigh(G_mid)
-        max_curve_dir = eigenvecs[:, -1]
-
-        # Add random perturbation to direction
+        max_curve_dir = eigenvecs[:, :, -1]
+        
         rand_dir = torch.randn_like(max_curve_dir)
-        rand_dir = rand_dir - (rand_dir @ straight_dir) * straight_dir
-        rand_dir = rand_dir / (torch.norm(rand_dir) + 1e-8)
-
-        # Mix original and random directions
+        rand_dir = rand_dir - torch.sum(rand_dir * straight_dir, dim=1, keepdim=True) * straight_dir
+        rand_dir = rand_dir / (torch.norm(rand_dir, dim=1, keepdim=True) + 1e-8)
+        
         mixed_dir = max_curve_dir + rand_scale * rand_dir
-        mixed_dir = mixed_dir - (mixed_dir @ straight_dir) * straight_dir
-        mixed_dir = mixed_dir / (torch.norm(mixed_dir) + 1e-8)
-
-        # Random velocity scaling
-        base_scale = torch.sqrt(eigenvals[-1]) * 0.1
-        rand_factor = 1.0 + rand_scale * (2 * torch.rand(1) - 1)
-        velocity0 = base_scale * rand_factor * mixed_dir
-        deviation0 = torch.zeros_like(x0)
-
-        state0 = torch.cat([deviation0, velocity0])
-
+        mixed_dir = mixed_dir - torch.sum(mixed_dir * straight_dir, dim=1, keepdim=True) * straight_dir
+        mixed_dir = mixed_dir / (torch.norm(mixed_dir, dim=1, keepdim=True) + 1e-8)
+        
+        base_scale = torch.sqrt(eigenvals[:, -1]) * 0.1
+        rand_factor = 1.0 + rand_scale * (2 * torch.rand(batch_size, 1, device=x0_batch.device) - 1)
+        velocity0 = base_scale.unsqueeze(1) * rand_factor * mixed_dir
+        deviation0 = torch.zeros_like(x0_batch)
+        
+        state0 = torch.cat([deviation0, velocity0], dim=0)
+        
         deviations = odeint(
             self,
             state0,
             t,
-            method="dopri5",
+            method='dopri5',
             rtol=1e-5,
             atol=1e-7,
-            options={"max_num_steps": 1000},
+            options={'max_num_steps': 1000}
         )
-
-        # Construct final path with windowed deviations
-        window = 4 * t[:, None] * (1 - t[:, None])
-        straight_line = x0[None] + t[:, None] * (x1 - x0)[None]
-        path = straight_line + window * deviations[:, : x0.shape[0]]
-
+        
+        window = 4 * t[:, None, None] * (1 - t[:, None, None])
+        straight_line = x0_batch[None] + t[:, None, None] * (x1_batch - x0_batch)[None]
+        path = straight_line + window * deviations[:, :x0_batch.shape[0]]
+        
         return path
 
 
@@ -160,34 +141,14 @@ class OdeIG(GradientAttribution):
         self._multiply_by_inputs = multiply_by_inputs
 
     def _optimize_paths(self, inputs, baselines, input_additional_args):
-        # Get dimensions from first tensor in tuple
-
-        n_steps = self.n_steps
-
-        flow = ModelManifoldGeodesicFlow(self.forward_func)
-
+        flow = BatchedModelManifoldGeodesicFlow(self.forward_func)
+        
         optimized_paths = []
         for input_tensor, baseline_tensor in zip(inputs, baselines):
-            n_inputs = input_tensor.shape[0]
-
-            # Generate geodesic paths for each input-baseline pair
-            batch_paths = []
-            pbar = tqdm(range(n_inputs), desc="Optimizing paths")
-            for idx in pbar:
-                path = flow.integrate(
-                    baseline_tensor[idx], input_tensor[idx], n_steps
-                )  # [n_steps, features]
-                batch_paths.append(path)
-
-            # Stack and reshape back to original format
-            batch_paths = torch.stack(
-                batch_paths, dim=1
-            )  # [n_steps, n_inputs, features]
-            batch_paths = batch_paths.reshape(
-                n_steps * n_inputs, -1
-            )  # [n_steps * n_inputs, features]
-            optimized_paths.append(batch_paths)
-
+            paths = flow.integrate_batch(baseline_tensor, input_tensor, self.n_steps)
+            paths = paths.reshape(self.n_steps * input_tensor.shape[0], -1)
+            optimized_paths.append(paths)
+        
         return tuple(optimized_paths)
 
     def _attribute(
