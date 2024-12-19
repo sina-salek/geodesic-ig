@@ -383,6 +383,18 @@ class SVI_IG(GradientAttribution):
             lr=learning_rate,
         )
 
+        n_inputs = tuple(
+            input.shape[0] for input in inputs
+        )
+        n_features = tuple(
+            input.shape[1] for input in inputs
+        )
+
+        step_sizes_tuple = tuple(
+            calculate_step_sizes(path, n_inputs[i], n_steps, n_features[i])
+            for i, path in enumerate(optimized_paths)
+        )
+
         # grads: dim -> (bsz * #steps x inputs[0].shape[1:], ...)
         grads = self.gradient_func(
             forward_fn=self.forward_func,
@@ -394,9 +406,9 @@ class SVI_IG(GradientAttribution):
         # flattening grads so that we can multilpy it with step-size
         # calling contiguous to avoid `memory whole` problems
         scaled_grads = [
-            grad.contiguous().view(n_steps, -1)
-            * torch.tensor(step_sizes).view(n_steps, 1).to(grad.device)
-            for grad in grads
+            grad.contiguous()
+            * torch.tensor(step_sizes).to(grad.device)
+            for step_sizes, grad in zip(step_sizes_tuple, grads)
         ]
 
         # aggregates across all steps for each tensor in the input tuple
@@ -418,3 +430,21 @@ class SVI_IG(GradientAttribution):
                 for total_grad, input, baseline in zip(total_grads, inputs, baselines)
             )
         return attributions, optimized_paths
+    
+def calculate_step_sizes(path, n_inputs, n_steps, n_features):
+    paths_reshaped = path.view(n_steps, n_inputs, n_features)
+    
+    # Calculate initial step sizes
+    step_sizes = torch.norm(
+        paths_reshaped[1:] - paths_reshaped[:-1],
+        dim=-1
+    )
+    
+    # Add final step to match dimensions
+    last_step = step_sizes[-1:]
+    step_sizes = torch.cat([step_sizes, last_step], dim=0)
+    
+    # Reshape to match original path dimensions
+    step_sizes = step_sizes.view(n_steps * n_inputs, 1)
+    
+    return step_sizes
