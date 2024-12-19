@@ -35,23 +35,44 @@ class BatchedModelManifoldGeodesicFlow(nn.Module):
     def __init__(self, forward_func):
         super().__init__()
         self.forward_func = forward_func
-        
+            
     def get_metric_tensor(self, x_batch):
-        """Vectorized metric tensor computation"""
+        """Vectorized metric tensor computation for arbitrary inputs"""
         batch_size = x_batch.shape[0]
+        original_shape = x_batch.shape
+        x_flat = x_batch.flatten(start_dim=1)
+        n_features = x_flat.shape[1]
+        
         with torch.enable_grad():
-            x_batch.requires_grad_(True)
-            f_batch = self.forward_func(x_batch)
+            # Reshape if image data (4D), keep flat if tabular (2D)
+            if len(original_shape) == 4:
+                x_model = x_flat.view(original_shape)
+            else:
+                x_model = x_flat
+                
+            x_model.requires_grad_(True)
             
-            Js = []
-            for i in range(f_batch.shape[1]):  # Iterate over output dimensions
-                f_i = f_batch[:, i]
-                J_i = torch.autograd.grad(f_i.sum(), x_batch, create_graph=True, retain_graph=True)[0]
-                Js.append(J_i)
+            # Compute output once
+            output = self.forward_func(x_model)
+            out_dim = output.shape[1]
             
-            J = torch.stack(Js, dim=1)  # [batch, out_dim, in_dim]
-            G = torch.bmm(J.transpose(1, 2), J)  # [batch, in_dim, in_dim]
-            G = G + 1e-4 * torch.eye(G.shape[-1], device=x_batch.device)[None].expand(batch_size, -1, -1)
+            # Initialize Jacobian tensor
+            J = torch.zeros((batch_size, out_dim, n_features), device=x_model.device)
+            
+            # Compute gradients for each output dimension
+            for i in range(out_dim):
+                grad = torch.autograd.grad(
+                    output[:, i].sum(),
+                    x_model,
+                    create_graph=True,
+                    retain_graph=True
+                )[0]
+                J[:, i] = grad.flatten(start_dim=1)
+            
+            # Compute metric tensor with correct dimensions
+            G = torch.bmm(J, J.transpose(1, 2))  # [batch, out_dim, out_dim]
+            G = G + 1e-4 * torch.eye(out_dim, device=x_batch.device)[None].expand(batch_size, -1, -1)
+        
         return G
 
     def forward(self, t, state_batch):
@@ -61,21 +82,26 @@ class BatchedModelManifoldGeodesicFlow(nn.Module):
         window = 4 * t * (1 - t)
         x_straight = self.x0_batch + t.view(-1, 1) * (self.x1_batch - self.x0_batch)
         x = x_straight + window * deviation
-
-        G = self.get_metric_tensor(x)
         
-        # Vectorized Christoffel computation
+        # Reshape x to original dimensions for metric tensor computation
+        if hasattr(self, 'original_shape'):
+            x_reshaped = x.view(-1, *self.original_shape[1:])
+        else:
+            x_reshaped = x
+        
+        G = self.get_metric_tensor(x_reshaped)
+        
         dG = torch.zeros(batch_size, G.shape[1], G.shape[2], x.shape[1], device=x.device)
-        for i in range(G.shape[1]):
-            for j in range(G.shape[2]):
+        x_flat = x.flatten(start_dim=1)
+        for i in tqdm(range(G.shape[1]), desc='Computing Christoffel symbols'):
+            for j in tqdm(range(G.shape[2]), desc='Computing Christoffel symbols (inner loop)', leave=False):
                 g_ij = G[:, i, j]
-                dg_ij = torch.autograd.grad(g_ij.sum(), x, create_graph=True, retain_graph=True)[0]
+                dg_ij = torch.autograd.grad(g_ij.sum(), x_flat, create_graph=True, retain_graph=True)[0]
                 dG[:, i, j] = dg_ij
         
         dG = dG / (torch.sqrt((dG ** 2).sum(dim=(1,2,3), keepdim=True)) + 1e-6)
         Gamma = 0.5 * (dG + dG.permute(0, 2, 1, 3) - dG.permute(0, 3, 1, 2))
         
-        # Compute accelerations
         a = -torch.einsum('bijk,bj,bk->bi', Gamma, dev_velocity, dev_velocity)
         a = a / (torch.norm(dev_velocity, dim=1, keepdim=True) + 1e-6)
         
@@ -84,33 +110,53 @@ class BatchedModelManifoldGeodesicFlow(nn.Module):
         return torch.cat([dev_velocity, a + restoration], dim=0)
 
     def integrate_batch(self, x0_batch, x1_batch, n_steps=50, rand_scale=0.2):
-        """Batched integration"""
-        self.x0_batch = x0_batch
-        self.x1_batch = x1_batch
+        """Batched integration with flattened tensors"""
+        self.original_shape = x0_batch.shape
+        
+        # Flatten inputs
+        self.x0_batch = x0_batch.flatten(start_dim=1)
+        self.x1_batch = x1_batch.flatten(start_dim=1)
         batch_size = x0_batch.shape[0]
+        n_features = self.x0_batch.shape[1]
         
         t = torch.linspace(0, 1, n_steps, device=x0_batch.device)
         
-        # Compute initial conditions for all examples in batch
-        x_mid = 0.5 * (x0_batch + x1_batch)
-        G_mid = self.get_metric_tensor(x_mid)
+        # Compute initial conditions in feature space
+        x_mid = 0.5 * (self.x0_batch + self.x1_batch)
+        G_mid = self.get_metric_tensor(x_mid.view(-1, *self.original_shape[1:]))
         
-        straight_dir = (x1_batch - x0_batch) / torch.norm(x1_batch - x0_batch, dim=1, keepdim=True)
+        # Get direction in feature space
+        straight_dir = (self.x1_batch - self.x0_batch)
+        straight_dir = straight_dir / torch.norm(straight_dir, dim=1, keepdim=True)
+        
         eigenvals, eigenvecs = torch.linalg.eigh(G_mid)
-        max_curve_dir = eigenvecs[:, :, -1]
         
-        rand_dir = torch.randn_like(max_curve_dir)
+        # Project max_curve_dir back to feature space using Jacobian
+        with torch.enable_grad():
+            x_mid_model = x_mid.view(-1, *self.original_shape[1:])
+            x_mid_model.requires_grad_(True)
+            output = self.forward_func(x_mid_model)
+            max_curve_dir = torch.autograd.grad(
+                torch.sum(output * eigenvecs[:, :, -1]), 
+                x_mid_model,
+                create_graph=True
+            )[0].flatten(start_dim=1)
+        
+        # Generate random direction in feature space
+        rand_dir = torch.randn_like(straight_dir)
         rand_dir = rand_dir - torch.sum(rand_dir * straight_dir, dim=1, keepdim=True) * straight_dir
         rand_dir = rand_dir / (torch.norm(rand_dir, dim=1, keepdim=True) + 1e-8)
         
+        # Mix directions in feature space
         mixed_dir = max_curve_dir + rand_scale * rand_dir
         mixed_dir = mixed_dir - torch.sum(mixed_dir * straight_dir, dim=1, keepdim=True) * straight_dir
         mixed_dir = mixed_dir / (torch.norm(mixed_dir, dim=1, keepdim=True) + 1e-8)
         
+        # Initialize velocity in feature space
         base_scale = torch.sqrt(eigenvals[:, -1]) * 0.1
         rand_factor = 1.0 + rand_scale * (2 * torch.rand(batch_size, 1, device=x0_batch.device) - 1)
         velocity0 = base_scale.unsqueeze(1) * rand_factor * mixed_dir
-        deviation0 = torch.zeros_like(x0_batch)
+        deviation0 = torch.zeros_like(self.x0_batch)
         
         state0 = torch.cat([deviation0, velocity0], dim=0)
         
@@ -125,11 +171,13 @@ class BatchedModelManifoldGeodesicFlow(nn.Module):
         )
         
         window = 4 * t[:, None, None] * (1 - t[:, None, None])
-        straight_line = x0_batch[None] + t[:, None, None] * (x1_batch - x0_batch)[None]
+        straight_line = self.x0_batch[None] + t[:, None, None] * (self.x1_batch - self.x0_batch)[None]
         path = straight_line + window * deviations[:, :x0_batch.shape[0]]
         
+        if len(self.original_shape) > 2:
+            path = path.view(n_steps, batch_size, *self.original_shape[1:])
+        
         return path
-
 
 class OdeIG(GradientAttribution):
     def __init__(
