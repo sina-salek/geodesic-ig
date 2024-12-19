@@ -18,6 +18,7 @@ jupyter = "^1.1.1"
 torch-geometric = "^2.6.1"
 pytest = "^8.3.4"
 black = "^24.10.0"
+torchvision = "^0.17"
 
 
 [build-system]
