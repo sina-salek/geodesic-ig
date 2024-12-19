@@ -77,34 +77,45 @@ class BatchedModelManifoldGeodesicFlow(nn.Module):
 
     def forward(self, t, state_batch):
         batch_size = state_batch.shape[0] // 2
-        deviation, dev_velocity = state_batch.chunk(2, dim=0)
+        deviation, dev_velocity = state_batch.chunk(2, dim=0) #TODO: these deviations seem to be 0 all the time. Investigate
         
         window = 4 * t * (1 - t)
         x_straight = self.x0_batch + t.view(-1, 1) * (self.x1_batch - self.x0_batch)
         x = x_straight + window * deviation
         
-        # Reshape x to original dimensions for metric tensor computation
         if hasattr(self, 'original_shape'):
             x_reshaped = x.view(-1, *self.original_shape[1:])
         else:
             x_reshaped = x
         
         G = self.get_metric_tensor(x_reshaped)
-        
-        dG = torch.zeros(batch_size, G.shape[1], G.shape[2], x.shape[1], device=x.device)
         x_flat = x.flatten(start_dim=1)
-        for i in range(G.shape[1]):
-            for j in range(G.shape[2]):
-                g_ij = G[:, i, j]
-                dg_ij = torch.autograd.grad(g_ij.sum(), x_flat, create_graph=True, retain_graph=True)[0]
-                dG[:, i, j] = dg_ij
+        out_dim = G.shape[1]
+        n_features = x_flat.shape[1]
+        
+        # Compute full Jacobian of G w.r.t x
+        dG = torch.zeros(batch_size, out_dim, out_dim, n_features, device=x_flat.device)
+        x_flat.requires_grad_(True)
+        
+        # Compute Jacobian using vectorized operations
+        for i in tqdm(range(out_dim), desc='Computing Christoffel symbols'):
+            G_row_grads = torch.autograd.grad(
+                G[:, i].sum(),
+                x_flat,
+                create_graph=True,
+                retain_graph=True
+            )[0]  # [batch, n_features]
+            dG[:, i, :, :] = G_row_grads.view(batch_size, 1, -1).expand(-1, out_dim, -1)
         
         dG = dG / (torch.sqrt((dG ** 2).sum(dim=(1,2,3), keepdim=True)) + 1e-6)
-        Gamma = 0.5 * (dG + dG.permute(0, 2, 1, 3) - dG.permute(0, 3, 1, 2))
+        Gamma = 0.5 * (dG + dG.permute(0, 2, 1, 3))
+    
+        # Project velocity to output space for Christoffel computation
+        v_out = torch.einsum('bijk,bk->bi', Gamma, dev_velocity)
+        # Project back to feature space
+        a = -torch.einsum('bijk,bi->bk', Gamma, v_out)
         
-        a = -torch.einsum('bijk,bj,bk->bi', Gamma, dev_velocity, dev_velocity)
         a = a / (torch.norm(dev_velocity, dim=1, keepdim=True) + 1e-6)
-        
         restoration = -0.1 * deviation
         
         return torch.cat([dev_velocity, a + restoration], dim=0)
