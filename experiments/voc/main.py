@@ -217,7 +217,7 @@ def main(
         _attr = explainer.attribute(
             x_test,
             target=y_test,
-            num_iterations=1000,
+            num_iterations=500,
             beta=0.3,
         )
         attr["svi_integrated_gradients"] = _attr
@@ -226,7 +226,7 @@ def main(
         plot_and_save(_attr[0], f"attribution_svi_integrated_gradients.png", is_attribution=True)
 
     if "ode_integrated_gradients" in explainers:
-        from geodesic.ode_ig import OdeIG
+        from geodesic.ode_ig_2 import OdeIG
         explainer = OdeIG(resnet)
         baseline = th.zeros_like(x_test)
         _attr = explainer.attribute(
@@ -258,9 +258,9 @@ def parse_args():
         type=str,
         default=[
             # "geodesic_integrated_gradients",
-            "svi_integrated_gradients",
-            "integrated_gradients",
-            # "ode_integrated_gradients"
+            # "svi_integrated_gradients",
+            # "integrated_gradients",
+            "ode_integrated_gradients"
 
         ],
         nargs="+",

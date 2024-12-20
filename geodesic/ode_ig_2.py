@@ -1,6 +1,7 @@
 import typing
 from typing import Callable, List, Literal, Optional, Tuple, Union
 import warnings
+import gc
 
 import torch
 from captum._utils.common import (
@@ -25,6 +26,7 @@ from captum._utils.typing import BaselineType, TargetType, TensorOrTupleOfTensor
 from captum.attr._utils.attribution import GradientAttribution
 from captum.log import log_usage
 from torch import Tensor
+from torch.linalg import svd
 
 import torch.nn as nn
 from torchdiffeq import odeint
@@ -99,30 +101,49 @@ class BatchedModelManifoldGeodesicFlow(nn.Module):
         x_straight = self.x0_batch + t.view(-1, 1) * (self.x1_batch - self.x0_batch)
         x = x_straight + window * deviation
 
-        # Make x require grad
         x.requires_grad_(True)
         G = self.interpolate_metric_tensor(t.item())
         
-        # Vectorized Christoffel computation
-        dG = torch.zeros(batch_size, G.shape[1], G.shape[2], x.shape[1], device=x.device)
-        for i in range(G.shape[1]):
-            for j in range(G.shape[2]):
-                g_ij = G[:, i, j]
-                try:
-                    dg_ij = torch.autograd.grad(g_ij.sum(), x, create_graph=True, retain_graph=True, 
-                                            allow_unused=True)[0]
-                    if dg_ij is not None:  # If gradient exists
-                        dG[:, i, j] = dg_ij
-                except RuntimeError:
-                    continue  # Skip if gradient computation fails
+        # Process larger chunks vectorized
+        chunk_size = 100  # Increased chunk size
+        n_chunks = (G.shape[1] + chunk_size - 1) // chunk_size
         
-        # Rest remains the same
-        dG = dG / (torch.sqrt((dG ** 2).sum(dim=(1,2,3), keepdim=True)) + 1e-6)
-        Gamma = 0.5 * (dG + dG.permute(0, 2, 1, 3) - dG.permute(0, 3, 1, 2))
+        a = torch.zeros_like(dev_velocity)
+        for chunk_idx in tqdm(range(n_chunks), desc="Computing chunks"):
+            start_idx = chunk_idx * chunk_size
+            end_idx = min((chunk_idx + 1) * chunk_size, G.shape[1])
+            
+            # Compute gradients for entire chunk at once
+            G_chunk = G[:, start_idx:end_idx].sum()
+            G_chunk_grads = torch.autograd.grad(
+                G_chunk,
+                x,
+                create_graph=True,
+                retain_graph=True,
+                allow_unused=True
+            )[0]
+            
+            if G_chunk_grads is not None:
+                # Process chunk vectorized
+                G_chunk_grads = G_chunk_grads.view(batch_size, end_idx-start_idx, -1)
+                G_chunk_grads = G_chunk_grads / (torch.norm(G_chunk_grads, dim=2, keepdim=True) + 1e-6)
+                
+                # Compute Christoffel symbols for chunk
+                Gamma = 0.5 * (G_chunk_grads + G_chunk_grads.transpose(1,2))
+                
+                # Compute acceleration contribution vectorized
+                a_contribution = -torch.einsum('bijk,bj,bk->bi', 
+                                        Gamma, 
+                                        dev_velocity.unsqueeze(1), 
+                                        dev_velocity.unsqueeze(1))
+                a[:, start_idx:end_idx] = a_contribution.sum(dim=1)
+            
+            # Clear memory
+            del G_chunk_grads
+            torch.cuda.empty_cache() if torch.cuda.is_available() else None
+            gc.collect()
         
-        a = -torch.einsum('bijk,bj,bk->bi', Gamma, dev_velocity, dev_velocity)
         a = a / (torch.norm(dev_velocity, dim=1, keepdim=True) + 1e-6)
-        
         restoration = -0.1 * deviation
         
         return torch.cat([dev_velocity, a + restoration], dim=0)
@@ -131,13 +152,13 @@ class BatchedModelManifoldGeodesicFlow(nn.Module):
         """Batched integration for arbitrary input dimensions"""
         # Store original shape and flatten inputs
         orig_shape = x0_batch.shape
-        self.x0_batch = x0_batch.reshape(orig_shape[0], -1)
+        self.x0_batch = x0_batch.reshape(orig_shape[0], -1)  # [batch_size, flattened_dim]
         self.x1_batch = x1_batch.reshape(orig_shape[0], -1)
         batch_size = orig_shape[0]
         
-        # Precompute metric tensors at key points
+        # Precompute metric tensors
         key_points = {
-            0.0: x0_batch,  # Keep original shape for forward pass
+            0.0: x0_batch,
             0.5: 0.5 * (x0_batch + x1_batch),
             1.0: x1_batch
         }
@@ -146,25 +167,31 @@ class BatchedModelManifoldGeodesicFlow(nn.Module):
         
         t = torch.linspace(0, 1, n_steps, device=x0_batch.device)
         
-        # Use precomputed middle tensor for initial conditions
+        # Use precomputed middle tensor and reduce dimension
         G_mid = self.cached_metric_tensors[0.5]
         
-        # All calculations now work with flattened tensors
-        straight_dir = (self.x1_batch - self.x0_batch) / torch.norm(self.x1_batch - self.x0_batch, dim=1, keepdim=True)
-        eigenvals, eigenvecs = torch.linalg.eigh(G_mid)
-        max_curve_dir = eigenvecs[:, :, -1]
+        # Get movement direction
+        straight_dir = (self.x1_batch - self.x0_batch)
+        straight_dir = straight_dir / (torch.norm(straight_dir, dim=1, keepdim=True) + 1e-8)
         
-        rand_dir = torch.randn_like(max_curve_dir)
+        # Project metric tensor onto straight_dir
+        G_proj = torch.einsum('bij,bj->bi', G_mid, straight_dir)
+        G_proj = G_proj.unsqueeze(-1)  # [batch_size, flattened_dim, 1]
+        
+        # Find orthogonal direction with largest metric tensor value
+        rand_dir = torch.randn_like(straight_dir)
         rand_dir = rand_dir - torch.sum(rand_dir * straight_dir, dim=1, keepdim=True) * straight_dir
         rand_dir = rand_dir / (torch.norm(rand_dir, dim=1, keepdim=True) + 1e-8)
         
-        mixed_dir = max_curve_dir + rand_scale * rand_dir
+        metric_value = torch.einsum('bij,bi,bj->b', G_mid, rand_dir, rand_dir).unsqueeze(1)
+        base_scale = torch.sqrt(metric_value) * 0.1
+        
+        mixed_dir = rand_dir * rand_scale
         mixed_dir = mixed_dir - torch.sum(mixed_dir * straight_dir, dim=1, keepdim=True) * straight_dir
         mixed_dir = mixed_dir / (torch.norm(mixed_dir, dim=1, keepdim=True) + 1e-8)
         
-        base_scale = torch.sqrt(eigenvals[:, -1]) * 0.1
         rand_factor = 1.0 + rand_scale * (2 * torch.rand(batch_size, 1, device=x0_batch.device) - 1)
-        velocity0 = base_scale.unsqueeze(1) * rand_factor * mixed_dir
+        velocity0 = base_scale * rand_factor * mixed_dir
         deviation0 = torch.zeros_like(self.x0_batch)
         
         state0 = torch.cat([deviation0, velocity0], dim=0)
@@ -204,7 +231,7 @@ class OdeIG(GradientAttribution):
         optimized_paths = []
         for input_tensor, baseline_tensor in zip(inputs, baselines):
             paths = flow.integrate_batch(baseline_tensor, input_tensor, self.n_steps)
-            paths = paths.reshape(self.n_steps * input_tensor.shape[0], -1)
+            paths = paths.reshape(self.n_steps * input_tensor.shape[0], *input_tensor.shape[1:])
             optimized_paths.append(paths)
         
         return tuple(optimized_paths)
@@ -246,7 +273,7 @@ class OdeIG(GradientAttribution):
             input.shape[0] for input in inputs
         )
         n_features = tuple(
-            input.shape[1] for input in inputs
+            input.shape[1:] for input in inputs
         )
 
 
@@ -268,7 +295,7 @@ class OdeIG(GradientAttribution):
         # calling contiguous to avoid `memory whole` problems
         scaled_grads = [
             grad.contiguous()
-            * torch.tensor(step_sizes).to(grad.device)
+            * step_sizes.view(step_sizes.shape[0], *([1] * (grad.dim() - 1))).to(grad.device)
             for step_sizes, grad in zip(step_sizes_tuple, grads)
         ]
 
@@ -361,12 +388,14 @@ class OdeIG(GradientAttribution):
         )
 
 def calculate_step_sizes(path, n_inputs, n_steps, n_features):
-    paths_reshaped = path.view(n_steps, n_inputs, n_features)
+    view_shape = (n_steps, n_inputs) + n_features
+    paths_reshaped = path.view(view_shape)
     
     # Calculate initial step sizes
     step_sizes = torch.norm(
         paths_reshaped[1:] - paths_reshaped[:-1],
-        dim=-1
+        p=2,
+        dim=tuple(range(2, 2 + len(n_features))),
     )
     
     # Add final step to match dimensions

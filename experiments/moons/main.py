@@ -21,7 +21,8 @@ from captum.attr import (
 
 from geodesic.geodesic_ig import GeodesicIntegratedGradients
 from geodesic.svi_ig import SVI_IG
-from geodesic.ode_ig import OdeIG
+# from geodesic.ode_ig import OdeIG
+from geodesic.ode_ig_2 import OdeIG
 
 import pyro
 
@@ -320,8 +321,8 @@ def main(
                     paths = None
 
                 scatter = plt.scatter(
-                    x_test[:, 0].cpu(),
-                    x_test[:, 1].cpu(),
+                    x_test[:, 0].detach().cpu(),
+                    x_test[:, 1].detach().cpu(),
                     c=_attr.abs().sum(-1).detach().cpu(),
                 )
                 cbar = plt.colorbar(scatter)
@@ -444,10 +445,10 @@ def parse_args():
         "--explainers",
         type=str,
         default=[
-            "integrated_gradients",
-            "geodesic_integrated_gradients",
+            # "integrated_gradients",
+            # "geodesic_integrated_gradients",
             "ode_integrated_gradients",
-            "svi_integrated_gradients",
+            # "svi_integrated_gradients",
         ],
         nargs="+",
         metavar="N",
