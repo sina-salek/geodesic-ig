@@ -13,7 +13,7 @@ from argparse import ArgumentParser
 from pytorch_lightning import  seed_everything
 from torch import Tensor
 from torch.utils.data import DataLoader
-from torchvision.datasets import VOCSegmentation
+from torchvision.datasets import VOCDetection 
 from typing import Any, List
 
 import matplotlib.pyplot as plt
@@ -42,11 +42,11 @@ def plot_and_save(tensor, filename, is_attribution=False):
     if not is_attribution:
         mean = np.array([0.485, 0.456, 0.406])
         std = np.array([0.229, 0.224, 0.225])
-        tensor = tensor.cpu().numpy().transpose(1, 2, 0)
+        tensor = tensor.detach().numpy().transpose(1, 2, 0)
         tensor = std * tensor + mean
         tensor = np.clip(tensor, 0, 1)
     else:
-        tensor = tensor.cpu().numpy().transpose(1, 2, 0)
+        tensor = tensor.detach().numpy().transpose(1, 2, 0)
         tensor = np.mean(tensor, axis=2)  # Average across channels for attributions
 
     plt.figure(figsize=(8, 8))
@@ -90,8 +90,8 @@ def main(
 
     
     # Get data transform
-    image_size = 32
-    centre_crop = 32
+    image_size = 128
+    centre_crop = 128
     transform = T.Compose(
         [
             T.Resize(image_size),
@@ -100,17 +100,10 @@ def main(
             T.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]),
         ]
     )
-    target_transform = T.Compose(
-        [
-            T.Resize(image_size),
-            T.CenterCrop(centre_crop),
-            T.ToTensor(),
-            T.Lambda(lambda x: (x * 255).long()),
-        ]
-    )
+  
 
     # Load test data
-    voc = VOCSegmentation(
+    voc = VOCDetection(
         root=os.path.join(
             os.path.split(os.path.split(file_dir)[0])[0],
             "tint",
@@ -119,9 +112,9 @@ def main(
         ),
         image_set="val",
         transform=transform,
-        target_transform=target_transform,
         download=True,
     )
+
     voc_loader = voc_loader = DataLoader(
         voc, 
         batch_size=1, 
@@ -144,35 +137,31 @@ def main(
     if accelerator == "cuda":
         th.backends.cudnn.enabled = False
 
+    VOC_CLASSES = [
+        'aeroplane', 'bicycle', 'bird', 'boat', 'bottle',
+        'bus', 'car', 'cat', 'chair', 'cow',
+        'diningtable', 'dog', 'horse', 'motorbike', 'person',
+        'pottedplant', 'sheep', 'sofa', 'train', 'tvmonitor'
+    ]
+
     # Get data as tensors
-    # we only load 100 images
     x_test = list()
-    seg_test = list()
+    y_test = list()
     i = 0
-    for data, seg in voc_loader:
-        if i == 100:
+    for data, target in voc_loader:
+        if i == 1:
             break
-
-        seg_ids = seg.unique()
-        if len(seg_ids) <= 1:
-            continue
-
-        seg_ = seg.clone()
-        for j, seg_id in enumerate(seg_ids):
-            seg_[seg_ == seg_id] = j
-
+        
+        # Extract first object class as the target
+        class_name = list(target['annotation']['object'][0]['name'])
+        class_idx = VOC_CLASSES.index(class_name[0])  
+        
         x_test.append(data)
-        seg_test.append(seg_)
-        break
-
-    print(f"Number of images loaded: {len(x_test)}")
-    print(f"Final x_test shape: {x_test[0].shape}")
+        y_test.append(class_idx)
+        i += 1
 
     x_test = th.cat(x_test).to(device)
-    seg_test = th.cat(seg_test).to(device)
-
-    # Target is the model prediction
-    y_test = resnet(x_test).argmax(-1).to(device)
+    y_test = th.tensor(y_test).to(device)
 
     # Create dict of attributions, explainers, sensitivity max
     # and lipschitz max
@@ -189,7 +178,7 @@ def main(
             total=len(x_test),
             desc=f"{GeodesicIntegratedGradients.get_name()} attribution",
         ):
-            x_aug = generate_augmented_points(x, n_base_points=2500, n_noise_points=2500, device=device) 
+            x_aug = generate_augmented_points(x, n_base_points=50, n_noise_points=0, device=device) 
             explainer = GeodesicIntegratedGradients(
                 resnet, 
                 data=x_aug, 
@@ -228,6 +217,8 @@ def main(
         _attr = explainer.attribute(
             x_test,
             target=y_test,
+            num_iterations=1000,
+            beta=0.3,
         )
         attr["svi_integrated_gradients"] = _attr
         expl["svi_integrated_gradients"] = explainer
@@ -267,9 +258,9 @@ def parse_args():
         type=str,
         default=[
             # "geodesic_integrated_gradients",
-            # "svi_integrated_gradients",
-            # "integrated_gradients",
-            "ode_integrated_gradients"
+            "svi_integrated_gradients",
+            "integrated_gradients",
+            # "ode_integrated_gradients"
 
         ],
         nargs="+",
