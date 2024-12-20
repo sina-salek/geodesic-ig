@@ -3,7 +3,6 @@ from typing import Callable, List, Literal, Optional, Tuple, Union
 import warnings
 
 import torch
-import numpy as np 
 from captum._utils.common import (
     _expand_additional_forward_args,
     _expand_target,
@@ -396,26 +395,6 @@ class SVI_IG(GradientAttribution):
             for i, path in enumerate(optimized_paths)
         )
 
-        new_paths = []
-        new_targets = []
-
-        # Process each path and unpack results
-        for i, path in enumerate(optimized_paths):
-            path_uniform, target_uniform = make_path_uniform(
-                path,
-                n_inputs[i], 
-                n_steps, 
-                n_features[i], 
-                expanded_target,
-                target_step_size=np.mean(step_sizes)
-            )
-            new_paths.append(path_uniform)
-            new_targets = target_uniform  # Last assignment will have all targets
-
-        # Assign back
-        optimized_paths = new_paths
-        expanded_target = new_targets
-
         # grads: dim -> (bsz * #steps x inputs[0].shape[1:], ...)
         grads = self.gradient_func(
             forward_fn=self.forward_func,
@@ -428,7 +407,7 @@ class SVI_IG(GradientAttribution):
         # calling contiguous to avoid `memory whole` problems
         scaled_grads = [
             grad.contiguous()
-            * torch.tensor(step_sizes).to(grad.device)
+            * step_sizes.view(step_sizes.shape[0], *([1] * (grad.dim() - 1))).to(grad.device)
             for step_sizes, grad in zip(step_sizes_tuple, grads)
         ]
 
@@ -459,7 +438,8 @@ def calculate_step_sizes(path, n_inputs, n_steps, n_features):
     # Calculate initial step sizes
     step_sizes = torch.norm(
         paths_reshaped[1:] - paths_reshaped[:-1],
-        dim=-1
+        p=2,
+        dim=tuple(range(2, 2 + len(n_features))),
     )
     
     # Add final step to match dimensions
@@ -471,68 +451,3 @@ def calculate_step_sizes(path, n_inputs, n_steps, n_features):
     
     return step_sizes
 
-def make_path_uniform(path, n_inputs, n_steps, n_features, expanded_target, target_step_size=None):
-    target_view_shape = (n_steps, n_inputs)
-    # Convert targets to float for interpolation
-    expanded_target_reshaped = expanded_target.view(target_view_shape).float()
-    
-    view_shape = (n_steps, n_inputs) + n_features
-    paths_reshaped = path.view(view_shape)
-    
-    diffs = torch.diff(paths_reshaped, dim=0)
-    distances = torch.norm(diffs.reshape(n_steps-1, n_inputs, -1), dim=-1)
-    
-    if target_step_size is None:
-        target_step_size = torch.mean(distances)
-
-    # Calculate desired points for each path
-    desired_points = []
-    for input_idx in range(n_inputs):
-        current_distances = distances[:, input_idx]
-        total_points = 1
-        for dist in current_distances:
-            if dist > target_step_size:
-                n_points = int(torch.ceil(dist / target_step_size))
-                total_points += n_points - 1
-            else:
-                total_points += 1
-        desired_points.append(total_points)
-    
-    max_points = max(desired_points)
-    
-    # Interpolate each path and corresponding targets
-    new_paths = []
-    new_targets = []
-    for input_idx in range(n_inputs):
-        current_path = paths_reshaped[:, input_idx]
-        current_target = expanded_target_reshaped[:, input_idx]
-        
-        weights = torch.linspace(0, 1, max_points, device=path.device)
-        
-        interp_path = torch.zeros((max_points,) + current_path.shape[1:], device=path.device)
-        interp_target = torch.zeros(max_points, device=path.device)
-        
-        segment_idx = (weights * (len(current_path) - 1)).long()
-        segment_idx = torch.min(segment_idx, torch.tensor(len(current_path) - 2))
-        alphas = weights * (len(current_path) - 1) - segment_idx.float()
-        
-        for i, (idx, alpha) in enumerate(zip(segment_idx, alphas)):
-            start_point = current_path[idx]
-            end_point = current_path[idx + 1]
-            interp_path[i] = torch.lerp(start_point, end_point, alpha)
-            
-            start_target = current_target[idx]
-            end_target = current_target[idx + 1]
-            interp_target[i] = torch.lerp(start_target, end_target, alpha)
-        
-        new_paths.append(interp_path)
-        new_targets.append(interp_target)
-    
-    result_paths = torch.stack(new_paths, dim=1)
-    result_targets = torch.stack(new_targets, dim=1)
-    
-    # Convert targets back to long before returning
-    return (
-        result_paths.reshape(-1, *n_features),
-        result_targets.reshape(-1).long()
-    )
