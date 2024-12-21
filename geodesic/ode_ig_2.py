@@ -38,6 +38,7 @@ class BatchedModelManifoldGeodesicFlow(nn.Module):
         super().__init__()
         self.forward_func = forward_func
         self.cached_metric_tensors = {}
+        self.cached_interpolations = {}
         
     def _compute_metric_tensor(self, x_batch):
         """Compute metric tensor for arbitrary input dimensions"""
@@ -80,7 +81,15 @@ class BatchedModelManifoldGeodesicFlow(nn.Module):
         return G
 
     def interpolate_metric_tensor(self, t):
-        """Interpolate between precomputed metric tensors"""
+        """Interpolate between precomputed metric tensors with caching"""
+        # Round t to reduce cache misses (e.g., 3 decimal places)
+        t_rounded = round(float(t), 3)
+        
+        # Check cache first
+        if t_rounded in self.cached_interpolations:
+            return self.cached_interpolations[t_rounded]
+        
+        # Compute interpolation
         if t <= 0.5:
             w = 2 * t
             G0 = self.cached_metric_tensors[0.0]
@@ -89,10 +98,19 @@ class BatchedModelManifoldGeodesicFlow(nn.Module):
             w = 2 * (t - 0.5)
             G0 = self.cached_metric_tensors[0.5]
             G1 = self.cached_metric_tensors[1.0]
-        return (1 - w) * G0 + w * G1
+        
+        # Use in-place operations
+        result = torch.lerp(G0, G1, w)
+        
+        # Cache result if memory allows
+        if len(self.cached_interpolations) < 100:  # Limit cache size
+            self.cached_interpolations[t_rounded] = result
+            
+        return result
 
     def forward(self, t, state_batch):
         global forward_call_counts
+        print(f"forward_call_counts: {forward_call_counts}")
         forward_call_counts += 1
         batch_size = state_batch.shape[0] // 2
         deviation, dev_velocity = state_batch.chunk(2, dim=0)
