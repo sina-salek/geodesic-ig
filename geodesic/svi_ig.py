@@ -208,8 +208,57 @@ class SVI_IG(GradientAttribution):
             # Use guide to get mean of learned path distribution
             optimized_paths = self.guide(initial_paths, beta, input_additional_args)
 
-        return optimized_paths
+        optimized_paths = tuple(
+            self.make_uniform_spacing(opt_paths, n_steps=self.n_steps)
+            for opt_paths in optimized_paths
+        )
 
+        return optimized_paths
+        
+    def make_uniform_spacing(self, paths: Tensor, n_steps: int) -> Tuple[Tensor, int]:
+        """Make path spacing uniform by interpolating large gaps within each path"""
+        batch_size = paths.shape[0] // n_steps
+        feature_dims = paths.shape[1:]
+        
+        step_sizes = calculate_step_sizes(paths,n_inputs=batch_size, n_features=feature_dims, n_steps=n_steps)
+        standardized_step_sizes = step_sizes / step_sizes.sum(dim=0).unsqueeze(0)
+        
+        paths = paths.view(n_steps, batch_size, *feature_dims)
+        standardized_step_sizes = standardized_step_sizes.view(n_steps, batch_size, 1)
+
+        dense_paths = [[] for _ in range(batch_size)]
+        
+        for j in range(batch_size):
+            # Get all consecutive pairs of points [n_steps-1, features]
+            starts = paths[:-1, j]
+            ends = paths[1:, j]
+            
+            # Calculate points per segment for all steps at once
+            max_step = standardized_step_sizes.max().item()
+            scale_factor = n_steps / max_step
+            num_points = (standardized_step_sizes[:, j] * scale_factor).long()
+            
+            # Interpolate all segments at once
+            all_points = []
+            all_points.append(paths[0, j].unsqueeze(0))  # First point
+            
+            # Vectorized interpolation for all segments
+            for i in range(n_steps-1):
+                n = num_points[i].item()
+                alphas = torch.linspace(0, 1, n+1).view(-1, 1)
+                segment_points = starts[i:i+1] + alphas * (ends[i:i+1] - starts[i:i+1])
+                all_points.append(segment_points)
+            
+            dense_path = torch.cat(all_points, dim=0)
+            
+            # Downsample
+            indices = torch.linspace(0, len(dense_path)-1, n_steps).long()
+            dense_paths[j] = dense_path[indices]
+        
+        return torch.stack(dense_paths).transpose(0, 1).reshape(n_steps * batch_size, *feature_dims)
+
+    
+        
     @log_usage()
     def attribute(
         self,
@@ -370,7 +419,7 @@ class SVI_IG(GradientAttribution):
             if additional_forward_args is not None
             else None
         )
-        expanded_target = _expand_target(target, n_steps)
+        # expanded_target = _expand_target(target, self.n_steps)
 
         # TODO: Whilst generally works as expected, there are not many points on the high curvature regions.
         # Need to be interpolated, to have uniform number of points along the path.
@@ -391,9 +440,11 @@ class SVI_IG(GradientAttribution):
         )
 
         step_sizes_tuple = tuple(
-            calculate_step_sizes(path, n_inputs[i], n_steps, n_features[i])
+            calculate_step_sizes(path, n_inputs[i], self.n_steps, n_features[i])
             for i, path in enumerate(optimized_paths)
         )
+
+        expanded_target = _expand_target(target, self.n_steps)
 
         # grads: dim -> (bsz * #steps x inputs[0].shape[1:], ...)
         grads = self.gradient_func(
