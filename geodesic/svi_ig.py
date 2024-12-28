@@ -42,32 +42,6 @@ class SVI_IG(GradientAttribution):
         GradientAttribution.__init__(self, forward_func)
         self._multiply_by_inputs = multiply_by_inputs
 
-    def _get_approx_paths(
-        self,
-        inputs: Tensor,
-        baselines: Tensor,
-        augmentation_data: Tensor,
-        alphas: Tensor,
-        n_steps: int,
-        n_neighbors: int,
-    ) -> Tensor:
-        """
-        Compute approximate shortest paths between inputs and baselines through augmentation points
-        using A* algorithm and gradient-based edge weights.
-
-        Args:
-            inputs: Input points [batch_size, features]
-            baselines: Baseline points [batch_size, features]
-            augmentation_data: Additional points to consider in path [n_aug, features]
-            n_steps: Number of points desired in final path
-
-        Returns:
-            Tensor: Interpolated paths [n_steps, batch_size, features]
-        """
-
-        # TODO: Use Joseph's implementation of the KNN/A* to get the shortest path with augmentation data.
-        pass
-
     def potential_energy(
         self,
         path: Tuple[Tensor, ...],
@@ -110,7 +84,34 @@ class SVI_IG(GradientAttribution):
             for i in range(len(distance_penalties))
         )
 
-        return total_penalty
+        # Add endpoint matching penalties
+        endpoint_weight = 100
+        endpoint_penalties = 0
+        n_batch = int(path[0].shape[0] // self.n_steps)
+        n_features = path[0].shape[1:]
+        view_shape = (self.n_steps, n_batch) + n_features
+
+        # Calculate 10% of steps
+        n_edge_steps = max(1, int(0.1 * self.n_steps))
+
+        for i in range(len(path)):
+            path_reshaped = path[i].view(view_shape)
+            initial_reshaped = initial_paths[i].view(view_shape)
+            
+            # Penalize first 10% deviation
+            endpoint_penalties += endpoint_weight * torch.norm(
+                path_reshaped[:n_edge_steps] - initial_reshaped[:n_edge_steps], 
+                p=2, dim=-1
+            ).sum()
+            
+            # Penalize last 10% deviation
+            endpoint_penalties += endpoint_weight * torch.norm(
+                path_reshaped[-n_edge_steps:] - initial_reshaped[-n_edge_steps:], 
+                p=2, dim=-1
+            ).sum()
+
+
+        return total_penalty  + endpoint_penalties
 
     def model(
         self,
@@ -216,11 +217,10 @@ class SVI_IG(GradientAttribution):
         return optimized_paths
         
     def make_uniform_spacing(self, paths: Tensor, n_steps: int) -> Tuple[Tensor, int]:
-        """Make path spacing uniform by interpolating large gaps within each path"""
         batch_size = paths.shape[0] // n_steps
-        feature_dims = paths.shape[1:]
+        feature_dims = paths.shape[1:]  # [channels, height, width] for images
         
-        step_sizes = calculate_step_sizes(paths,n_inputs=batch_size, n_features=feature_dims, n_steps=n_steps)
+        step_sizes = calculate_step_sizes(paths, n_inputs=batch_size, n_features=feature_dims, n_steps=n_steps)
         standardized_step_sizes = step_sizes / step_sizes.sum(dim=0).unsqueeze(0)
         
         paths = paths.view(n_steps, batch_size, *feature_dims)
@@ -229,29 +229,25 @@ class SVI_IG(GradientAttribution):
         dense_paths = [[] for _ in range(batch_size)]
         
         for j in range(batch_size):
-            # Get all consecutive pairs of points [n_steps-1, features]
             starts = paths[:-1, j]
             ends = paths[1:, j]
             
-            # Calculate points per segment for all steps at once
             max_step = standardized_step_sizes.max().item()
             scale_factor = n_steps / max_step
             num_points = (standardized_step_sizes[:, j] * scale_factor).long()
             
-            # Interpolate all segments at once
             all_points = []
-            all_points.append(paths[0, j].unsqueeze(0))  # First point
+            all_points.append(paths[0, j].unsqueeze(0))
             
-            # Vectorized interpolation for all segments
             for i in range(n_steps-1):
                 n = num_points[i].item()
-                alphas = torch.linspace(0, 1, n+1).view(-1, 1)
+                # Reshape alphas to match image dimensions
+                alphas = torch.linspace(0, 1, n+1).view(-1, *([1] * len(feature_dims)))
+                # Now alphas has shape [n+1, 1, 1, 1] for images
                 segment_points = starts[i:i+1] + alphas * (ends[i:i+1] - starts[i:i+1])
                 all_points.append(segment_points)
             
             dense_path = torch.cat(all_points, dim=0)
-            
-            # Downsample
             indices = torch.linspace(0, len(dense_path)-1, n_steps).long()
             dense_paths[j] = dense_path[indices]
         
