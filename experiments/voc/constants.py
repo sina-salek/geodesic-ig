@@ -1,0 +1,1 @@
+VALID_BACKBONE_NAMES = ["resnet18", "convnext_base", "mobilenet_v3_small"]
