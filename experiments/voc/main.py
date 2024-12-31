@@ -6,6 +6,8 @@ import warnings
 
 from captum.attr import (
     IntegratedGradients,
+    KernelShap,
+    GradientShap
 )
 from captum.metrics import sensitivity_max
 
@@ -25,6 +27,7 @@ from geodesic.geodesic_ig import GeodesicIntegratedGradients
 from geodesic.utils.tqdm import get_progress_bars
 
 from experiments.voc.classifier import VocClassifier
+from experiments.voc.constants import VALID_BACKBONE_NAMES
 
 file_dir = os.path.dirname(__file__)
 warnings.filterwarnings("ignore")
@@ -121,15 +124,18 @@ def main(
         shuffle=True,
         generator=th.Generator().manual_seed(2) 
     )
+    
+    models = dict()
+    # Load models
+    for model_name in VALID_BACKBONE_NAMES:
+        models[model_name] = VocClassifier(backbone_name=model_name)
+    
 
-    # Load model
-    resnet = VocClassifier()
+        # Switch to eval
+        models[model_name].eval()
 
-    # Switch to eval
-    resnet.eval()
-
-    # Set model to device
-    resnet.to(device)
+        # Set model to device
+        models[model_name].to(device)
 
     # Disable cudnn if using cuda accelerator.
     # Please see https://captum.ai/docs/faq#how-can-i-resolve-cudnn-rnn-backward-error-for-rnn-or-lstm-network
@@ -173,71 +179,92 @@ def main(
     if "geodesic_integrated_gradients" in explainers:
         _attr = list()
 
-        for i, (x, y) in get_progress_bars()(
-            enumerate(zip(x_test, y_test)),
-            total=len(x_test),
-            desc=f"{GeodesicIntegratedGradients.get_name()} attribution",
-        ):
-            x_aug = generate_augmented_points(x, n_base_points=50, n_noise_points=0, device=device) 
-            explainer = GeodesicIntegratedGradients(
-                resnet, 
-                data=x_aug, 
-                n_neighbors=5
-            )
+        for model_name, model in models.items():
 
-            _attr.append(
-                explainer.attribute(
-                    x.unsqueeze(0),
-                    target=y.item(),
-                    internal_batch_size=100,
+            for i, (x, y) in get_progress_bars()(
+                enumerate(zip(x_test, y_test)),
+                total=len(x_test),
+                desc=f"{GeodesicIntegratedGradients.get_name()} attribution",
+            ):
+                x_aug = generate_augmented_points(x, n_base_points=50, n_noise_points=0, device=device) 
+                explainer = GeodesicIntegratedGradients(
+                    model, 
+                    data=x_aug, 
+                    n_neighbors=5
                 )
+
+                _attr.append(
+                    explainer.attribute(
+                        x.unsqueeze(0),
+                        target=y.item(),
+                        internal_batch_size=100,
+                    )
+                )
+
+            
+            attr[f"geodesic_integrated_gradients_{model_name}"] = th.cat(_attr)
+            expl[f"geodesic_integrated_gradients_{model_name}"] = explainer
+
+            plot_and_save(_attr[0], f"attribution_geodesic_integrated_gradients_{model_name}.png", is_attribution=True)
+    if "kernel_shap" in explainers:
+        for model_name, model in models.items():
+
+            explainer = KernelShap(model)
+            _attr = explainer.attribute(
+                x_test,
+                target=y_test,
             )
+            attr[f"kernel_shap_{model_name}"] = _attr
+            expl[f"kernel_shap_{model_name}"] = explainer
 
-        
-        attr["geodesic_integrated_gradients"] = th.cat(_attr)
-        expl["geodesic_integrated_gradients"] = explainer
+            plot_and_save(_attr[0], f"attribution_kernel_shap_{model_name}.png", is_attribution=True)
 
-        plot_and_save(attr["geodesic_integrated_gradients"][0], f"attribution_geodesic_integrated_gradients.png", is_attribution=True)
+    if "gradient_shap" in explainers:
+        for model_name, model in models.items():
+            explainer = GradientShap(model)
+            _attr = explainer.attribute(
+                x_test,
+                baselines=th.zeros_like(x_test),
+                target=y_test,
+            )
+            attr[f"gradient_shap_{model_name}"] = _attr
+            expl[f"gradient_shap_{model_name}"] = explainer
 
+            plot_and_save(_attr[0], f"attribution_gradient_shap_{model_name}.png", is_attribution=True)
     if "integrated_gradients" in explainers:
-        explainer = IntegratedGradients(resnet)
-        _attr = explainer.attribute(
-            x_test,
-            target=y_test,
-            internal_batch_size=200,
-        )
-        attr["integrated_gradients"] = _attr
-        expl["integrated_gradients"] = explainer
+        n_steps = 50
+        for model_name, model in models.items():
+            explainer = IntegratedGradients(model)
+            _attr = explainer.attribute(
+                x_test,
+                target=y_test,
+                n_steps=n_steps,
+            )
+            attr[f"integrated_gradients_{model_name}"] = _attr
+            expl[f"integrated_gradients_{model_name}"] = explainer
 
-        plot_and_save(_attr[0], f"attribution_integrated_gradients.png", is_attribution=True)
+            plot_and_save(_attr[0], f"attribution_integrated_gradients_{n_steps}_{model_name}.png", is_attribution=True)
 
 
     if "svi_integrated_gradients" in explainers:
-        explainer = SVI_IG(resnet)
-        _attr = explainer.attribute(
-            x_test,
-            target=y_test,
-            num_iterations=500,
-            beta=0.3,
-        )
-        attr["svi_integrated_gradients"] = _attr
-        expl["svi_integrated_gradients"] = explainer
+        num_iterations = 500
+        beta = 0.3
+        linear_interpolation = True
+        n_steps = 50
+        for model_name, model in models.items():
+            
+            explainer = SVI_IG(model)
+            _attr = explainer.attribute(
+                x_test,
+                target=y_test,
+                num_iterations=num_iterations,
+                beta=beta,
+                n_steps=n_steps,
+            )
+            attr[f"svi_integrated_gradients_{model_name}"] = _attr
+            expl[f"svi_integrated_gradients_{model_name}"] = explainer
 
-        plot_and_save(_attr[0], f"attribution_svi_integrated_gradients.png", is_attribution=True)
-
-    if "ode_integrated_gradients" in explainers:
-        from geodesic.ode_ig_2 import OdeIG
-        explainer = OdeIG(resnet)
-        baseline = th.zeros_like(x_test)
-        _attr = explainer.attribute(
-            x_test,
-            baselines=baseline,
-            target=y_test,
-        )
-        attr["ode_integrated_gradients"] = _attr
-        expl["ode_integrated_gradients"] = explainer
-
-        plot_and_save(_attr[0], f"attribution_ode_integrated_gradients.png", is_attribution=True)
+            plot_and_save(_attr[0], f"attribution_svi_integrated_gradients_{model_name}_{beta}_{num_iterations}_{image_size}_{linear_interpolation}_{n_steps}.png", is_attribution=True)
 
     # Save attributions
     attr_path = os.path.join(
@@ -259,9 +286,9 @@ def parse_args():
         default=[
             # "geodesic_integrated_gradients",
             # "svi_integrated_gradients",
-            # "integrated_gradients",
-            "ode_integrated_gradients"
-
+            "integrated_gradients",
+            "kernel_shap",
+            "gradient_shap",
         ],
         nargs="+",
         metavar="N",
@@ -283,6 +310,12 @@ def parse_args():
         "--deterministic",
         action="store_true",
         help="Whether to make training deterministic or not.",
+    )
+    parser.add_argument(
+        "--classifier_name",
+        type=str,
+        default="resnet18",
+        help="Name of the classifier to use.",
     )
     return parser.parse_args()
 
