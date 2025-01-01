@@ -21,8 +21,7 @@ from captum.attr import (
 
 from geodesic.geodesic_ig import GeodesicIntegratedGradients
 from geodesic.svi_ig import SVI_IG
-# from geodesic.ode_ig import OdeIG
-from geodesic.ode_ig_2 import OdeIG
+
 
 import pyro
 
@@ -191,50 +190,54 @@ def main(
         plt.close()
 
         if "svi_integrated_gradients" in explainers:
-            explainer = SVI_IG(net)
-            _attr = th.zeros_like(x_test)
-            paths = []
-            predictions = net(x_test).argmax(-1)
-            gig_path = None
-            attribution, gig_path = explainer.attribute(
-                x_test,
-                baselines=baselines,
-                target=predictions,
-                n_steps=n_steps,
-                learning_rate=learning_rate,
-                num_iterations=num_iterations,
-                beta=beta,
-                return_paths=True,
-            )
-            if gig_path is not None:
-                gig_path = gig_path[0]
-                paths.append(gig_path)
-            else:
-                paths = None
-            _attr = attribution.float()
-            attr["svi_integrated_gradients"] = (_attr, paths)
+            linear_interpolation = [True, False]
+            endpoint_matching = [True, False]
+            for li in linear_interpolation:
+                for em in endpoint_matching:
+                        
+                    explainer = SVI_IG(net)
+                    _attr = th.zeros_like(x_test)
+                    paths = []
+                    predictions = net(x_test).argmax(-1)
+                    attribution, gig_path = explainer.attribute(
+                        x_test,
+                        baselines=baselines,
+                        target=predictions,
+                        num_iterations=num_iterations,
+                        learning_rate=learning_rate,
+                        beta=beta,
+                        n_steps=n_steps,
+                        do_linear_interp=li,
+                        use_endpoints_matching=em,
+                        return_paths=True,
+                    )
+
+
+            # explainer = SVI_IG(net)
+            # _attr = th.zeros_like(x_test)
+            # paths = []
+            # predictions = net(x_test).argmax(-1)
+            # gig_path = None
+            # attribution, gig_path = explainer.attribute(
+            #     x_test,
+            #     baselines=baselines,
+            #     target=predictions,
+            #     n_steps=n_steps,
+            #     learning_rate=learning_rate,
+            #     num_iterations=num_iterations,
+            #     beta=beta,
+            #     return_paths=True,
+            # )
+                    if gig_path is not None:
+                        gig_path = gig_path[0]
+                        paths.append(gig_path)
+                    else:
+                        paths = None
+                    _attr = attribution.float()
+                    attr[f"svi_integrated_gradients_{em}_{li}"] = (_attr, paths)
 
         if "ode_integrated_gradients" in explainers:
-            ode_ig = OdeIG(net)
-            _attr = th.zeros_like(x_test)
-            paths = []
-            gig_path = None
-            predictions = net(x_test).argmax(-1)
-            attribution, gig_path = ode_ig.attribute(
-                x_test,
-                baselines=baselines,
-                target=predictions,
-                n_steps=n_steps,
-                return_paths=True,
-            )
-            if gig_path is not None:
-                gig_path = gig_path[0]
-                paths.append(gig_path)
-            else:
-                paths = None
-            _attr = attribution.float()
-
-            attr[f"ode_integrated_gradients"] = (_attr, paths)
+            raise NotImplementedError("ODE-IG is not implemented yet.")
         if "geodesic_integrated_gradients" in explainers:
             for n in [5]:
                 geodesic_ig = GeodesicIntegratedGradients(net)
@@ -447,8 +450,7 @@ def parse_args():
         default=[
             # "integrated_gradients",
             # "geodesic_integrated_gradients",
-            "ode_integrated_gradients",
-            # "svi_integrated_gradients",
+            "svi_integrated_gradients",
         ],
         nargs="+",
         metavar="N",
@@ -493,7 +495,7 @@ def parse_args():
     parser.add_argument(
         "--beta",
         type=float,
-        default=0.3,
+        default=0.1,
         help="Beta parameter for the potential energy. Used in the SVI-IG.",
     )
     parser.add_argument(
