@@ -48,6 +48,7 @@ class SVI_IG(GradientAttribution):
         initial_paths: Tuple[Tensor, ...],
         beta: float,
         input_additional_args: Tuple[Tensor, ...],
+        use_endpoints_matching: bool = True,
     ) -> Tensor:
         """
         Args:
@@ -83,41 +84,43 @@ class SVI_IG(GradientAttribution):
             (distance_penalties[i] - beta * curvature_penalties[i]).sum()
             for i in range(len(distance_penalties))
         )
+        if use_endpoints_matching:
+            # Add endpoint matching penalties
+            endpoint_weight = 100
+            endpoint_penalties = 0
+            n_batch = int(path[0].shape[0] // self.n_steps)
+            n_features = path[0].shape[1:]
+            view_shape = (self.n_steps, n_batch) + n_features
 
-        # Add endpoint matching penalties
-        endpoint_weight = 100
-        endpoint_penalties = 0
-        n_batch = int(path[0].shape[0] // self.n_steps)
-        n_features = path[0].shape[1:]
-        view_shape = (self.n_steps, n_batch) + n_features
+            # Calculate 10% of steps
+            n_edge_steps = max(1, int(0.1 * self.n_steps))
 
-        # Calculate 10% of steps
-        n_edge_steps = max(1, int(0.1 * self.n_steps))
+            for i in range(len(path)):
+                path_reshaped = path[i].view(view_shape)
+                initial_reshaped = initial_paths[i].view(view_shape)
+                
+                # Penalize first 10% deviation
+                endpoint_penalties += endpoint_weight * torch.norm(
+                    path_reshaped[:n_edge_steps] - initial_reshaped[:n_edge_steps], 
+                    p=2, dim=-1
+                ).sum()
+                
+                # Penalize last 10% deviation
+                endpoint_penalties += endpoint_weight * torch.norm(
+                    path_reshaped[-n_edge_steps:] - initial_reshaped[-n_edge_steps:], 
+                    p=2, dim=-1
+                ).sum()
+            return total_penalty  + endpoint_penalties
+        else:
+            return total_penalty
 
-        for i in range(len(path)):
-            path_reshaped = path[i].view(view_shape)
-            initial_reshaped = initial_paths[i].view(view_shape)
-            
-            # Penalize first 10% deviation
-            endpoint_penalties += endpoint_weight * torch.norm(
-                path_reshaped[:n_edge_steps] - initial_reshaped[:n_edge_steps], 
-                p=2, dim=-1
-            ).sum()
-            
-            # Penalize last 10% deviation
-            endpoint_penalties += endpoint_weight * torch.norm(
-                path_reshaped[-n_edge_steps:] - initial_reshaped[-n_edge_steps:], 
-                p=2, dim=-1
-            ).sum()
-
-
-        return total_penalty  + endpoint_penalties
 
     def model(
         self,
         initial_paths: Tuple[Tensor, ...],
         beta: float,
         input_additional_args: Tuple[Tensor, ...],
+        use_endpoints_matching: bool = True,
     ):
         """Model samples path deviations without reshaping."""
         # Sample path deviations directly
@@ -138,7 +141,7 @@ class SVI_IG(GradientAttribution):
         )
 
         energy = self.potential_energy(
-            paths, initial_paths, beta, input_additional_args
+            paths, initial_paths, beta, input_additional_args, use_endpoints_matching= use_endpoints_matching
         )
         pyro.factor("energy", -energy)
 
@@ -147,6 +150,7 @@ class SVI_IG(GradientAttribution):
         initial_paths: Tuple[Tensor, ...],
         beta: float,
         input_additional_args: Tuple[Tensor, ...],
+        use_endpoints_matching: bool = True,
     ):
         """Guide learns optimal deviations without reshaping."""
         # Learn parameters directly in original shape
@@ -187,6 +191,8 @@ class SVI_IG(GradientAttribution):
         current_beta: float = 0.3,
         num_iterations: int = 1000,
         lr: float = 1e-2,
+        use_endpoints_matching: bool = True,
+        do_linear_interp: bool = True,
     ) -> Tensor:
         """Optimize paths between inputs and baselines using SVI."""
 
@@ -198,7 +204,7 @@ class SVI_IG(GradientAttribution):
         beta = current_beta
         for step in range(num_iterations):
             # Optimize
-            loss = svi.step(initial_paths, beta, input_additional_args)
+            loss = svi.step(initial_paths, beta, input_additional_args, use_endpoints_matching=use_endpoints_matching)
             beta *= beta_decay_rate
 
             if step % 100 == 0:
@@ -209,10 +215,11 @@ class SVI_IG(GradientAttribution):
             # Use guide to get mean of learned path distribution
             optimized_paths = self.guide(initial_paths, beta, input_additional_args)
 
-        optimized_paths = tuple(
-            self.make_uniform_spacing(opt_paths, n_steps=self.n_steps)
-            for opt_paths in optimized_paths
-        )
+        if do_linear_interp:
+            optimized_paths = tuple(
+                self.make_uniform_spacing(opt_paths, n_steps=self.n_steps)
+                for opt_paths in optimized_paths
+            )
 
         return optimized_paths
         
@@ -254,7 +261,7 @@ class SVI_IG(GradientAttribution):
         return torch.stack(dense_paths).transpose(0, 1).reshape(n_steps * batch_size, *feature_dims)
 
     
-        
+    # TODO: Add a parameter to control whether interpolation is done in the optimization step. Tidy up and remove unused parameters.
     @log_usage()
     def attribute(
         self,
@@ -272,6 +279,8 @@ class SVI_IG(GradientAttribution):
         n_neighbors: int = 20,
         num_iterations: int = 1000,
         learning_rate: float = 0.01,
+        use_endpoints_matching: bool = True,
+        do_linear_interp: bool = True,
     ) -> Union[
         TensorOrTupleOfTensorsGeneric, Tuple[TensorOrTupleOfTensorsGeneric, Tensor]
     ]:
@@ -302,6 +311,7 @@ class SVI_IG(GradientAttribution):
         paths = None
         if internal_batch_size is not None:
             num_examples = formatted_inputs[0].shape[0]
+            # TODO: Add support for linear interpolation and endpoints matching
             attributions = _batch_attribution(
                 self,
                 num_examples,
@@ -330,6 +340,8 @@ class SVI_IG(GradientAttribution):
                 beta=beta,
                 num_iterations=num_iterations,
                 learning_rate=learning_rate,
+                use_endpoints_matching=use_endpoints_matching,
+                do_linear_interp=do_linear_interp,
             )
         formatted_outputs = _format_output(is_inputs_tuple, attributions)
         if return_convergence_delta:
@@ -369,6 +381,8 @@ class SVI_IG(GradientAttribution):
         num_iterations: int = 1000,
         beta: float = 0.3,
         learning_rate: float = 0.01,
+        use_endpoints_matching: bool = True,
+        do_linear_interp: bool = True,
     ) -> Tuple[Tensor, ...]:
 
         if step_sizes_and_alphas is None:
@@ -426,6 +440,8 @@ class SVI_IG(GradientAttribution):
             current_beta,
             num_iterations,
             lr=learning_rate,
+            use_endpoints_matching=use_endpoints_matching,
+            do_linear_interp=do_linear_interp,
         )
 
         n_inputs = tuple(
