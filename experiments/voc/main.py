@@ -93,6 +93,7 @@ def main(
 
     
     # Get data transform
+    # TODO: Transformations in the final experiment should 224x224
     image_size = 128
     centre_crop = 128
     transform = T.Compose(
@@ -249,22 +250,27 @@ def main(
     if "svi_integrated_gradients" in explainers:
         num_iterations = 500
         beta = 0.3
-        linear_interpolation = True
+        linear_interpolation = [True, False]
+        endpoint_matching = [True, False]
         n_steps = 50
-        for model_name, model in models.items():
-            
-            explainer = SVI_IG(model)
-            _attr = explainer.attribute(
-                x_test,
-                target=y_test,
-                num_iterations=num_iterations,
-                beta=beta,
-                n_steps=n_steps,
-            )
-            attr[f"svi_integrated_gradients_{model_name}"] = _attr
-            expl[f"svi_integrated_gradients_{model_name}"] = explainer
+        for li in linear_interpolation:
+            for em in endpoint_matching:
+                for model_name, model in models.items():
+                    
+                    explainer = SVI_IG(model)
+                    _attr = explainer.attribute(
+                        x_test,
+                        target=y_test,
+                        num_iterations=num_iterations,
+                        beta=beta,
+                        n_steps=n_steps,
+                        do_linear_interp=li,
+                        use_endpoints_matching=em,
+                    )
+                    attr[f"svi_integrated_gradients_{model_name}_{em}_{li}"] = _attr
+                    expl[f"svi_integrated_gradients_{model_name}_{em}_{li}"] = explainer
 
-            plot_and_save(_attr[0], f"attribution_svi_integrated_gradients_{model_name}_{beta}_{num_iterations}_{image_size}_{linear_interpolation}_{n_steps}.png", is_attribution=True)
+                    plot_and_save(_attr[0], f"attribution_svi_integrated_gradients_{model_name}_{em}_{li}_{beta}_{num_iterations}_{image_size}_{n_steps}.png", is_attribution=True)
 
     # Save attributions
     attr_path = os.path.join(
@@ -285,10 +291,10 @@ def parse_args():
         type=str,
         default=[
             # "geodesic_integrated_gradients",
-            # "svi_integrated_gradients",
-            "integrated_gradients",
-            "kernel_shap",
-            "gradient_shap",
+            "svi_integrated_gradients",
+            # "integrated_gradients",
+            # "kernel_shap",
+            # "gradient_shap",
         ],
         nargs="+",
         metavar="N",
