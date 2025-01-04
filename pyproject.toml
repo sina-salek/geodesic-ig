@@ -20,6 +20,7 @@ pytest = "^8.3.4"
 black = "^24.10.0"
 torchvision = "^0.17"
 timm = "^1.0.12"
+pyro-ppl = "^1.9.1"
 
 
 [build-system]
