@@ -63,7 +63,7 @@ def main(
         seed_everything(seed=seed, workers=True)
 
     # Device setup
-    device = device or ("cuda" if th.cuda.is_available() else "cpu")
+    device = "cuda" if th.cuda.is_available() else "cpu"
     print(f"Using device: {device}")
 
     # Create lock for multiprocessing
@@ -139,7 +139,7 @@ def main(
             # Disable cudnn for CUDA if needed
             if device.startswith("cuda"):
                 th.backends.cudnn.enabled = False
-                
+
         # Get predictions
         pred = trainer.predict(net, test_loader)
 
