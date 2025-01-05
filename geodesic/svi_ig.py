@@ -201,6 +201,7 @@ class SVI_IG(GradientAttribution):
     ) -> Tensor:
         """Optimize paths between inputs and baselines using SVI."""
         
+        print(f"Device used: {device}")
         # Move initial paths to GPU
         initial_paths = tuple(p.to(device) for p in initial_paths)
         input_additional_args = tuple(arg.to(device) for arg in input_additional_args)
