@@ -84,6 +84,7 @@ class Net(pl.LightningModule):
     ):
         super().__init__()
         self._soft_labels = False
+        self.device = th.device("cuda" if th.cuda.is_available() else "cpu")
 
         if isinstance(layers, nn.Module):
             self.net = layers
@@ -107,6 +108,7 @@ class Net(pl.LightningModule):
         self.l2 = l2
 
     def forward(self, x: th.Tensor) -> th.Tensor:
+        x = x.to(self.device)
         return self.net(x)
 
     def loss(self, inputs, target):
@@ -146,6 +148,7 @@ class Net(pl.LightningModule):
 
     def predict_step(self, batch, batch_idx, dataloader_idx=0):
         x, y = batch
+        x = x.to(self.device)
         return self(x.float())
 
     def configure_optimizers(self):
