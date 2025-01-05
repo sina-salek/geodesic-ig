@@ -43,6 +43,10 @@ class SVI_IG(GradientAttribution):
         self._multiply_by_inputs = multiply_by_inputs
         self.device = "cuda" if torch.cuda.is_available() else "cpu"
         self.forward_func = self.forward_func.to(self.device)
+        for param in self.forward_func.parameters():
+            param.data = param.data.to(self.device)
+
+        print(f"Initialized SVI_IG on device: {self.device}")
 
     def _ensure_device(self, tensor_or_tuple):
         """Move tensor or tuple of tensors to correct device"""
