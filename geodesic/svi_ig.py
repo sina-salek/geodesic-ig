@@ -41,6 +41,15 @@ class SVI_IG(GradientAttribution):
     ) -> None:
         GradientAttribution.__init__(self, forward_func)
         self._multiply_by_inputs = multiply_by_inputs
+        self.device = "cuda" if torch.cuda.is_available() else "cpu"
+        self.forward_func = self.forward_func.to(self.device)
+
+    def _ensure_device(self, tensor_or_tuple):
+        """Move tensor or tuple of tensors to correct device"""
+        if isinstance(tensor_or_tuple, tuple):
+            return tuple(t.to(self.device) if t is not None else None 
+                        for t in tensor_or_tuple)
+        return tensor_or_tuple.to(self.device) if tensor_or_tuple is not None else None
 
     def potential_energy(
         self,
@@ -114,64 +123,49 @@ class SVI_IG(GradientAttribution):
         else:
             return total_penalty
 
-
-    def model(
-        self,
-        initial_paths: Tuple[Tensor, ...],
-        beta: float,
-        input_additional_args: Tuple[Tensor, ...],
-        use_endpoints_matching: bool = True,
-        device: str = "cuda"
-    ):
+    def model(self, *args, **kwargs):
         """Model samples path deviations without reshaping."""
+        initial_paths = self._ensure_device(args[0])
+        input_additional_args = self._ensure_device(args[2])
+        
         delta_tuple = tuple(
             pyro.sample(
                 f"path_delta_{i}",
                 dist.Normal(
-                    torch.zeros_like(initial_paths[i]).to(device), 
-                    torch.ones_like(initial_paths[i]).to(device)
+                    torch.zeros_like(initial_paths[i]).to(self.device), 
+                    torch.ones_like(initial_paths[i]).to(self.device)
                 ).to_event(initial_paths[i].dim()),
             )
             for i in range(len(initial_paths))
         )
 
         paths = tuple(
-            (initial_paths[i].to(device) + delta_tuple[i]).requires_grad_()
+            (initial_paths[i] + delta_tuple[i]).requires_grad_()
             for i in range(len(initial_paths))
         )
 
-        energy = self.potential_energy(
-            paths, initial_paths, beta, input_additional_args, 
-            use_endpoints_matching=use_endpoints_matching
-        )
+        energy = self.potential_energy(paths, initial_paths, args[1], 
+                                     input_additional_args)
         pyro.factor("energy", -energy)
 
-    def guide(
-        self,
-        initial_paths: Tuple[Tensor, ...],
-        beta: float,
-        input_additional_args: Tuple[Tensor, ...],
-        use_endpoints_matching: bool = True,
-        device: str = "cuda"
-    ):
-        if device is None or (device == "cuda" and not torch.cuda.is_available()):
-            device = "cpu"
-    
+    def guide(self, *args, **kwargs):
         """Guide learns optimal deviations without reshaping."""
+        initial_paths = self._ensure_device(args[0])
+        
         delta_locs = tuple(
             pyro.param(
                 f"delta_loc_{i}", 
-                lambda: torch.zeros_like(initial_paths[i]).to(device)
-            )
+                lambda: torch.zeros_like(initial_paths[i])
+            ).to(self.device)
             for i in range(len(initial_paths))
         )
 
         delta_scales = tuple(
             pyro.param(
                 f"delta_scale_{i}",
-                lambda: (0.1 * torch.ones_like(initial_paths[i])).to(device),
+                lambda: 0.1 * torch.ones_like(initial_paths[i]),
                 constraint=dist.constraints.positive,
-            )
+            ).to(self.device)
             for i in range(len(initial_paths))
         )
 
@@ -185,7 +179,7 @@ class SVI_IG(GradientAttribution):
             )
 
         optimized_paths = tuple(
-            (initial_paths[i].to(device) + delta_locs[i]).requires_grad_()
+            (initial_paths[i] + delta_locs[i]).requires_grad_()
             for i in range(len(initial_paths))
         )
         return optimized_paths
@@ -200,48 +194,58 @@ class SVI_IG(GradientAttribution):
         lr: float = 1e-2,
         use_endpoints_matching: bool = True,
         do_linear_interp: bool = True,
-        device: str = None
     ) -> Tensor:
-        """Optimize paths between inputs and baselines using SVI."""
+        """Optimize paths between inputs and baselines using SVI.
         
-        # Determine device based on availability
-        if device is None:
-            device = "cuda" if torch.cuda.is_available() and torch.cuda.device_count() > 0 else "cpu"
+        Args:
+            initial_paths: Tuple of tensors containing initial paths
+            input_additional_args: Additional arguments for forward function
+            beta_decay_rate: Rate at which beta decays during optimization
+            current_beta: Initial beta value for optimization
+            num_iterations: Number of optimization iterations
+            lr: Learning rate for Adam optimizer
+            use_endpoints_matching: Whether to enforce endpoint matching
+            do_linear_interp: Whether to perform linear interpolation on optimized paths
+            
+        Returns:
+            Tuple of optimized paths
+        """
+        # Use class device attribute
+        print(f"Device used: {self.device}")
         
-        print(f"Device used: {device}")
+        # Move inputs to correct device
+        initial_paths = self._ensure_device(initial_paths)
+        input_additional_args = self._ensure_device(input_additional_args)
         
-        try:
-            initial_paths = tuple(p.to(device) for p in initial_paths)
-            input_additional_args = tuple(arg.to(device) for arg in input_additional_args) if input_additional_args is not None else None
-        except (RuntimeError, AssertionError) as e:
-            print(f"Warning: Could not move tensors to {device}, falling back to CPU")
-            device = "cpu"
-            initial_paths = tuple(p.to(device) for p in initial_paths)
-            input_additional_args = tuple(arg.to(device) for arg in input_additional_args) if input_additional_args is not None else None
-        
+        # Setup optimization
         optimizer = Adam({"lr": lr})
         svi = SVI(
-            model=lambda *args, **kwargs: self.model(*args, **kwargs, device=device),
-            guide=lambda *args, **kwargs: self.guide(*args, **kwargs, device=device),
+            model=lambda *args, **kwargs: self.model(*args, **kwargs),
+            guide=lambda *args, **kwargs: self.guide(*args, **kwargs),
             optim=optimizer,
             loss=Trace_ELBO(retain_graph=True)
         )
 
+        # Run optimization
         beta = current_beta
         for step in range(num_iterations):
-            loss = svi.step(initial_paths, beta, input_additional_args, use_endpoints_matching=use_endpoints_matching)
+            loss = svi.step(initial_paths, beta, input_additional_args, 
+                        use_endpoints_matching=use_endpoints_matching)
             beta *= beta_decay_rate
 
             if step % 100 == 0:
                 print(f"Step {step}: loss = {loss:.3f}, beta = {beta:.3f}")
 
+        # Get optimized paths
         with torch.no_grad():
-            optimized_paths = self.guide(initial_paths, beta, input_additional_args, use_endpoints_matching=use_endpoints_matching)
-            optimized_paths = tuple(p.to(device) for p in optimized_paths)
+            optimized_paths = self.guide(initial_paths, beta, input_additional_args, 
+                                    use_endpoints_matching=use_endpoints_matching)
+            optimized_paths = self._ensure_device(optimized_paths)
 
+        # Optional linear interpolation
         if do_linear_interp:
             optimized_paths = tuple(
-                self.make_uniform_spacing(opt_paths, n_steps=self.n_steps).to(device)
+                self.make_uniform_spacing(opt_paths, n_steps=self.n_steps)
                 for opt_paths in optimized_paths
             )
 
@@ -455,10 +459,6 @@ class SVI_IG(GradientAttribution):
         )
         # expanded_target = _expand_target(target, self.n_steps)
 
-
-
-        device = "cuda" if torch.cuda.is_available() else "cpu"
-
         optimized_paths = self._optimize_paths(
             initial_paths,
             input_additional_args,
@@ -468,7 +468,6 @@ class SVI_IG(GradientAttribution):
             lr=learning_rate,
             use_endpoints_matching=use_endpoints_matching,
             do_linear_interp=do_linear_interp,
-            device=device
         )
 
         n_inputs = tuple(
