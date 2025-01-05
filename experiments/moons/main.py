@@ -50,7 +50,7 @@ def main(
     n_samples: int,
     noises: List[float],
     softplus: bool = False,
-    device: str = "cpu",
+    device: str = None,
     seed: int = 42,
     deterministic: bool = False,
     beta: float = 0.3,
@@ -58,26 +58,24 @@ def main(
     n_steps: int = 100,
     learning_rate: float = 0.01,
 ):
-    # If deterministic, seed everything
+    # Set seed if deterministic
     if deterministic:
         seed_everything(seed=seed, workers=True)
 
-    # Get accelerator and device
-    accelerator = device.split(":")[0]
-    device_id = 1
-    if len(device.split(":")) > 1:
-        device_id = [int(device.split(":")[1])]
+    # Device setup
+    device = device or ("cuda" if th.cuda.is_available() else "cpu")
+    print(f"Using device: {device}")
 
-    # Create lock
+    # Create lock for multiprocessing
     lock = mp.Lock()
 
-    # Loop over noises
     for noise in noises:
         # Create model
         net = Net(
             MLP(units=[2, 10, 10, 2], activation_final="log_softmax"),
             loss="nll",
-        )
+        ).to(device)
+
         if softplus:
             _net = Net(
                 MLP(
@@ -86,74 +84,62 @@ def main(
                     activation_final="log_softmax",
                 ),
                 loss="nll",
-            )
+            ).to(device)
             _net.load_state_dict(net.state_dict())
             net = _net
 
         if len(os.listdir(model_path)) == 0:
-            # Create dataset
+            # Create and process dataset
             x, y = make_moons(n_samples=n_samples, noise=noise, random_state=seed)
             x_train, x_test, y_train, y_test = train_test_split(x, y, random_state=seed)
 
-            # Convert to tensors
-            x_train = th.from_numpy(x_train).float()
-            x_test = th.from_numpy(x_test).float()
-            y_train = th.from_numpy(y_train).long()
-            y_test = th.from_numpy(y_test).long()
+            # Convert to tensors on device
+            x_train = th.from_numpy(x_train).float().to(device)
+            x_test = th.from_numpy(x_test).float().to(device)
+            y_train = th.from_numpy(y_train).long().to(device)
+            y_test = th.from_numpy(y_test).long().to(device)
 
-            # Create dataset and batchify
+            # Create dataloaders
             train = TensorDataset(x_train, y_train)
             test = TensorDataset(x_test, y_test)
-
             train_loader = DataLoader(train, batch_size=32, shuffle=True)
             test_loader = DataLoader(test, batch_size=32, shuffle=False)
 
-            # Fit model
+            # Train model
             trainer = Trainer(
                 max_epochs=50,
-                accelerator=accelerator,
-                devices=device_id,
+                accelerator="gpu" if device.startswith("cuda") else "cpu",
+                devices=1,
                 deterministic=deterministic,
             )
             trainer.fit(net, train_loader)
 
-            # Save model
-            th.save(net.state_dict(), os.path.join(model_path, "net.pth"))
-            # save data
-            th.save(x_train, os.path.join(data_path, "x_train.pth"))
-            th.save(x_test, os.path.join(data_path, "x_test.pth"))
-
-            th.save(y_train, os.path.join(data_path, "y_train.pth"))
-            th.save(y_test, os.path.join(data_path, "y_test.pth"))
-            # save data loader
+            # Save model and data
+            th.save(net.cpu().state_dict(), os.path.join(model_path, "net.pth"))
+            th.save(x_train.cpu(), os.path.join(data_path, "x_train.pth"))
+            th.save(x_test.cpu(), os.path.join(data_path, "x_test.pth"))
+            th.save(y_train.cpu(), os.path.join(data_path, "y_train.pth"))
+            th.save(y_test.cpu(), os.path.join(data_path, "y_test.pth"))
             th.save(test_loader, os.path.join(data_path, "test_loader.pth"))
-
             th.save(trainer, os.path.join(model_path, "trainer.pth"))
-
+            
+            # Move model back to device
+            net = net.to(device)
         else:
-
+            # Load saved model and data
             net.load_state_dict(th.load(os.path.join(model_path, "net.pth")))
-            x_test = th.load(os.path.join(data_path, "x_test.pth"))
-            y_test = th.load(os.path.join(data_path, "y_test.pth"))
+            x_test = th.load(os.path.join(data_path, "x_test.pth")).to(device)
+            y_test = th.load(os.path.join(data_path, "y_test.pth")).to(device)
             test_loader = th.load(os.path.join(data_path, "test_loader.pth"))
             trainer = th.load(os.path.join(model_path, "trainer.pth"))
 
-            # Set model to eval
-            net.eval()
+            # Prepare model
+            net.eval().to(device)
 
-            # Set model to device
-            net.to(device)
-
-            # Disable cudnn if using cuda accelerator.
-            # Please see https://captum.ai/docs/faq#how-can-i-resolve-cudnn-rnn-backward-error-for-rnn-or-lstm-network
-            # for more information.
-            if accelerator == "cuda":
+            # Disable cudnn for CUDA if needed
+            if device.startswith("cuda"):
                 th.backends.cudnn.enabled = False
-
-            # Set data to device
-            x_test = x_test.to(device)
-            y_test = y_test.to(device)
-
+                
         # Get predictions
         pred = trainer.predict(net, test_loader)
 
@@ -161,10 +147,8 @@ def main(
         acc = (th.cat(pred).argmax(-1) == y_test).float().mean()
         print("acc: ", acc)
 
-        # Create dict of attr
         attr = dict()
-
-        # Set baseline as (-0.5, -0.5)
+        # Create baselines on same device
         baselines = th.zeros_like(x_test).to(device)
         baselines[:, 0] = -0.5
         baselines[:, 1] = -0.5
@@ -213,21 +197,6 @@ def main(
                     )
 
 
-            # explainer = SVI_IG(net)
-            # _attr = th.zeros_like(x_test)
-            # paths = []
-            # predictions = net(x_test).argmax(-1)
-            # gig_path = None
-            # attribution, gig_path = explainer.attribute(
-            #     x_test,
-            #     baselines=baselines,
-            #     target=predictions,
-            #     n_steps=n_steps,
-            #     learning_rate=learning_rate,
-            #     num_iterations=num_iterations,
-            #     beta=beta,
-            #     return_paths=True,
-            # )
                     if gig_path is not None:
                         gig_path = gig_path[0]
                         paths.append(gig_path)
@@ -414,8 +383,6 @@ def main(
             fp.write(str(seed) + ",")
             fp.write(str(noise) + ",")
             fp.write("softplus," if softplus else "relu,")
-            fp.write("acc,")
-            fp.write(f"{acc:.4}")
             fp.write("\n")
 
             # Write purity
