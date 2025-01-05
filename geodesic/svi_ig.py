@@ -154,6 +154,9 @@ class SVI_IG(GradientAttribution):
         use_endpoints_matching: bool = True,
         device: str = "cuda"
     ):
+        if device is None or (device == "cuda" and not torch.cuda.is_available()):
+            device = "cpu"
+    
         """Guide learns optimal deviations without reshaping."""
         delta_locs = tuple(
             pyro.param(
@@ -197,25 +200,33 @@ class SVI_IG(GradientAttribution):
         lr: float = 1e-2,
         use_endpoints_matching: bool = True,
         do_linear_interp: bool = True,
-        device: str = "cuda" if torch.cuda.is_available() else "cpu"
+        device: str = None
     ) -> Tensor:
         """Optimize paths between inputs and baselines using SVI."""
         
-        print(f"Device used: {device}")
-        # Move initial paths to GPU
-        initial_paths = tuple(p.to(device) for p in initial_paths)
-        input_additional_args = tuple(arg.to(device) for arg in input_additional_args)
+        # Determine device based on availability
+        if device is None:
+            device = "cuda" if torch.cuda.is_available() and torch.cuda.device_count() > 0 else "cpu"
         
-        # Setup optimizer and inference
+        print(f"Device used: {device}")
+        
+        try:
+            initial_paths = tuple(p.to(device) for p in initial_paths)
+            input_additional_args = tuple(arg.to(device) for arg in input_additional_args) if input_additional_args is not None else None
+        except (RuntimeError, AssertionError) as e:
+            print(f"Warning: Could not move tensors to {device}, falling back to CPU")
+            device = "cpu"
+            initial_paths = tuple(p.to(device) for p in initial_paths)
+            input_additional_args = tuple(arg.to(device) for arg in input_additional_args) if input_additional_args is not None else None
+        
         optimizer = Adam({"lr": lr})
         svi = SVI(
-            model=lambda *args: self.model(*args, device=device),
-            guide=lambda *args: self.guide(*args, device=device),
-            optimizer=optimizer,
+            model=lambda *args, **kwargs: self.model(*args, **kwargs, device=device),
+            guide=lambda *args, **kwargs: self.guide(*args, **kwargs, device=device),
+            optim=optimizer,
             loss=Trace_ELBO(retain_graph=True)
         )
 
-        # Run optimization with decaying beta
         beta = current_beta
         for step in range(num_iterations):
             loss = svi.step(initial_paths, beta, input_additional_args, use_endpoints_matching=use_endpoints_matching)
@@ -224,9 +235,8 @@ class SVI_IG(GradientAttribution):
             if step % 100 == 0:
                 print(f"Step {step}: loss = {loss:.3f}, beta = {beta:.3f}")
 
-        # Sample optimized paths
         with torch.no_grad():
-            optimized_paths = self.guide(initial_paths, beta, input_additional_args)
+            optimized_paths = self.guide(initial_paths, beta, input_additional_args, use_endpoints_matching=use_endpoints_matching)
             optimized_paths = tuple(p.to(device) for p in optimized_paths)
 
         if do_linear_interp:
