@@ -189,71 +189,79 @@ class SVI_IG(GradientAttribution):
         return optimized_paths
 
     def _optimize_paths(
-        self,
-        initial_paths: Tuple[Tensor, ...],
-        input_additional_args: Tuple[Tensor, ...],
-        beta_decay_rate: float,
-        current_beta: float = 0.3,
-        num_iterations: int = 1000,
-        lr: float = 1e-2,
-        use_endpoints_matching: bool = True,
-        do_linear_interp: bool = True,
-    ) -> Tensor:
-        """Optimize paths between inputs and baselines using SVI.
-        
-        Args:
-            initial_paths: Tuple of tensors containing initial paths
-            input_additional_args: Additional arguments for forward function
-            beta_decay_rate: Rate at which beta decays during optimization
-            current_beta: Initial beta value for optimization
-            num_iterations: Number of optimization iterations
-            lr: Learning rate for Adam optimizer
-            use_endpoints_matching: Whether to enforce endpoint matching
-            do_linear_interp: Whether to perform linear interpolation on optimized paths
+            self,
+            initial_paths: Tuple[Tensor, ...],
+            input_additional_args: Tuple[Tensor, ...],
+            beta_decay_rate: float,
+            current_beta: float = 0.3,
+            num_iterations: int = 100000,
+            lr: float = 1e-3,
+            use_endpoints_matching: bool = True,
+            do_linear_interp: bool = True,
+            patience: int = 200,
+            rel_improvement_threshold: float = 1e-4,
+        ) -> Tensor:
+            """Optimize paths between inputs and baselines using SVI.
             
-        Returns:
-            Tuple of optimized paths
-        """
-        # Use class device attribute
-        print(f"Device used: {self.device}")
-        
-        # Move inputs to correct device
-        initial_paths = self._ensure_device(initial_paths)
-        input_additional_args = self._ensure_device(input_additional_args)
-        
-        # Setup optimization
-        optimizer = Adam({"lr": lr})
-        svi = SVI(
-            model=lambda *args, **kwargs: self.model(*args, **kwargs),
-            guide=lambda *args, **kwargs: self.guide(*args, **kwargs),
-            optim=optimizer,
-            loss=Trace_ELBO(retain_graph=True)
-        )
-
-        # Run optimization
-        beta = current_beta
-        for step in range(num_iterations):
-            loss = svi.step(initial_paths, beta, input_additional_args, 
-                        use_endpoints_matching=use_endpoints_matching)
-            beta *= beta_decay_rate
-
-            if step % 100 == 0:
-                print(f"Step {step}: loss = {loss:.3f}, beta = {beta:.3f}")
-
-        # Get optimized paths
-        with torch.no_grad():
-            optimized_paths = self.guide(initial_paths, beta, input_additional_args, 
-                                    use_endpoints_matching=use_endpoints_matching)
-            optimized_paths = self._ensure_device(optimized_paths)
-
-        # Optional linear interpolation
-        if do_linear_interp:
-            optimized_paths = tuple(
-                self.make_uniform_spacing(opt_paths, n_steps=self.n_steps)
-                for opt_paths in optimized_paths
+            Additional Args:
+                patience: Number of iterations to wait for improvement
+                rel_improvement_threshold: Minimum relative improvement to continue
+            """
+            print(f"Device used: {self.device}")
+            
+            initial_paths = self._ensure_device(initial_paths)
+            input_additional_args = self._ensure_device(input_additional_args)
+            
+            optimizer = Adam({"lr": lr})
+            svi = SVI(
+                model=lambda *args, **kwargs: self.model(*args, **kwargs),
+                guide=lambda *args, **kwargs: self.guide(*args, **kwargs),
+                optim=optimizer,
+                loss=Trace_ELBO(retain_graph=True)
             )
 
-        return optimized_paths
+            # Early stopping setup
+            best_loss = float('inf')
+            patience_counter = 0
+            loss_history = []
+            beta = current_beta
+            
+            for step in range(num_iterations):
+                loss = svi.step(initial_paths, beta, input_additional_args, 
+                            use_endpoints_matching=use_endpoints_matching)
+                loss_history.append(loss)
+                beta *= beta_decay_rate
+
+                # Calculate relative improvement
+                if len(loss_history) > 1:
+                    rel_improvement = (loss_history[-2] - loss) / loss_history[-2]
+                    
+                    if loss < best_loss:
+                        best_loss = loss
+                        patience_counter = 0
+                    else:
+                        patience_counter += 1
+
+                    # Check convergence conditions
+                    if rel_improvement < rel_improvement_threshold and patience_counter >= patience:
+                        print(f"Early stopping at step {step}: Loss converged with relative improvement {rel_improvement:.6f}")
+                        break
+
+                if step % 100 == 0:
+                    print(f"Step {step}: loss = {loss:.3f}, beta = {beta:.3f}")
+
+            with torch.no_grad():
+                optimized_paths = self.guide(initial_paths, beta, input_additional_args, 
+                                        use_endpoints_matching=use_endpoints_matching)
+                optimized_paths = self._ensure_device(optimized_paths)
+
+            if do_linear_interp:
+                optimized_paths = tuple(
+                    self.make_uniform_spacing(opt_paths, n_steps=self.n_steps)
+                    for opt_paths in optimized_paths
+                )
+
+            return optimized_paths
         
     def make_uniform_spacing(self, paths: Tensor, n_steps: int) -> Tuple[Tensor, int]:
         device = paths.device  # Get device from input paths
@@ -311,7 +319,7 @@ class SVI_IG(GradientAttribution):
         beta: float = 0.3,
         n_neighbors: int = 20,
         num_iterations: int = 1000,
-        learning_rate: float = 0.01,
+        learning_rate: float = 0.001,
         use_endpoints_matching: bool = True,
         do_linear_interp: bool = True,
     ) -> Union[
