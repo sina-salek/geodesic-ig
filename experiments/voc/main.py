@@ -49,7 +49,8 @@ def plot_and_save(tensor, filename, is_attribution=False):
         tensor = std * tensor + mean
         tensor = np.clip(tensor, 0, 1)
     else:
-        tensor = tensor.detach().numpy().transpose(1, 2, 0)
+        device = tensor.device
+        tensor = tensor.detach().numpy().transpose(1, 2, 0) if device == "cpu" else tensor.cpu().detach().numpy().transpose(1, 2, 0)
         tensor = np.mean(tensor, axis=2)  # Average across channels for attributions
 
     plt.figure(figsize=(8, 8))

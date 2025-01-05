@@ -102,10 +102,11 @@ def main(
             # Create dataloaders
             train = TensorDataset(x_train, y_train)
             test = TensorDataset(x_test, y_test)
-            train_loader = DataLoader(train, batch_size=32, shuffle=True)
-            test_loader = DataLoader(test, batch_size=32, shuffle=False)
+            train_loader = DataLoader(train, batch_size=32, shuffle=True, pin_memory=True)
+            test_loader = DataLoader(test, batch_size=32, shuffle=False, pin_memory=True)
 
             # Train model
+            print(f"trainer device: {device}")
             trainer = Trainer(
                 max_epochs=50,
                 accelerator="gpu" if device.startswith("cuda") else "cpu",
@@ -136,16 +137,13 @@ def main(
             # Prepare model
             net.eval().to(device)
 
-            # Disable cudnn for CUDA if needed
-            if device.startswith("cuda"):
-                th.backends.cudnn.enabled = False
+            # # Disable cudnn for CUDA if needed
+            # if device.startswith("cuda"):
+            #     th.backends.cudnn.enabled = False
 
-        # Get predictions
+        print(f"device at prediction: {device}. \n net device at prediction: {net.device}")
+        # Get predictions (already on GPU)
         pred = trainer.predict(net, test_loader)
-
-        # Print accuracy
-        acc = (th.cat(pred).argmax(-1) == y_test).float().mean()
-        print("acc: ", acc)
 
         attr = dict()
         # Create baselines on same device
@@ -153,27 +151,32 @@ def main(
         baselines[:, 0] = -0.5
         baselines[:, 1] = -0.5
 
-        # Create scatter plot of probability differences, used to verify completeness axiom
-        # Get predictions for both data and baselines
-        data_probs = net(x_test).detach().numpy()
-        baseline_probs = net(baselines).detach().numpy()
+        # # Get predictions with proper device management
+        # with th.no_grad():  # Add for inference
+        #     data_probs = net(x_test.to(device)).detach().cpu().numpy()
+        #     baseline_probs = net(baselines.to(device)).detach().cpu().numpy()
 
-        # Calculate probability differences
-        prob_diff = (data_probs - baseline_probs)[:, 0]
+        # # Calculate probability differences (now on CPU)
+        # prob_diff = (data_probs - baseline_probs)[:, 0]
 
-        # Create scatter plot
-        plt.figure(figsize=(10, 8))
-        scatter = plt.scatter(
-            x_test[:, 0], x_test[:, 1], c=prob_diff, cmap="viridis", s=50
-        )
-        plt.colorbar(scatter, label="Probability Difference")
-        plt.xlabel("Feature 1")
-        plt.ylabel("Feature 2")
-        plt.title("Data Points Colored by Model-Baseline Probability Difference")
-        plt.savefig(os.path.join(figure_path, f"prob_diff_{noise}.png"))
-        plt.close()
+        # # Create scatter plot with CPU tensors
+        # plt.figure(figsize=(10, 8))
+        # scatter = plt.scatter(
+        #     x_test.cpu().detach().numpy()[:, 0], 
+        #     x_test.cpu().detach().numpy()[:, 1], 
+        #     c=prob_diff,
+        #     cmap="viridis",
+        #     s=50
+        # )
+        # plt.colorbar(scatter, label="Probability Difference")
+        # plt.xlabel("Feature 1")
+        # plt.ylabel("Feature 2")
+        # plt.title("Data Points Colored by Model-Baseline Probability Difference")
+        # plt.savefig(os.path.join(figure_path, f"prob_diff_{noise}.png"))
+        # plt.close()
 
         if "svi_integrated_gradients" in explainers:
+            print("Running SVI-IG")
             linear_interpolation = [True, False]
             endpoint_matching = [True, False]
             for li in linear_interpolation:
@@ -341,7 +344,7 @@ def main(
                             paths[0]
                             .view(n_steps, n_samples, -1)[:, idx, :]
                             .detach()
-                            .numpy()
+                            .cpu()
                         )
 
                         # Plot path
@@ -379,34 +382,33 @@ def main(
                 plt.close()
 
         with open("results.csv", "a") as fp, lock:
-            # Write acc
             fp.write(str(seed) + ",")
             fp.write(str(noise) + ",")
             fp.write("softplus," if softplus else "relu,")
             fp.write("\n")
 
             # Write purity
-            for k, v in attr.items():
-                if type(v) is tuple:
-                    _attr, _ = v
-                else:
-                    _attr = v
+            # for k, v in attr.items():
+            #     if type(v) is tuple:
+            #         _attr, _ = v
+            #     else:
+            #         _attr = v
 
-                topk_idx = th.topk(
-                    _attr.abs().sum(-1),
-                    int(len(_attr.abs().sum(-1)) * 0.5),
-                    sorted=False,
-                    largest=False,
-                ).indices
+            #     topk_idx = th.topk(
+            #         _attr.abs().sum(-1),
+            #         int(len(_attr.abs().sum(-1)) * 0.5),
+            #         sorted=False,
+            #         largest=False,
+            #     ).indices
 
-                fp.write(str(seed) + ",")
-                fp.write(str(noise) + ",")
-                fp.write("softplus," if softplus else "relu,")
-                fp.write(k + ",")
-                fp.write(f"{th.cat(pred).argmax(-1)[topk_idx].float().mean():.4},")
-                fp.write(f"{_attr.abs().sum(-1)[y_test == 0].std():.4},")
-                fp.write(f"{_attr.abs().sum(-1)[y_test == 1].std():.4}")
-                fp.write("\n")
+            #     fp.write(str(seed) + ",")
+            #     fp.write(str(noise) + ",")
+            #     fp.write("softplus," if softplus else "relu,")
+            #     fp.write(k + ",")
+            #     fp.write(f"{th.cat(pred).argmax(-1)[topk_idx].float().mean():.4},")
+            #     fp.write(f"{_attr.abs().sum(-1)[y_test == 0].std():.4},")
+            #     fp.write(f"{_attr.abs().sum(-1)[y_test == 1].std():.4}")
+            #     fp.write("\n")
 
 
 def parse_args():

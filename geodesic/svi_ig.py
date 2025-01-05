@@ -256,8 +256,9 @@ class SVI_IG(GradientAttribution):
         return optimized_paths
         
     def make_uniform_spacing(self, paths: Tensor, n_steps: int) -> Tuple[Tensor, int]:
+        device = paths.device  # Get device from input paths
         batch_size = paths.shape[0] // n_steps
-        feature_dims = paths.shape[1:]  # [channels, height, width] for images
+        feature_dims = paths.shape[1:]
         
         step_sizes = calculate_step_sizes(paths, n_inputs=batch_size, n_features=feature_dims, n_steps=n_steps)
         standardized_step_sizes = step_sizes / step_sizes.sum(dim=0).unsqueeze(0)
@@ -280,14 +281,14 @@ class SVI_IG(GradientAttribution):
             
             for i in range(n_steps-1):
                 n = num_points[i].item()
-                # Reshape alphas to match image dimensions
-                alphas = torch.linspace(0, 1, n+1).view(-1, *([1] * len(feature_dims)))
-                # Now alphas has shape [n+1, 1, 1, 1] for images
+                # Move linspace tensor to correct device
+                alphas = torch.linspace(0, 1, n+1, device=device).view(-1, *([1] * len(feature_dims)))
                 segment_points = starts[i:i+1] + alphas * (ends[i:i+1] - starts[i:i+1])
                 all_points.append(segment_points)
             
             dense_path = torch.cat(all_points, dim=0)
-            indices = torch.linspace(0, len(dense_path)-1, n_steps).long()
+            # Move indices to correct device
+            indices = torch.linspace(0, len(dense_path)-1, n_steps, device=device).long()
             dense_paths[j] = dense_path[indices]
         
         return torch.stack(dense_paths).transpose(0, 1).reshape(n_steps * batch_size, *feature_dims)
