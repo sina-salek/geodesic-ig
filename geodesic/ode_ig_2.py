@@ -1,6 +1,7 @@
 import typing
 from typing import Callable, List, Literal, Optional, Tuple, Union
 import warnings
+import gc
 
 import torch
 from captum._utils.common import (
@@ -25,95 +26,140 @@ from captum._utils.typing import BaselineType, TargetType, TensorOrTupleOfTensor
 from captum.attr._utils.attribution import GradientAttribution
 from captum.log import log_usage
 from torch import Tensor
+from torch.linalg import svd
 
 import torch.nn as nn
 from torchdiffeq import odeint
 from tqdm import tqdm
 
-
+forward_call_counts = 0
 class BatchedModelManifoldGeodesicFlow(nn.Module):
     def __init__(self, forward_func):
         super().__init__()
         self.forward_func = forward_func
-            
-    def get_metric_tensor(self, x_batch):
-        """Vectorized metric tensor computation for arbitrary inputs"""
-        batch_size = x_batch.shape[0]
-        original_shape = x_batch.shape
-        x_flat = x_batch.flatten(start_dim=1)
-        n_features = x_flat.shape[1]
+        self.cached_metric_tensors = {}
+        self.cached_interpolations = {}
         
+    def _compute_metric_tensor(self, x_batch):
+        """Compute metric tensor for arbitrary input dimensions"""
         with torch.enable_grad():
-            # Reshape if image data (4D), keep flat if tabular (2D)
-            if len(original_shape) == 4:
-                x_model = x_flat.view(original_shape)
-            else:
-                x_model = x_flat
-                
-            x_model.requires_grad_(True)
+            # Make input require grad
+            x_batch.requires_grad_(True)
             
-            # Compute output once
-            output = self.forward_func(x_model)
-            out_dim = output.shape[1]
+            # Forward pass
+            f_batch = self.forward_func(x_batch)
             
-            # Initialize Jacobian tensor
-            J = torch.zeros((batch_size, out_dim, n_features), device=x_model.device)
+            # Store original shape and flatten for metric tensor computation
+            orig_shape = x_batch.shape
+            n_flat = int(torch.prod(torch.tensor(orig_shape[1:])))
             
-            # Compute gradients for each output dimension
-            for i in range(out_dim):
-                grad = torch.autograd.grad(
-                    output[:, i].sum(),
-                    x_model,
-                    create_graph=True,
-                    retain_graph=True
-                )[0]
-                J[:, i] = grad.flatten(start_dim=1)
+            # Compute Jacobian for each output dimension
+            Js = []
+            for i in range(f_batch.shape[1]):
+                f_i = f_batch[:, i]
+                try:
+                    # Compute gradient and reshape to flattened form
+                    J_i = torch.autograd.grad(f_i.sum(), x_batch, create_graph=True, 
+                                            allow_unused=True)[0]
+                    if J_i is not None:
+                        J_i = J_i.reshape(orig_shape[0], -1)
+                        Js.append(J_i)
+                    else:
+                        # If gradient is None, append zeros
+                        Js.append(torch.zeros(orig_shape[0], n_flat, device=x_batch.device))
+                except RuntimeError:
+                    # Handle gradient computation failures
+                    Js.append(torch.zeros(orig_shape[0], n_flat, device=x_batch.device))
             
-            # Compute metric tensor with correct dimensions
-            G = torch.bmm(J, J.transpose(1, 2))  # [batch, out_dim, out_dim]
-            G = G + 1e-4 * torch.eye(out_dim, device=x_batch.device)[None].expand(batch_size, -1, -1)
-        
+            # Stack Jacobians and compute metric tensor
+            J = torch.stack(Js, dim=1)  # [batch_size, n_outputs, flattened_input_dim]
+            G = torch.bmm(J.transpose(1, 2), J)  # [batch_size, flattened_input_dim, flattened_input_dim]
+            
+            # Add small diagonal term for numerical stability
+            G = G + 1e-4 * torch.eye(G.shape[-1], device=x_batch.device)[None]
+            
         return G
 
+    def interpolate_metric_tensor(self, t):
+        """Interpolate between precomputed metric tensors with caching"""
+        # Round t to reduce cache misses (e.g., 3 decimal places)
+        t_rounded = round(float(t), 3)
+        
+        # Check cache first
+        if t_rounded in self.cached_interpolations:
+            return self.cached_interpolations[t_rounded]
+        
+        # Compute interpolation
+        if t <= 0.5:
+            w = 2 * t
+            G0 = self.cached_metric_tensors[0.0]
+            G1 = self.cached_metric_tensors[0.5]
+        else:
+            w = 2 * (t - 0.5)
+            G0 = self.cached_metric_tensors[0.5]
+            G1 = self.cached_metric_tensors[1.0]
+        
+        # Use in-place operations
+        result = torch.lerp(G0, G1, w)
+        
+        # Cache result if memory allows
+        if len(self.cached_interpolations) < 100:  # Limit cache size
+            self.cached_interpolations[t_rounded] = result
+            
+        return result
+
     def forward(self, t, state_batch):
+        global forward_call_counts
+        print(f"forward_call_counts: {forward_call_counts}")
+        forward_call_counts += 1
         batch_size = state_batch.shape[0] // 2
-        deviation, dev_velocity = state_batch.chunk(2, dim=0) #TODO: these deviations seem to be 0 all the time. Investigate
+        deviation, dev_velocity = state_batch.chunk(2, dim=0)
         
         window = 4 * t * (1 - t)
         x_straight = self.x0_batch + t.view(-1, 1) * (self.x1_batch - self.x0_batch)
         x = x_straight + window * deviation
+
+        x.requires_grad_(True)
+        G = self.interpolate_metric_tensor(t.item())
         
-        if hasattr(self, 'original_shape'):
-            x_reshaped = x.view(-1, *self.original_shape[1:])
-        else:
-            x_reshaped = x
+        # Process larger chunks vectorized
+        chunk_size = 100  # Increased chunk size
+        n_chunks = (G.shape[1] + chunk_size - 1) // chunk_size
         
-        G = self.get_metric_tensor(x_reshaped)
-        x_flat = x.flatten(start_dim=1)
-        out_dim = G.shape[1]
-        n_features = x_flat.shape[1]
-        
-        # Compute full Jacobian of G w.r.t x
-        dG = torch.zeros(batch_size, out_dim, out_dim, n_features, device=x_flat.device)
-        x_flat.requires_grad_(True)
-        
-        # Compute Jacobian using vectorized operations
-        for i in tqdm(range(out_dim), desc='Computing Christoffel symbols'):
-            G_row_grads = torch.autograd.grad(
-                G[:, i].sum(),
-                x_flat,
+        a = torch.zeros_like(dev_velocity)
+        for chunk_idx in tqdm(range(n_chunks), desc="Computing chunks"):
+            start_idx = chunk_idx * chunk_size
+            end_idx = min((chunk_idx + 1) * chunk_size, G.shape[1])
+            
+            # Compute gradients for entire chunk at once
+            G_chunk = G[:, start_idx:end_idx].sum()
+            G_chunk_grads = torch.autograd.grad(
+                G_chunk,
+                x,
                 create_graph=True,
-                retain_graph=True
-            )[0]  # [batch, n_features]
-            dG[:, i, :, :] = G_row_grads.view(batch_size, 1, -1).expand(-1, out_dim, -1)
-        
-        dG = dG / (torch.sqrt((dG ** 2).sum(dim=(1,2,3), keepdim=True)) + 1e-6)
-        Gamma = 0.5 * (dG + dG.permute(0, 2, 1, 3))
-    
-        # Project velocity to output space for Christoffel computation
-        v_out = torch.einsum('bijk,bk->bi', Gamma, dev_velocity)
-        # Project back to feature space
-        a = -torch.einsum('bijk,bi->bk', Gamma, v_out)
+                retain_graph=True,
+                allow_unused=True
+            )[0]
+            
+            if G_chunk_grads is not None:
+                # Process chunk vectorized
+                G_chunk_grads = G_chunk_grads.view(batch_size, end_idx-start_idx, -1)
+                G_chunk_grads = G_chunk_grads / (torch.norm(G_chunk_grads, dim=2, keepdim=True) + 1e-6)
+                
+                # Compute Christoffel symbols for chunk
+                Gamma = 0.5 * (G_chunk_grads + G_chunk_grads.transpose(1,2))
+                
+                # Compute acceleration contribution vectorized
+                a_contribution = -torch.einsum('bijk,bj,bk->bi', 
+                                        Gamma, 
+                                        dev_velocity.unsqueeze(1), 
+                                        dev_velocity.unsqueeze(1))
+                a[:, start_idx:end_idx] = a_contribution.sum(dim=1)
+            
+            # Clear memory
+            del G_chunk_grads
+            torch.cuda.empty_cache() if torch.cuda.is_available() else None
+            gc.collect()
         
         a = a / (torch.norm(dev_velocity, dim=1, keepdim=True) + 1e-6)
         restoration = -0.1 * deviation
@@ -121,52 +167,49 @@ class BatchedModelManifoldGeodesicFlow(nn.Module):
         return torch.cat([dev_velocity, a + restoration], dim=0)
 
     def integrate_batch(self, x0_batch, x1_batch, n_steps=50, rand_scale=0.2):
-        """Batched integration with flattened tensors"""
-        self.original_shape = x0_batch.shape
+        """Batched integration for arbitrary input dimensions"""
+        # Store original shape and flatten inputs
+        orig_shape = x0_batch.shape
+        self.x0_batch = x0_batch.reshape(orig_shape[0], -1)  # [batch_size, flattened_dim]
+        self.x1_batch = x1_batch.reshape(orig_shape[0], -1)
+        batch_size = orig_shape[0]
         
-        # Flatten inputs
-        self.x0_batch = x0_batch.flatten(start_dim=1)
-        self.x1_batch = x1_batch.flatten(start_dim=1)
-        batch_size = x0_batch.shape[0]
-        n_features = self.x0_batch.shape[1]
+        # Precompute metric tensors
+        key_points = {
+            0.0: x0_batch,
+            0.5: 0.5 * (x0_batch + x1_batch),
+            1.0: x1_batch
+        }
+        for t, x in key_points.items():
+            self.cached_metric_tensors[t] = self._compute_metric_tensor(x)
         
         t = torch.linspace(0, 1, n_steps, device=x0_batch.device)
         
-        # Compute initial conditions in feature space
-        x_mid = 0.5 * (self.x0_batch + self.x1_batch)
-        G_mid = self.get_metric_tensor(x_mid.view(-1, *self.original_shape[1:]))
+        # Use precomputed middle tensor and reduce dimension
+        G_mid = self.cached_metric_tensors[0.5]
         
-        # Get direction in feature space
+        # Get movement direction
         straight_dir = (self.x1_batch - self.x0_batch)
-        straight_dir = straight_dir / torch.norm(straight_dir, dim=1, keepdim=True)
+        straight_dir = straight_dir / (torch.norm(straight_dir, dim=1, keepdim=True) + 1e-8)
         
-        eigenvals, eigenvecs = torch.linalg.eigh(G_mid)
+        # Project metric tensor onto straight_dir
+        G_proj = torch.einsum('bij,bj->bi', G_mid, straight_dir)
+        G_proj = G_proj.unsqueeze(-1)  # [batch_size, flattened_dim, 1]
         
-        # Project max_curve_dir back to feature space using Jacobian
-        with torch.enable_grad():
-            x_mid_model = x_mid.view(-1, *self.original_shape[1:])
-            x_mid_model.requires_grad_(True)
-            output = self.forward_func(x_mid_model)
-            max_curve_dir = torch.autograd.grad(
-                torch.sum(output * eigenvecs[:, :, -1]), 
-                x_mid_model,
-                create_graph=True
-            )[0].flatten(start_dim=1)
-        
-        # Generate random direction in feature space
+        # Find orthogonal direction with largest metric tensor value
         rand_dir = torch.randn_like(straight_dir)
         rand_dir = rand_dir - torch.sum(rand_dir * straight_dir, dim=1, keepdim=True) * straight_dir
         rand_dir = rand_dir / (torch.norm(rand_dir, dim=1, keepdim=True) + 1e-8)
         
-        # Mix directions in feature space
-        mixed_dir = max_curve_dir + rand_scale * rand_dir
+        metric_value = torch.einsum('bij,bi,bj->b', G_mid, rand_dir, rand_dir).unsqueeze(1)
+        base_scale = torch.sqrt(metric_value) * 0.1
+        
+        mixed_dir = rand_dir * rand_scale
         mixed_dir = mixed_dir - torch.sum(mixed_dir * straight_dir, dim=1, keepdim=True) * straight_dir
         mixed_dir = mixed_dir / (torch.norm(mixed_dir, dim=1, keepdim=True) + 1e-8)
         
-        # Initialize velocity in feature space
-        base_scale = torch.sqrt(eigenvals[:, -1]) * 0.1
         rand_factor = 1.0 + rand_scale * (2 * torch.rand(batch_size, 1, device=x0_batch.device) - 1)
-        velocity0 = base_scale.unsqueeze(1) * rand_factor * mixed_dir
+        velocity0 = base_scale * rand_factor * mixed_dir
         deviation0 = torch.zeros_like(self.x0_batch)
         
         state0 = torch.cat([deviation0, velocity0], dim=0)
@@ -183,12 +226,13 @@ class BatchedModelManifoldGeodesicFlow(nn.Module):
         
         window = 4 * t[:, None, None] * (1 - t[:, None, None])
         straight_line = self.x0_batch[None] + t[:, None, None] * (self.x1_batch - self.x0_batch)[None]
-        path = straight_line + window * deviations[:, :x0_batch.shape[0]]
+        path_flat = straight_line + window * deviations[:, :batch_size]
         
-        if len(self.original_shape) > 2:
-            path = path.view(n_steps, batch_size, *self.original_shape[1:])
+        # Reshape path back to original dimensions
+        path = path_flat.reshape(n_steps, batch_size, *orig_shape[1:])
         
         return path
+
 
 class OdeIG(GradientAttribution):
     def __init__(
@@ -205,7 +249,7 @@ class OdeIG(GradientAttribution):
         optimized_paths = []
         for input_tensor, baseline_tensor in zip(inputs, baselines):
             paths = flow.integrate_batch(baseline_tensor, input_tensor, self.n_steps)
-            paths = paths.reshape(self.n_steps * input_tensor.shape[0], -1)
+            paths = paths.reshape(self.n_steps * input_tensor.shape[0], *input_tensor.shape[1:])
             optimized_paths.append(paths)
         
         return tuple(optimized_paths)
@@ -242,11 +286,12 @@ class OdeIG(GradientAttribution):
             input_additional_args,
         ) #tuple of tensors of [n_steps * n_inputs, features] dimensions
 
+        print(f"forward_call_counts: {forward_call_counts}")
         n_inputs = tuple(
             input.shape[0] for input in inputs
         )
         n_features = tuple(
-            input.shape[1] for input in inputs
+            input.shape[1:] for input in inputs
         )
 
 
@@ -268,7 +313,7 @@ class OdeIG(GradientAttribution):
         # calling contiguous to avoid `memory whole` problems
         scaled_grads = [
             grad.contiguous()
-            * torch.tensor(step_sizes).to(grad.device)
+            * step_sizes.view(step_sizes.shape[0], *([1] * (grad.dim() - 1))).to(grad.device)
             for step_sizes, grad in zip(step_sizes_tuple, grads)
         ]
 
@@ -361,12 +406,14 @@ class OdeIG(GradientAttribution):
         )
 
 def calculate_step_sizes(path, n_inputs, n_steps, n_features):
-    paths_reshaped = path.view(n_steps, n_inputs, n_features)
+    view_shape = (n_steps, n_inputs) + n_features
+    paths_reshaped = path.view(view_shape)
     
     # Calculate initial step sizes
     step_sizes = torch.norm(
         paths_reshaped[1:] - paths_reshaped[:-1],
-        dim=-1
+        p=2,
+        dim=tuple(range(2, 2 + len(n_features))),
     )
     
     # Add final step to match dimensions

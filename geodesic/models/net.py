@@ -84,13 +84,14 @@ class Net(pl.LightningModule):
     ):
         super().__init__()
         self._soft_labels = False
-
         if isinstance(layers, nn.Module):
             self.net = layers
         else:
             self.net = nn.Sequential()
             for i, layer in enumerate(layers):
                 self.net.add_module(f"{layer.__class__.__name__.lower()}_{i}", layer)
+
+        self.net.to(self._device)  
 
         if isinstance(loss, str):
             if loss == "soft_cross_entropy":
@@ -107,6 +108,7 @@ class Net(pl.LightningModule):
         self.l2 = l2
 
     def forward(self, x: th.Tensor) -> th.Tensor:
+        x = x.to(self.device)
         return self.net(x)
 
     def loss(self, inputs, target):
@@ -146,6 +148,8 @@ class Net(pl.LightningModule):
 
     def predict_step(self, batch, batch_idx, dataloader_idx=0):
         x, y = batch
+        x = x.to(self.device)
+        print(f"predict device: {self.device}")
         return self(x.float())
 
     def configure_optimizers(self):

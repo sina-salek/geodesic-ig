@@ -87,6 +87,8 @@ class MLP(nn.Module):
         activation_final: str = None,
     ):
         super().__init__()
+        self.device = "cuda" if th.cuda.is_available() else "cpu"
+
 
         assert len(units) > 1, "At least two units must be provided."
         length = len(units) - 1
@@ -149,6 +151,10 @@ class MLP(nn.Module):
         self.mlp = nn.Sequential()
         for k, v in model.items():
             self.mlp.add_module(k, v)
+        
+        # Move model to device
+        self.to(self.device)
 
     def forward(self, x: th.Tensor) -> th.Tensor:
+        x = x.to(self.device)
         return self.mlp(x)
