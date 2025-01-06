@@ -250,11 +250,11 @@ def main(
 
     if "svi_integrated_gradients" in explainers:
         num_iterations = 10000
-        beta = 0.1
+        beta = 1.0
         linear_interpolation = [True, False]
         endpoint_matching = [True, False]
         n_steps = 50
-        learning_rate = 0.0001
+        learning_rate = 0.001
         for li in linear_interpolation:
             for em in endpoint_matching:
                 for model_name, model in models.items():
