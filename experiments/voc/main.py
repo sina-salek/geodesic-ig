@@ -9,7 +9,6 @@ from captum.attr import (
     KernelShap,
     GradientShap
 )
-from captum.metrics import sensitivity_max
 
 from argparse import ArgumentParser
 from pytorch_lightning import  seed_everything
@@ -28,6 +27,8 @@ from geodesic.utils.tqdm import get_progress_bars
 
 from experiments.voc.classifier import VocClassifier
 from experiments.voc.constants import VALID_BACKBONE_NAMES
+
+from geodesic.metrics import accuracy, comprehensiveness, cross_entropy, log_odds, sufficiency
 
 file_dir = os.path.dirname(__file__)
 warnings.filterwarnings("ignore")
@@ -79,6 +80,7 @@ def generate_augmented_points(x, n_base_points=2500, n_noise_points=2500, noise_
 
 def main(
     explainers: List[str],
+    areas: List[float],
     device: str = "cpu",
     seed: int = 42,
     deterministic: bool = False,
@@ -286,6 +288,131 @@ def main(
     th.save(attr, os.path.join(attr_path, "attributions.pt"))
     th.save(expl, os.path.join(attr_path, "explainers.pt"))
 
+    
+    lock = mp.Lock()
+    with open("results.csv", "a") as fp, lock:
+  
+        for mode in get_progress_bars()(
+            ["zeros", "aug"], total=2, desc="Mode", leave=False
+        ):
+            for topk in get_progress_bars()(areas, desc="Topk", leave=False):
+                for k, v in get_progress_bars()(
+                    attr.items(), desc="Attr", leave=False
+                ):
+                    for model_name, model in models.items():
+                        acc_comp = accuracy(
+                            model,
+                            x_test,
+                            attributions=v.cpu().abs(),
+                            baselines=x_test if mode == "aug" else None,
+                            n_samples=10 if mode == "aug" else 1,
+                            n_samples_batch_size=1 if mode == "aug" else None,
+                            stdevs=0.1 if mode == "aug" else 0.0,
+                            draw_baseline_from_distrib=True
+                            if mode == "aug"
+                            else False,
+                            topk=topk,
+                            mask_largest=True,
+                        )
+                        acc_suff = accuracy(
+                            model,
+                            x_test,
+                            attributions=v.cpu().abs(),
+                            baselines=x_test if mode == "aug" else None,
+                            n_samples=10 if mode == "aug" else 1,
+                            n_samples_batch_size=1 if mode == "aug" else None,
+                            stdevs=0.1 if mode == "aug" else 0.0,
+                            draw_baseline_from_distrib=True
+                            if mode == "aug"
+                            else False,
+                            topk=topk,
+                            mask_largest=False,
+                        )
+                        comp = comprehensiveness(
+                            model,
+                            x_test,
+                            attributions=v.cpu().abs(),
+                            baselines=x_test if mode == "aug" else None,
+                            n_samples=10 if mode == "aug" else 1,
+                            n_samples_batch_size=1 if mode == "aug" else None,
+                            stdevs=0.1 if mode == "aug" else 0.0,
+                            draw_baseline_from_distrib=True
+                            if mode == "aug"
+                            else False,
+                            topk=topk,
+                        )
+                        ce_comp = cross_entropy(
+                            model,
+                            x_test,
+                            attributions=v.cpu().abs(),
+                            baselines=x_test if mode == "aug" else None,
+                            n_samples=10 if mode == "aug" else 1,
+                            n_samples_batch_size=1 if mode == "aug" else None,
+                            stdevs=0.1 if mode == "aug" else 0.0,
+                            draw_baseline_from_distrib=True
+                            if mode == "aug"
+                            else False,
+                            topk=topk,
+                            mask_largest=True,
+                        )
+                        ce_suff = cross_entropy(
+                            model,
+                            x_test,
+                            attributions=v.cpu().abs(),
+                            baselines=x_test if mode == "aug" else None,
+                            n_samples=10 if mode == "aug" else 1,
+                            n_samples_batch_size=1 if mode == "aug" else None,
+                            stdevs=0.1 if mode == "aug" else 0.0,
+                            draw_baseline_from_distrib=True
+                            if mode == "aug"
+                            else False,
+                            topk=topk,
+                            mask_largest=False,
+                        )
+                        l_odds = log_odds(
+                            model,
+                            x_test,
+                            attributions=v.cpu().abs(),
+                            baselines=x_test if mode == "aug" else None,
+                            n_samples=10 if mode == "aug" else 1,
+                            n_samples_batch_size=1 if mode == "aug" else None,
+                            stdevs=0.1 if mode == "aug" else 0.0,
+                            draw_baseline_from_distrib=True
+                            if mode == "aug"
+                            else False,
+                            topk=topk,
+                        )
+                        suff = sufficiency(
+                            model,
+                            x_test,
+                            attributions=v.cpu().abs(),
+                            baselines=x_test if mode == "aug" else None,
+                            n_samples=10 if mode == "aug" else 1,
+                            n_samples_batch_size=1 if mode == "aug" else None,
+                            stdevs=0.1 if mode == "aug" else 0.0,
+                            draw_baseline_from_distrib=True
+                            if mode == "aug"
+                            else False,
+                            topk=topk,
+                        )
+
+                        fp.write(str(seed) + ",")
+                        fp.write(mode + ",")
+                        fp.write(str(topk) + ",")
+                        fp.write(k + ",")
+                        fp.write(model_name + ",") 
+                        fp.write(f"{acc_comp:.4},")
+                        fp.write(f"{acc_suff:.4},")
+                        fp.write(f"{comp:.4},")
+                        fp.write(f"{ce_comp:.4},")
+                        fp.write(f"{ce_suff:.4},")
+                        fp.write(f"{l_odds:.4},")
+                        fp.write(f"{suff:.4},")
+                        fp.write("None,")
+                        fp.write("None")
+                        fp.write("\n")
+
+
 
 
 def parse_args():
@@ -295,14 +422,29 @@ def parse_args():
         type=str,
         default=[
             # "geodesic_integrated_gradients",
-            "svi_integrated_gradients",
+            # "svi_integrated_gradients",
             "integrated_gradients",
-            "kernel_shap",
-            "gradient_shap",
+            # "kernel_shap",
+            # "gradient_shap",
         ],
         nargs="+",
         metavar="N",
         help="List of explainer to use.",
+    )
+    parser.add_argument(
+        "--areas",
+        type=float,
+        default=[
+            0.01,
+            0.02,
+            0.05,
+            0.1,
+            0.2,
+            0.5,
+        ],
+        nargs="+",
+        metavar="N",
+        help="List of areas to use.",
     )
     parser.add_argument(
         "--device",
@@ -335,6 +477,7 @@ if __name__ == "__main__":
     main(
         explainers=args.explainers,
         device=args.device,
+        areas=args.areas,
         seed=args.seed,
         deterministic=args.deterministic,
     )
