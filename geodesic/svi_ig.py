@@ -111,6 +111,7 @@ class SVI_IG(GradientAttribution):
             for i in range(len(distance_penalties))
         )
         if use_endpoints_matching:
+            print("Adding endpoint matching penalties...")
             # Add endpoint matching penalties
             endpoint_weight = 100
             endpoint_penalties = 0
@@ -208,24 +209,21 @@ class SVI_IG(GradientAttribution):
             beta_decay_rate: float,
             current_beta: float = 0.3,
             num_iterations: int = 100000,
-            lr: float = 1e-3,
+            initial_lr: float = 1e-3,
+            min_lr: float = 1e-5,  # Minimum learning rate
+            lr_decay_factor: float = 0.5,  # How much to decay lr
+            lr_patience: int = 25,  # How many steps before lr decay
             use_endpoints_matching: bool = True,
             do_linear_interp: bool = True,
-            patience: int = 200,
+            patience: int = 100,
             rel_improvement_threshold: float = 1e-4,
         ) -> Tensor:
-            """Optimize paths between inputs and baselines using SVI.
-            
-            Additional Args:
-                patience: Number of iterations to wait for improvement
-                rel_improvement_threshold: Minimum relative improvement to continue
-            """
-            print(f"Device used: {self.device}")
-            
+                        
             initial_paths = self._ensure_device(initial_paths)
             input_additional_args = self._ensure_device(input_additional_args)
             
-            optimizer = Adam({"lr": lr})
+            current_lr = initial_lr
+            optimizer = Adam({"lr": current_lr})
             svi = SVI(
                 model=lambda *args, **kwargs: self.model(*args, **kwargs),
                 guide=lambda *args, **kwargs: self.guide(*args, **kwargs),
@@ -233,9 +231,9 @@ class SVI_IG(GradientAttribution):
                 loss=Trace_ELBO(retain_graph=True)
             )
 
-            # Early stopping setup
             best_loss = float('inf')
             patience_counter = 0
+            lr_patience_counter = 0
             loss_history = []
             beta = current_beta
             
@@ -245,23 +243,31 @@ class SVI_IG(GradientAttribution):
                 loss_history.append(loss)
                 beta *= beta_decay_rate
 
-                # Calculate relative improvement
                 if len(loss_history) > 1:
                     rel_improvement = (loss_history[-2] - loss) / loss_history[-2]
                     
                     if loss < best_loss:
                         best_loss = loss
                         patience_counter = 0
+                        lr_patience_counter = 0
                     else:
                         patience_counter += 1
+                        lr_patience_counter += 1
+                        
+                        # Decay learning rate if no improvement
+                        if lr_patience_counter >= lr_patience and current_lr > min_lr:
+                            current_lr = max(current_lr * lr_decay_factor, min_lr)
+                            # Create new optimizer with updated learning rate
+                            optimizer = Adam({"lr": current_lr})
+                            svi.optim = optimizer  # Update optimizer in SVI
+                            lr_patience_counter = 0
+                            print(f"Decreasing learning rate to {current_lr:.6f}")
 
-                    # Check convergence conditions
                     if rel_improvement < rel_improvement_threshold and patience_counter >= patience:
                         print(f"Early stopping at step {step}: Loss converged with relative improvement {rel_improvement:.6f}")
                         break
-
                 if step % 100 == 0:
-                    print(f"Step {step}: loss = {loss:.3f}, beta = {beta:.3f}")
+                    print(f"Step {step}: loss = {loss:.3f}, beta = {beta:.3f}, lr = {current_lr:.6f}")
 
             with torch.no_grad():
                 optimized_paths = self.guide(initial_paths, beta, input_additional_args, 
@@ -269,6 +275,7 @@ class SVI_IG(GradientAttribution):
                 optimized_paths = self._ensure_device(optimized_paths)
 
             if do_linear_interp:
+                print("Interpolating paths...")
                 optimized_paths = tuple(
                     self.make_uniform_spacing(opt_paths, n_steps=self.n_steps)
                     for opt_paths in optimized_paths
@@ -491,7 +498,7 @@ class SVI_IG(GradientAttribution):
             beta_decay_rate,
             current_beta,
             num_iterations,
-            lr=learning_rate,
+            initial_lr=learning_rate,
             use_endpoints_matching=use_endpoints_matching,
             do_linear_interp=do_linear_interp,
         )
