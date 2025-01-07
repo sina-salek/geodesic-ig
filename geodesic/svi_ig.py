@@ -111,7 +111,6 @@ class SVI_IG(GradientAttribution):
             for i in range(len(distance_penalties))
         )
         if use_endpoints_matching:
-            print("Adding endpoint matching penalties...")
             # Add endpoint matching penalties
             endpoint_weight = 100
             endpoint_penalties = 0
@@ -141,10 +140,23 @@ class SVI_IG(GradientAttribution):
         else:
             return total_penalty
 
-    def model(self, *args, **kwargs):
-        """Model samples path deviations without reshaping."""
-        initial_paths = self._ensure_device(args[0])
-        input_additional_args = self._ensure_device(args[2])
+    def model(
+        self,
+        initial_paths: Tuple[Tensor, ...],
+        beta: float,
+        input_additional_args: Tuple[Tensor, ...],
+        use_endpoints_matching: bool = True
+    ) -> None:
+        """Model samples path deviations.
+        
+        Args:
+            initial_paths: Initial path points
+            beta: Weight of curvature penalty
+            input_additional_args: Additional arguments for forward function
+            use_endpoints_matching: Whether to use endpoint matching penalties
+        """
+        initial_paths = self._ensure_device(initial_paths)
+        input_additional_args = self._ensure_device(input_additional_args)
         
         delta_tuple = tuple(
             pyro.sample(
@@ -162,13 +174,28 @@ class SVI_IG(GradientAttribution):
             for i in range(len(initial_paths))
         )
 
-        energy = self.potential_energy(paths, initial_paths, args[1], 
-                                     input_additional_args)
+        energy = self.potential_energy(paths, initial_paths, beta, input_additional_args, use_endpoints_matching=use_endpoints_matching)
         pyro.factor("energy", -energy)
 
-    def guide(self, *args, **kwargs):
-        """Guide learns optimal deviations without reshaping."""
-        initial_paths = self._ensure_device(args[0])
+    def guide(
+        self,
+        initial_paths: Tuple[Tensor, ...],
+        beta: float,
+        input_additional_args: Tuple[Tensor, ...],
+        use_endpoints_matching: bool = True
+    ) -> Tuple[Tensor, ...]:
+        """Guide learns optimal deviations.
+        
+        Args:
+            initial_paths: Initial path points
+            beta: Weight of curvature penalty
+            input_additional_args: Additional arguments for forward function
+            use_endpoints_matching: Whether to use endpoint matching penalties
+            
+        Returns:
+            Tuple of optimized paths
+        """
+        initial_paths = self._ensure_device(initial_paths)
         
         delta_locs = tuple(
             pyro.param(
@@ -225,8 +252,8 @@ class SVI_IG(GradientAttribution):
             current_lr = initial_lr
             optimizer = Adam({"lr": current_lr})
             svi = SVI(
-                model=lambda *args, **kwargs: self.model(*args, **kwargs),
-                guide=lambda *args, **kwargs: self.guide(*args, **kwargs),
+                model=self.model,
+                guide=self.guide,
                 optim=optimizer,
                 loss=Trace_ELBO(retain_graph=True)
             )
