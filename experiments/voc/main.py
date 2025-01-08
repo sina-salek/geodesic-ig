@@ -159,7 +159,7 @@ def main(
     y_test = list()
     i = 0
     for data, target in voc_loader:
-        if i == 1:
+        if i == 2:
             break
         
         # Extract first object class as the target
@@ -169,16 +169,20 @@ def main(
         x_test.append(data)
         y_test.append(class_idx)
         i += 1
+        
+    print(f"Number of test samples: {len(x_test)}")
 
     x_test = th.cat(x_test).to(device)
     y_test = th.tensor(y_test).to(device)
 
-    # Create dict of attributions, explainers, sensitivity max
-    # and lipschitz max
+    # Create dict of attributions, explainers
     attr = dict()
     expl = dict()
 
-    plot_and_save(x_test[0], "original_image.png")
+    # Save the first 10 images
+    for i in range(min(10, len(x_test))):
+        image_extended_path = os.path.join("original_images", f"original_image_{i}.png")
+        plot_and_save(x_test[i], image_extended_path)
 
     if "geodesic_integrated_gradients" in explainers:
         _attr = list()
@@ -202,52 +206,90 @@ def main(
                         x.unsqueeze(0),
                         target=y.item(),
                         internal_batch_size=100,
-                    )
+                    ).squeeze(0)
                 )
 
-            
-            attr[f"geodesic_integrated_gradients_{model_name}"] = th.cat(_attr)
+            attr[f"geodesic_integrated_gradients_{model_name}"] = th.stack(_attr)
             expl[f"geodesic_integrated_gradients_{model_name}"] = explainer
-
-            plot_and_save(_attr[0], f"attribution_geodesic_integrated_gradients_{model_name}.png", is_attribution=True)
+            for i in range(min(10, len(x_test))):
+                image_extended_path = os.path.join(
+                    "attribution_geodesic_integrated_gradients", f"attribution_geodesic_integrated_gradients_{model_name}_{i}.png"
+                )
+                plot_and_save(attr[f"geodesic_integrated_gradients_{model_name}"][i], image_extended_path, is_attribution=True)
     if "kernel_shap" in explainers:
         for model_name, model in models.items():
-
             explainer = KernelShap(model)
-            _attr = explainer.attribute(
-                x_test,
-                target=y_test,
-            )
-            attr[f"kernel_shap_{model_name}"] = _attr
+            _attr = list()
+            for i, (x, y) in get_progress_bars()(
+                enumerate(zip(x_test, y_test)),
+                total=len(x_test),
+                desc=f"{KernelShap.get_name()} attribution",
+            ):
+                _attr.append(
+                    explainer.attribute(
+                    x.unsqueeze(0),
+                    target=y.item(),
+                    ).squeeze(0)
+                )
+            attr[f"kernel_shap_{model_name}"] = th.stack(_attr)
             expl[f"kernel_shap_{model_name}"] = explainer
+            for i in range(min(10, len(x_test))):
+                image_extended_path = os.path.join(
+                    "attribution_kernel_shap", f"attribution_kernel_shap_{model_name}_{i}.png"
+                )
+                plot_and_save(attr[f"kernel_shap_{model_name}"][i], image_extended_path, is_attribution=True)
 
-            plot_and_save(_attr[0], f"attribution_kernel_shap_{model_name}.png", is_attribution=True)
 
     if "gradient_shap" in explainers:
         for model_name, model in models.items():
             explainer = GradientShap(model)
-            _attr = explainer.attribute(
-                x_test,
-                baselines=th.zeros_like(x_test),
-                target=y_test,
-            )
-            attr[f"gradient_shap_{model_name}"] = _attr
+            _attr = list()
+            for i, (x, y) in get_progress_bars()(
+                enumerate(zip(x_test, y_test)),
+                total=len(x_test),
+                desc=f"{GradientShap.get_name()} attribution",
+            ):
+                _attr.append(
+                    explainer.attribute(
+                        x.unsqueeze(0),
+                        baselines=th.zeros_like(x_test),
+                        target=y.item(),
+                    ).squeeze(0)
+                )
+            attr[f"gradient_shap_{model_name}"] = th.stack(_attr)
             expl[f"gradient_shap_{model_name}"] = explainer
+            for i in range(min(10, len(x_test))):
+                image_extended_path = os.path.join(
+                    "attribution_gradient_shap", f"attribution_gradient_shap_{model_name}_{i}.png"
+                )
+                plot_and_save(attr[f"gradient_shap_{model_name}"][i], image_extended_path, is_attribution=True)
 
-            plot_and_save(_attr[0], f"attribution_gradient_shap_{model_name}.png", is_attribution=True)
     if "integrated_gradients" in explainers:
+        
         n_steps = 50
         for model_name, model in models.items():
             explainer = IntegratedGradients(model)
-            _attr = explainer.attribute(
-                x_test,
-                target=y_test,
-                n_steps=n_steps,
-            )
-            attr[f"integrated_gradients_{model_name}"] = _attr
+            _attr = list()
+            for i, (x, y) in get_progress_bars()(
+                enumerate(zip(x_test, y_test)),
+                total=len(x_test),
+                desc=f"{IntegratedGradients.get_name()} attribution",
+            ):
+                _attr.append(
+                    explainer.attribute(
+                        x.unsqueeze(0),
+                        target=y.item(),
+                        n_steps=n_steps,
+                    ).squeeze(0)
+                )
+            attr[f"integrated_gradients_{model_name}"] = th.stack(_attr)
             expl[f"integrated_gradients_{model_name}"] = explainer
 
-            plot_and_save(_attr[0], f"attribution_integrated_gradients_{n_steps}_{model_name}.png", is_attribution=True)
+            for i in range(min(10, len(x_test))):
+                image_extended_path = os.path.join(
+                    "attribution_integrated_gradients", f"attribution_integrated_gradients_{model_name}_{i}.png"
+                )
+                plot_and_save(attr[f"integrated_gradients_{model_name}"][i], image_extended_path, is_attribution=True)
 
 
     if "svi_integrated_gradients" in explainers:
@@ -261,22 +303,33 @@ def main(
         for li in linear_interpolation:
             for em in endpoint_matching:
                 for model_name, model in models.items():
-                    
+                    _attr = list()
                     explainer = SVI_IG(model)
-                    _attr = explainer.attribute(
-                        x_test,
-                        target=y_test,
-                        num_iterations=num_iterations,
-                        beta=beta,
-                        n_steps=n_steps,
-                        do_linear_interp=li,
-                        use_endpoints_matching=em,
-                        learning_rate = learning_rate
-                    )
-                    attr[f"svi_integrated_gradients_{model_name}_{em}_{li}"] = _attr
+                    for i, (x, y) in get_progress_bars()(
+                        enumerate(zip(x_test, y_test)),
+                        total=len(x_test),
+                        desc=f"{SVI_IG.get_name()} attribution",
+                    ):
+                        _attr.append(
+                            explainer.attribute(
+                                x.unsqueeze(0),
+                                target=y.item(),
+                                num_iterations=num_iterations,
+                                beta=beta,
+                                n_steps=n_steps,
+                                do_linear_interp=li,
+                                use_endpoints_matching=em,
+                                learning_rate = learning_rate
+                            ).squeeze(0)
+                        )
+                    attr[f"svi_integrated_gradients_{model_name}_{em}_{li}"] = th.stack(_attr)
                     expl[f"svi_integrated_gradients_{model_name}_{em}_{li}"] = explainer
+                    for i in range(min(10, len(x_test))):
+                        image_extended_path = os.path.join(
+                            "attribution_svi_integrated_gradients", f"attribution_svi_integrated_gradients_{model_name}_{em}_{li}_{i}.png"
+                        )
+                        plot_and_save(attr[f"svi_integrated_gradients_{model_name}_{em}_{li}"][i], image_extended_path, is_attribution=True)
 
-                    plot_and_save(_attr[0], f"attribution_svi_integrated_gradients_{model_name}_{em}_{li}_{beta}_{num_iterations}_{image_size}_{n_steps}_{learning_rate}_{learning_rate_decay}.png", is_attribution=True)
 
     # Save attributions
     attr_path = os.path.join(
@@ -290,7 +343,13 @@ def main(
 
     
     lock = mp.Lock()
-    with open("results.csv", "a") as fp, lock:
+    results_path = os.path.join(
+        os.path.join(file_dir, "results", "results.csv")
+    )
+    if not os.path.exists(os.path.dirname(results_path)):
+        os.makedirs(os.path.dirname(results_path))
+
+    with open(results_path, "a") as fp, lock:
   
         for mode in get_progress_bars()(
             ["zeros", "aug"], total=2, desc="Mode", leave=False
@@ -424,8 +483,8 @@ def parse_args():
             # "geodesic_integrated_gradients",
             # "svi_integrated_gradients",
             "integrated_gradients",
-            # "kernel_shap",
-            # "gradient_shap",
+            "kernel_shap",
+            "gradient_shap",
         ],
         nargs="+",
         metavar="N",
