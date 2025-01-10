@@ -159,7 +159,7 @@ def main(
     y_test = list()
     i = 0
     for data, target in voc_loader:
-        if i == 2:
+        if i == 100:
             break
         
         # Extract first object class as the target
@@ -183,6 +183,7 @@ def main(
     for i in range(min(10, len(x_test))):
         image_extended_path = os.path.join("original_images", f"original_image_{i}.png")
         plot_and_save(x_test[i], image_extended_path)
+    now = np.datetime64("now").astype(str)
 
     if "geodesic_integrated_gradients" in explainers:
         _attr = list()
@@ -213,7 +214,7 @@ def main(
             expl[f"geodesic_integrated_gradients_{model_name}"] = explainer
             for i in range(min(10, len(x_test))):
                 image_extended_path = os.path.join(
-                    "attribution_geodesic_integrated_gradients", f"attribution_geodesic_integrated_gradients_{model_name}_{i}.png"
+                    now, "attribution_geodesic_integrated_gradients", f"attribution_geodesic_integrated_gradients_{model_name}_{i}.png"
                 )
                 plot_and_save(attr[f"geodesic_integrated_gradients_{model_name}"][i], image_extended_path, is_attribution=True)
     if "kernel_shap" in explainers:
@@ -235,7 +236,7 @@ def main(
             expl[f"kernel_shap_{model_name}"] = explainer
             for i in range(min(10, len(x_test))):
                 image_extended_path = os.path.join(
-                    "attribution_kernel_shap", f"attribution_kernel_shap_{model_name}_{i}.png"
+                    now, "attribution_kernel_shap", f"attribution_kernel_shap_{model_name}_{i}.png"
                 )
                 plot_and_save(attr[f"kernel_shap_{model_name}"][i], image_extended_path, is_attribution=True)
 
@@ -260,7 +261,7 @@ def main(
             expl[f"gradient_shap_{model_name}"] = explainer
             for i in range(min(10, len(x_test))):
                 image_extended_path = os.path.join(
-                    "attribution_gradient_shap", f"attribution_gradient_shap_{model_name}_{i}.png"
+                    now, "attribution_gradient_shap", f"attribution_gradient_shap_{model_name}_{i}.png"
                 )
                 plot_and_save(attr[f"gradient_shap_{model_name}"][i], image_extended_path, is_attribution=True)
 
@@ -287,19 +288,19 @@ def main(
 
             for i in range(min(10, len(x_test))):
                 image_extended_path = os.path.join(
-                    "attribution_integrated_gradients", f"attribution_integrated_gradients_{model_name}_{i}.png"
+                    now, "attribution_integrated_gradients", f"attribution_integrated_gradients_{model_name}_{i}.png"
                 )
                 plot_and_save(attr[f"integrated_gradients_{model_name}"][i], image_extended_path, is_attribution=True)
 
 
     if "svi_integrated_gradients" in explainers:
-        num_iterations = 100000
+        num_iterations = 500
         beta = 0.3
         linear_interpolation = [False]
-        endpoint_matching = [False]
+        endpoint_matching = [True]
         learning_rate_decay = True
         n_steps = 50
-        learning_rate = 0.1
+        learning_rate = 0.01
         for li in linear_interpolation:
             for em in endpoint_matching:
                 for model_name, model in models.items():
@@ -322,18 +323,18 @@ def main(
                                 learning_rate = learning_rate
                             ).squeeze(0)
                         )
-                    attr[f"svi_integrated_gradients_{model_name}_{em}_{li}"] = th.stack(_attr)
-                    expl[f"svi_integrated_gradients_{model_name}_{em}_{li}"] = explainer
+                    attr[f"svi_integrated_gradients_{model_name}_{em}_{li}_{num_iterations}_{n_steps}_{beta}_{learning_rate}_{learning_rate_decay}"] = th.stack(_attr)
+                    expl[f"svi_integrated_gradients_{model_name}_{em}_{li}_{num_iterations}_{n_steps}_{beta}_{learning_rate}_{learning_rate_decay}"] = explainer
                     for i in range(min(10, len(x_test))):
                         image_extended_path = os.path.join(
-                            "attribution_svi_integrated_gradients", f"attribution_svi_integrated_gradients_{model_name}_{em}_{li}_{i}.png"
+                            now, "attribution_svi_integrated_gradients", f"attribution_svi_integrated_gradients_{model_name}_{em}_{li}_{num_iterations}_{n_steps}_{beta}_{learning_rate}_{learning_rate_decay}_{i}.png"
                         )
-                        plot_and_save(attr[f"svi_integrated_gradients_{model_name}_{em}_{li}"][i], image_extended_path, is_attribution=True)
+                        plot_and_save(attr[f"svi_integrated_gradients_{model_name}_{em}_{li}_{num_iterations}_{n_steps}_{beta}_{learning_rate}_{learning_rate_decay}"][i], image_extended_path, is_attribution=True)
 
 
     # Save attributions
     attr_path = os.path.join(
-        os.path.join(file_dir, "plots", "attributions")
+        os.path.join(file_dir, "plots", now, "attributions")
     )
     if not os.path.exists(attr_path):
         os.makedirs(attr_path)
@@ -343,8 +344,9 @@ def main(
 
     
     lock = mp.Lock()
+    
     results_path = os.path.join(
-        os.path.join(file_dir, "results", "results.csv")
+        os.path.join(file_dir, "results",now, "results.csv")
     )
     if not os.path.exists(os.path.dirname(results_path)):
         os.makedirs(os.path.dirname(results_path))
@@ -359,10 +361,16 @@ def main(
                     attr.items(), desc="Attr", leave=False
                 ):
                     for model_name, model in models.items():
+                        device = th.device('cuda' if th.cuda.is_available() else 'cpu')
+                        model = model.to(device)
+                        x_test = x_test.to(device)
+                        if v is not None:
+                            v = v.to(device)
+
                         acc_comp = accuracy(
                             model,
                             x_test,
-                            attributions=v.cpu().abs(),
+                            attributions=v.abs(),
                             baselines=x_test if mode == "aug" else None,
                             n_samples=10 if mode == "aug" else 1,
                             n_samples_batch_size=1 if mode == "aug" else None,
@@ -376,7 +384,7 @@ def main(
                         acc_suff = accuracy(
                             model,
                             x_test,
-                            attributions=v.cpu().abs(),
+                            attributions=v.abs(),
                             baselines=x_test if mode == "aug" else None,
                             n_samples=10 if mode == "aug" else 1,
                             n_samples_batch_size=1 if mode == "aug" else None,
@@ -390,7 +398,7 @@ def main(
                         comp = comprehensiveness(
                             model,
                             x_test,
-                            attributions=v.cpu().abs(),
+                            attributions=v.abs(),
                             baselines=x_test if mode == "aug" else None,
                             n_samples=10 if mode == "aug" else 1,
                             n_samples_batch_size=1 if mode == "aug" else None,
@@ -403,7 +411,7 @@ def main(
                         ce_comp = cross_entropy(
                             model,
                             x_test,
-                            attributions=v.cpu().abs(),
+                            attributions=v.abs(),
                             baselines=x_test if mode == "aug" else None,
                             n_samples=10 if mode == "aug" else 1,
                             n_samples_batch_size=1 if mode == "aug" else None,
@@ -417,7 +425,7 @@ def main(
                         ce_suff = cross_entropy(
                             model,
                             x_test,
-                            attributions=v.cpu().abs(),
+                            attributions=v.abs(),
                             baselines=x_test if mode == "aug" else None,
                             n_samples=10 if mode == "aug" else 1,
                             n_samples_batch_size=1 if mode == "aug" else None,
@@ -431,7 +439,7 @@ def main(
                         l_odds = log_odds(
                             model,
                             x_test,
-                            attributions=v.cpu().abs(),
+                            attributions=v.abs(),
                             baselines=x_test if mode == "aug" else None,
                             n_samples=10 if mode == "aug" else 1,
                             n_samples_batch_size=1 if mode == "aug" else None,
@@ -444,7 +452,7 @@ def main(
                         suff = sufficiency(
                             model,
                             x_test,
-                            attributions=v.cpu().abs(),
+                            attributions=v.abs(),
                             baselines=x_test if mode == "aug" else None,
                             n_samples=10 if mode == "aug" else 1,
                             n_samples_batch_size=1 if mode == "aug" else None,
@@ -481,7 +489,7 @@ def parse_args():
         type=str,
         default=[
             # "geodesic_integrated_gradients",
-            # "svi_integrated_gradients",
+            "svi_integrated_gradients",
             "integrated_gradients",
             "kernel_shap",
             "gradient_shap",
