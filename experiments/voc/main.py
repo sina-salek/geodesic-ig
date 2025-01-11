@@ -14,7 +14,7 @@ from argparse import ArgumentParser
 from pytorch_lightning import  seed_everything
 from torch import Tensor
 from torch.utils.data import DataLoader
-from torchvision.datasets import VOCDetection 
+from torchvision.datasets import VOCDetection , VOCSegmentation
 from typing import Any, List
 
 import matplotlib.pyplot as plt
@@ -107,6 +107,15 @@ def main(
             T.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]),
         ]
     )
+
+    target_transform = T.Compose(
+        [
+            T.Resize(image_size),
+            T.CenterCrop(centre_crop),
+            T.ToTensor(),
+            T.Lambda(lambda x: (x * 255).long()),
+        ]
+    )
   
 
     # Load test data
@@ -122,7 +131,20 @@ def main(
         download=True,
     )
 
-    voc_loader = voc_loader = DataLoader(
+    # voc = VOCSegmentation(
+    #     root=os.path.join(
+    #         os.path.split(os.path.split(file_dir)[0])[0],
+    #         "tint",
+    #         "data",
+    #         "voc",
+    #     ),
+    #     image_set="val",
+    #     transform=transform,
+    #     target_transform=target_transform,
+    #     download=True,
+    # )
+
+    voc_loader = DataLoader(
         voc, 
         batch_size=1, 
         shuffle=True,
@@ -132,7 +154,7 @@ def main(
     models = dict()
     # Load models
     for model_name in VALID_BACKBONE_NAMES:
-        models[model_name] = VocClassifier(backbone_name=model_name)
+        models[model_name] = VocClassifier()
     
 
         # Switch to eval
@@ -147,33 +169,56 @@ def main(
     if accelerator == "cuda":
         th.backends.cudnn.enabled = False
 
-    VOC_CLASSES = [
-        'aeroplane', 'bicycle', 'bird', 'boat', 'bottle',
-        'bus', 'car', 'cat', 'chair', 'cow',
-        'diningtable', 'dog', 'horse', 'motorbike', 'person',
-        'pottedplant', 'sheep', 'sofa', 'train', 'tvmonitor'
-    ]
+    # VOC_CLASSES = [
+    #     'aeroplane', 'bicycle', 'bird', 'boat', 'bottle',
+    #     'bus', 'car', 'cat', 'chair', 'cow',
+    #     'diningtable', 'dog', 'horse', 'motorbike', 'person',
+    #     'pottedplant', 'sheep', 'sofa', 'train', 'tvmonitor'
+    # ]
 
     # Get data as tensors
     x_test = list()
     y_test = list()
     i = 0
     for data, target in voc_loader:
-        if i == 100:
+        if i == 1:
             break
         
-        # Extract first object class as the target
-        class_name = list(target['annotation']['object'][0]['name'])
-        class_idx = VOC_CLASSES.index(class_name[0])  
+        # # Extract first object class as the target
+        # class_name = list(target['annotation']['object'][0]['name'])
+        # class_idx = VOC_CLASSES.index(class_name[0])  
         
         x_test.append(data)
-        y_test.append(class_idx)
+        # y_test.append(class_idx)
         i += 1
         
     print(f"Number of test samples: {len(x_test)}")
 
     x_test = th.cat(x_test).to(device)
-    y_test = th.tensor(y_test).to(device)
+    # y_test = th.tensor(y_test).to(device)
+
+    # x_test = list()
+    # seg_test = list()
+    # i = 0
+    # for data, seg in voc_loader:
+    #     if i == 1:
+    #         break
+
+    #     seg_ids = seg.unique()
+    #     if len(seg_ids) <= 1:
+    #         continue
+
+    #     seg_ = seg.clone()
+    #     for j, seg_id in enumerate(seg_ids):
+    #         seg_[seg_ == seg_id] = j
+
+    #     x_test.append(data)
+    #     seg_test.append(seg_)
+    #     i += 1
+
+    # x_test = th.cat(x_test).to(device)
+    # seg_test = th.cat(seg_test).to(device)
+
 
     # Create dict of attributions, explainers
     attr = dict()
@@ -189,6 +234,8 @@ def main(
         _attr = list()
 
         for model_name, model in models.items():
+            # Target is the model prediction
+            y_test = model(x_test).argmax(-1).to(device)
 
             for i, (x, y) in get_progress_bars()(
                 enumerate(zip(x_test, y_test)),
@@ -219,6 +266,9 @@ def main(
                 plot_and_save(attr[f"geodesic_integrated_gradients_{model_name}"][i], image_extended_path, is_attribution=True)
     if "kernel_shap" in explainers:
         for model_name, model in models.items():
+            # Target is the model prediction
+            y_test = model(x_test).argmax(-1).to(device)
+
             explainer = KernelShap(model)
             _attr = list()
             for i, (x, y) in get_progress_bars()(
@@ -243,6 +293,9 @@ def main(
 
     if "gradient_shap" in explainers:
         for model_name, model in models.items():
+            # Target is the model prediction
+            y_test = model(x_test).argmax(-1).to(device)
+
             explainer = GradientShap(model)
             _attr = list()
             for i, (x, y) in get_progress_bars()(
@@ -269,6 +322,9 @@ def main(
         
         n_steps = 50
         for model_name, model in models.items():
+            # Target is the model prediction
+            y_test = model(x_test).argmax(-1).to(device)
+
             explainer = IntegratedGradients(model)
             _attr = list()
             for i, (x, y) in get_progress_bars()(
@@ -294,16 +350,21 @@ def main(
 
 
     if "svi_integrated_gradients" in explainers:
-        num_iterations = 500
+        num_iterations = 1000
         beta = 0.3
-        linear_interpolation = [False]
-        endpoint_matching = [True]
+        linear_interpolation = [False, True]
+        endpoint_matching = [True, False]
         learning_rate_decay = True
         n_steps = 50
         learning_rate = 0.01
         for li in linear_interpolation:
             for em in endpoint_matching:
                 for model_name, model in models.items():
+                    # Ensure input data is on same device
+                    x_test = x_test.to(device)  
+                    model = model.to(device)
+                    y_test = model(x_test).argmax(-1)  # Result already on GPU
+                    
                     _attr = list()
                     explainer = SVI_IG(model)
                     for i, (x, y) in get_progress_bars()(
