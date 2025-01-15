@@ -27,8 +27,10 @@ from geodesic.utils.tqdm import get_progress_bars
 
 from experiments.voc.classifier import VocClassifier
 from experiments.voc.constants import VALID_BACKBONE_NAMES
+from experiments.voc.train_classifier import setup_model
 
 from geodesic.metrics import accuracy, comprehensiveness, cross_entropy, log_odds, sufficiency
+
 
 file_dir = os.path.dirname(__file__)
 warnings.filterwarnings("ignore")
@@ -150,11 +152,32 @@ def main(
         shuffle=True,
         generator=th.Generator().manual_seed(2) 
     )
+
+    def load_model(checkpoint_path):
+        # Initialize model
+        model = setup_model()
+        
+        # Load checkpoint
+        checkpoint = th.load(checkpoint_path)
+        
+        # Extract model state dict from checkpoint
+        if 'model_state_dict' in checkpoint:
+            model.load_state_dict(checkpoint['model_state_dict'])
+        else:
+            model.load_state_dict(checkpoint)
+        
+        model.eval()
+        
+        # Move to GPU if available
+        device = th.device('cuda' if th.cuda.is_available() else 'cpu')
+        model = model.to(device)
+        return model
     
     models = dict()
     # Load models
     for model_name in VALID_BACKBONE_NAMES:
-        models[model_name] = VocClassifier()
+        # TODO: tidy this up
+        models[model_name] = load_model('experiments/voc/checkpoints/checkpoint_epoch_180.pt')
     
 
         # Switch to eval
@@ -550,7 +573,7 @@ def parse_args():
         type=str,
         default=[
             # "geodesic_integrated_gradients",
-            "svi_integrated_gradients",
+            # "svi_integrated_gradients",
             "integrated_gradients",
             "kernel_shap",
             "gradient_shap",
