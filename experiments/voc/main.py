@@ -9,6 +9,7 @@ from captum.attr import (
     KernelShap,
     GradientShap
 )
+import saliency.core as saliency
 
 from argparse import ArgumentParser
 from pytorch_lightning import  seed_everything
@@ -158,7 +159,7 @@ def main(
         model = setup_model()
         
         # Load checkpoint
-        checkpoint = th.load(checkpoint_path)
+        checkpoint = th.load(checkpoint_path, map_location=th.device('cpu')) if accelerator == "cpu" else th.load(checkpoint_path)
         
         # Extract model state dict from checkpoint
         if 'model_state_dict' in checkpoint:
@@ -177,7 +178,7 @@ def main(
     # Load models
     for model_name in VALID_BACKBONE_NAMES:
         # TODO: tidy this up
-        models[model_name] = load_model('experiments/voc/checkpoints/checkpoint_epoch_180.pt')
+        models[model_name] = load_model('/Users/sinasalek/VSCodeProjects/geodesic-ig/experiments/voc/attributions202501100055235/best_model.pt')
     
 
         # Switch to eval
@@ -371,7 +372,88 @@ def main(
                 )
                 plot_and_save(attr[f"integrated_gradients_{model_name}"][i], image_extended_path, is_attribution=True)
 
+    if "guided_integrated_gradients" in explainers:
+        n_steps = 50
+        guided_ig = saliency.GuidedIG()
 
+
+
+        # transformer = T.Normalize((0.485, 0.456, 0.406), (0.229, 0.224, 0.225))
+        transformer = T.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
+        def PreprocessImages(images):
+            # assumes input is 4-D, with range [0,255]
+            #
+            # torchvision have color channel as first dimension
+            # with normalization relative to mean/std of ImageNet:
+            #    https://pytorch.org/vision/stable/models.html
+            images = np.array(images)
+            images = images/255
+            images = np.transpose(images, (0,3,1,2))
+            images = th.tensor(images, dtype=th.float32)
+            images = transformer.forward(images)
+            return images.requires_grad_(True)
+        
+        for model_name, model in models.items():
+
+            # conv_layer = model.Mixed_7c
+            # conv_layer_outputs = {}
+            # def conv_layer_forward(m, i, o):
+            #     # move the RGB dimension to the last dimension
+            #     conv_layer_outputs[saliency.base.CONVOLUTION_LAYER_VALUES] = th.movedim(o, 1, 3).detach().numpy()
+            # def conv_layer_backward(m, i, o):
+            #     # move the RGB dimension to the last dimension
+            #     conv_layer_outputs[saliency.base.CONVOLUTION_OUTPUT_GRADIENTS] = th.movedim(o[0], 1, 3).detach().numpy()
+            # conv_layer.register_forward_hook(conv_layer_forward)
+            # conv_layer.register_full_backward_hook(conv_layer_backward)
+            def call_model_function(images, call_model_args=None, expected_keys=None):
+                images = PreprocessImages(images)
+                target_class_idx =  call_model_args[class_idx_str]
+                output = model(images)
+                m = th.nn.Softmax(dim=1)
+                output = m(output)
+                if saliency.base.INPUT_OUTPUT_GRADIENTS in expected_keys:
+                    outputs = output[:,target_class_idx]
+                    grads = th.autograd.grad(outputs, images, grad_outputs=th.ones_like(outputs))
+                    grads = th.movedim(grads[0], 1, 3)
+                    gradients = grads.detach().numpy()
+                    return {saliency.base.INPUT_OUTPUT_GRADIENTS: gradients}
+                else:
+                    one_hot = th.zeros_like(output)
+                    one_hot[:,target_class_idx] = 1
+                    model.zero_grad()
+                    output.backward(gradient=one_hot, retain_graph=True)
+                    return conv_layer_outputs
+            # Target is the model prediction
+            y_test = model(x_test).argmax(-1).to(device)
+
+            _attr = list()
+            for i, (x, y) in get_progress_bars()(
+                enumerate(zip(x_test, y_test)),
+                total=len(x_test),
+                desc=f"guided IG attribution",
+            ):
+
+                predictions = model(x.unsqueeze(0))
+                predictions = predictions.detach().numpy()
+                prediction_class = np.argmax(predictions[0])
+                class_idx_str = 'class_idx_str'
+                call_model_args = {class_idx_str: prediction_class}
+                x = x.permute(1, 2, 0)
+                baseline = np.zeros(x.shape)
+                _attr.append(
+                    th.from_numpy(
+                        guided_ig.GetMask(
+                        x, call_model_function, call_model_args, x_steps=n_steps, x_baseline=baseline, max_dist=1.0, fraction=0.5
+                        )
+                    ).permute(2, 0, 1)
+                )
+            attr[f"guided_integrated_gradients_{model_name}"] = th.stack(_attr)
+            expl[f"guided_integrated_gradients_{model_name}"] = guided_ig
+            for i in range(min(10, len(x_test))):
+                image_extended_path = os.path.join(
+                    now, "attribution_guided_integrated_gradients", f"attribution_guided_integrated_gradients_{model_name}_{i}.png"
+                )
+                plot_and_save(attr[f"guided_integrated_gradients_{model_name}"][i], image_extended_path, is_attribution=True)
     if "svi_integrated_gradients" in explainers:
         num_iterations = 1000
         beta = 0.3
@@ -574,9 +656,10 @@ def parse_args():
         default=[
             # "geodesic_integrated_gradients",
             # "svi_integrated_gradients",
-            "integrated_gradients",
-            "kernel_shap",
-            "gradient_shap",
+            "guided_integrated_gradients",
+            # "integrated_gradients",
+            # "kernel_shap",
+            # "gradient_shap",
         ],
         nargs="+",
         metavar="N",
