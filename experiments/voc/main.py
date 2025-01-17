@@ -7,7 +7,10 @@ import warnings
 from captum.attr import (
     IntegratedGradients,
     KernelShap,
-    GradientShap
+    GradientShap,
+    InputXGradient,
+    NoiseTunnel,
+    Lime,
 )
 import saliency.core as saliency
 
@@ -23,6 +26,8 @@ import numpy as np
 
 from geodesic.svi_ig import SVI_IG
 from geodesic.geodesic_ig import GeodesicIntegratedGradients
+from geodesic.occlusion import Occlusion
+from geodesic.augmented_occlusion import AugmentedOcclusion
 
 from geodesic.utils.tqdm import get_progress_bars
 
@@ -219,6 +224,11 @@ def main(
     print(f"Number of test samples: {len(x_test)}")
 
     x_test = th.cat(x_test).to(device)
+    # Baseline is a normalised black image
+    normalizer = T.Normalize(
+        mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]
+    )
+    baselines = normalizer(th.zeros_like(x_test))
     # y_test = th.tensor(y_test).to(device)
 
     # x_test = list()
@@ -261,8 +271,8 @@ def main(
             # Target is the model prediction
             y_test = model(x_test).argmax(-1).to(device)
 
-            for i, (x, y) in get_progress_bars()(
-                enumerate(zip(x_test, y_test)),
+            for i, (x, y, b) in get_progress_bars()(
+                enumerate(zip(x_test, y_test, baselines)),
                 total=len(x_test),
                 desc=f"{GeodesicIntegratedGradients.get_name()} attribution",
             ):
@@ -276,6 +286,7 @@ def main(
                 _attr.append(
                     explainer.attribute(
                         x.unsqueeze(0),
+                        baselines=b.unsqueeze(0),
                         target=y.item(),
                         internal_batch_size=100,
                     ).squeeze(0)
@@ -295,14 +306,15 @@ def main(
 
             explainer = KernelShap(model)
             _attr = list()
-            for i, (x, y) in get_progress_bars()(
-                enumerate(zip(x_test, y_test)),
+            for i, (x, y, b) in get_progress_bars()(
+                enumerate(zip(x_test, y_test, baselines)),
                 total=len(x_test),
                 desc=f"{KernelShap.get_name()} attribution",
             ):
                 _attr.append(
                     explainer.attribute(
                     x.unsqueeze(0),
+                    baselines=b.unsqueeze(0),
                     target=y.item(),
                     ).squeeze(0)
                 )
@@ -322,15 +334,15 @@ def main(
 
             explainer = GradientShap(model)
             _attr = list()
-            for i, (x, y) in get_progress_bars()(
-                enumerate(zip(x_test, y_test)),
+            for i, (x, y, b) in get_progress_bars()(
+                enumerate(zip(x_test, y_test, baselines)),
                 total=len(x_test),
                 desc=f"{GradientShap.get_name()} attribution",
             ):
                 _attr.append(
                     explainer.attribute(
                         x.unsqueeze(0),
-                        baselines=th.zeros_like(x_test),
+                        baselines=b.unsqueeze(0),
                         target=y.item(),
                     ).squeeze(0)
                 )
@@ -351,14 +363,15 @@ def main(
 
             explainer = IntegratedGradients(model)
             _attr = list()
-            for i, (x, y) in get_progress_bars()(
-                enumerate(zip(x_test, y_test)),
+            for i, (x, y, b) in get_progress_bars()(
+                enumerate(zip(x_test, y_test, baselines)),
                 total=len(x_test),
                 desc=f"{IntegratedGradients.get_name()} attribution",
             ):
                 _attr.append(
                     explainer.attribute(
                         x.unsqueeze(0),
+                        baselines=b.unsqueeze(0),
                         target=y.item(),
                         n_steps=n_steps,
                     ).squeeze(0)
@@ -427,8 +440,8 @@ def main(
             y_test = model(x_test).argmax(-1).to(device)
 
             _attr = list()
-            for i, (x, y) in get_progress_bars()(
-                enumerate(zip(x_test, y_test)),
+            for i, (x, y, b) in get_progress_bars()(
+                enumerate(zip(x_test, y_test, baselines)),
                 total=len(x_test),
                 desc=f"guided IG attribution",
             ):
@@ -439,7 +452,7 @@ def main(
                 class_idx_str = 'class_idx_str'
                 call_model_args = {class_idx_str: prediction_class}
                 x = x.permute(1, 2, 0)
-                baseline = np.zeros(x.shape)
+                baseline = b.permute(1, 2, 0)
                 _attr.append(
                     th.from_numpy(
                         guided_ig.GetMask(
@@ -472,14 +485,15 @@ def main(
                     
                     _attr = list()
                     explainer = SVI_IG(model)
-                    for i, (x, y) in get_progress_bars()(
-                        enumerate(zip(x_test, y_test)),
+                    for i, (x, y, b) in get_progress_bars()(
+                        enumerate(zip(x_test, y_test, baselines)),
                         total=len(x_test),
                         desc=f"{SVI_IG.get_name()} attribution",
                     ):
                         _attr.append(
                             explainer.attribute(
                                 x.unsqueeze(0),
+                                baselines=b.unsqueeze(0),
                                 target=y.item(),
                                 num_iterations=num_iterations,
                                 beta=beta,
@@ -497,6 +511,146 @@ def main(
                         )
                         plot_and_save(attr[f"svi_integrated_gradients_{model_name}_{em}_{li}_{num_iterations}_{n_steps}_{beta}_{learning_rate}_{learning_rate_decay}"][i], image_extended_path, is_attribution=True)
 
+    if "input_x_gradient" in explainers:
+        for model_name, model in models.items():
+            # Target is the model prediction
+            y_test = model(x_test).argmax(-1).to(device)
+
+            explainer = InputXGradient(model)
+            _attr = list()
+            for i, (x, y) in get_progress_bars()(
+                enumerate(zip(x_test, y_test)),
+                total=len(x_test),
+                desc="InputX attribution",
+            ):
+                _attr.append(
+                    explainer.attribute(
+                        x.unsqueeze(0),
+                        target=y.item(),
+                    ).squeeze(0)
+                )
+            attr[f"input_x_gradient_{model_name}"] = th.stack(_attr)
+            expl[f"input_x_gradient_{model_name}"] = explainer
+            for i in range(min(10, len(x_test))):
+                image_extended_path = os.path.join(
+                    now, "attribution_input_x_gradient", f"attribution_input_x_gradient_{model_name}_{i}.png"
+                )
+                plot_and_save(attr[f"input_x_gradient_{model_name}"][i], image_extended_path, is_attribution=True)
+
+    if "lime" in explainers:
+        for model_name, model in models.items():
+            # Target is the model prediction
+            y_test = model(x_test).argmax(-1).to(device)
+
+            explainer = Lime(model)
+            _attr = list()
+            for i, (x, y, b) in get_progress_bars()(
+                enumerate(zip(x_test, y_test, baselines)),
+                total=len(x_test),
+                desc="Lime attribution",
+            ):
+                _attr.append(
+                    explainer.attribute(
+                        x.unsqueeze(0),
+                        baselines=b.unsqueeze(0),
+                        target=y.item(),
+                    ).squeeze(0)
+                )
+            attr[f"lime_{model_name}"] = th.stack(_attr)
+            expl[f"lime_{model_name}"] = explainer
+            for i in range(min(10, len(x_test))):
+                image_extended_path = os.path.join(
+                    now, "attribution_lime", f"attribution_lime_{model_name}_{i}.png"
+                )
+                plot_and_save(attr[f"lime_{model_name}"][i], image_extended_path, is_attribution=True)
+
+    if "augmented_occlusion" in explainers:
+        for model_name, model in models.items():
+            # Target is the model prediction
+            y_test = model(x_test).argmax(-1).to(device)
+
+            explainer = AugmentedOcclusion(model, data=x_test)
+            _attr = list()
+            for i, (x, y) in get_progress_bars()(
+                enumerate(zip(x_test, y_test)),
+                total=len(x_test),
+                desc="Augmented Occlusion attribution",
+            ):
+                _attr.append(
+                    explainer.attribute(
+                        x.unsqueeze(0),
+                        sliding_window_shapes=(3, 15, 15),
+                        strides=(3, 8, 8),
+                        target=y.item(),
+                        attributions_fn=abs,
+                    ).squeeze(0)
+                )
+            attr[f"augmented_occlusion_{model_name}"] = th.stack(_attr)
+            expl[f"augmented_occlusion_{model_name}"] = explainer
+            for i in range(min(10, len(x_test))):
+                image_extended_path = os.path.join(
+                    now, "attribution_augmented_occlusion", f"attribution_augmented_occlusion_{model_name}_{i}.png"
+                )
+                plot_and_save(attr[f"augmented_occlusion_{model_name}"][i], image_extended_path, is_attribution=True)
+
+    if "occlusion" in explainers:
+        for model_name, model in models.items():
+            # Target is the model prediction
+            y_test = model(x_test).argmax(-1).to(device)
+
+            explainer = Occlusion(model)
+            _attr = list()
+            for i, (x, y, b) in get_progress_bars()(
+                enumerate(zip(x_test, y_test, baselines)),
+                total=len(x_test),
+                desc="Occlusion attribution",
+            ):
+                _attr.append(
+                    explainer.attribute(
+                        x.unsqueeze(0),
+                        baselines=b.unsqueeze(0),
+                        sliding_window_shapes=(3, 15, 15),
+                        strides=(3, 8, 8),
+                        target=y.item(),
+                        attributions_fn=abs,
+                    ).squeeze(0)
+                )
+            attr[f"occlusion_{model_name}"] = th.stack(_attr)
+            expl[f"occlusion_{model_name}"] = explainer
+            for i in range(min(10, len(x_test))):
+                image_extended_path = os.path.join(
+                    now, "attribution_occlusion", f"attribution_occlusion_{model_name}_{i}.png"
+                )
+                plot_and_save(attr[f"occlusion_{model_name}"][i], image_extended_path, is_attribution=True)
+
+    if "smooth_grad" in explainers:
+        explainer = NoiseTunnel(IntegratedGradients(model))
+        _attr = list()
+        for i, (x, y, b) in get_progress_bars()(
+            enumerate(zip(x_test, y_test, baselines)),
+            total=len(x_test),
+            desc="smoothGrad attribution",
+        ):
+            _attr.append(
+                explainer.attribute(
+                    x.unsqueeze(0),
+                    baselines=b.unsqueeze(0),
+                    target=y.item(),
+                    internal_batch_size=200,
+                    nt_samples=10,
+                    stdevs=1.0,
+                    nt_type="smoothgrad_sq",
+                ).squeeze(0)
+            )
+        attr["smooth_grad"] = th.stack(_attr)
+        expl["smooth_grad"] = explainer
+        for i in range(min(10, len(x_test))):
+            image_extended_path = os.path.join(
+                now, "attribution_smooth_grad", f"attribution_smooth_grad_{i}.png"
+            )
+            plot_and_save(attr["smooth_grad"][i], image_extended_path, is_attribution=True)
+        
+
 
     # Save attributions
     attr_path = os.path.join(
@@ -505,8 +659,12 @@ def main(
     if not os.path.exists(attr_path):
         os.makedirs(attr_path)
 
-    th.save(attr, os.path.join(attr_path, "attributions.pt"))
-    th.save(expl, os.path.join(attr_path, "explainers.pt"))
+    attr_cpu = {k: v.cpu() if th.is_tensor(v) else v for k, v in attr.items()}
+    # expl_cpu = {k: v.cpu() if th.is_tensor(v) else v for k, v in expl.items()}
+
+    # Save CPU tensors
+    th.save(attr_cpu, os.path.join(attr_path, "attributions.pt"))
+    # th.save(expl_cpu, os.path.join(attr_path, "explainers.pt"))
 
     
     lock = mp.Lock()
@@ -657,9 +815,14 @@ def parse_args():
             # "geodesic_integrated_gradients",
             # "svi_integrated_gradients",
             "guided_integrated_gradients",
-            # "integrated_gradients",
-            # "kernel_shap",
-            # "gradient_shap",
+            "integrated_gradients",
+            "kernel_shap",
+            "gradient_shap",
+            "input_x_gradient",
+            "lime",
+            "augmented_occlusion",
+            "occlusion",
+            "smooth_grad"
         ],
         nargs="+",
         metavar="N",
