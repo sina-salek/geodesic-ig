@@ -1,30 +1,3 @@
-\section{Use of softplus activations}
-\label{app:softplus}
-
-We discuss here the idea of \citet{dombrowski2019explanations} and study the effect of replacing the ReLU activations by softplus with different values of $\beta$ on the half-moons experiment. We present our results on Figure \ref{fig:softplus} and \ref{fig:softplus_acc}. Our analysis shows that, while using softplus instead of ReLU activations can improve (but not necessarily) attribution methods performance, it also reduces the accuracy of the model. Indeed, as $\beta$ becomes lower, the MLP gets closer to a linear model, and cannot as such properly differentiate the half-moons. As a result, we would recommend using Geodesic IG with the original MLP model instead of using softplus activations. A further analysis would be to compare the robustness of Geodesic IG against adversarial attacks, as performed by \citet{dombrowski2019explanations}.
-
-\begin{figure*}[ht]
-\vskip 0.2in
-\begin{center}
-\centerline{\includegraphics[width=0.9\textwidth]{figures/softplus.png}}
-\caption{Evaluation of different attribution methods on the half-moons dataset using a MLP with ReLU, Softplus($\beta = 5$) and Softplus($\beta = 2$) activations. Integrated Gradient improves significantly when using Softplus activations, while other method either improve marginally or perform similarly as when using ReLU activations.}
-\label{fig:softplus}
-\end{center}
-\vskip -0.2in
-\end{figure*}
-
-\begin{figure}[ht]
-\vskip 0.2in
-\begin{center}
-\centerline{\includegraphics[width=0.9\textwidth]{figures/softplus_acc.png}}
-\caption{Accuracy of the MLP with ReLU, Softplus($\beta = 5$) and Softplus($\beta = 2$) activations. We see a sharp drop of accuracy when $\beta$ decreases. We also plot the predictions on the test set of the MLP with ReLU activations (middle plot) and Softplus($\beta = 2$) activations (right plot) to illustrate this drop of accuracy.}
-\label{fig:softplus_acc}
-\end{center}
-\vskip -0.2in
-\end{figure}
-
-\newpage
-
 \section{Additional Half-moons results}
 \label{app:half-moons}
 
@@ -57,24 +30,12 @@ We also perform here an ablation study using different values of k for the kNN a
 \section{Additional heatmaps and results on Pascal VOC 2012}
 \label{app:voc}
 
-We provide here more results using different values of top k\% to evaluate Geodesic IG against various other attributions methods. The results are presented on Figure \ref{fig:topk}. We can see that Geodesic IG and Enhanced IG perform consistently better than other attribution methods across different values of top k\%. One exception is SmoothGrad on the Sufficiency metric, which performs better. One improvement of Geodesic IG could be as a result to combine it with the SmoothGrad method, which could potentially yield even better results.
-
-We also qualitatively compare on Figure \ref{fig:more_images} Geodesic IG with the original IG on 5 different images of the Pascal VOC 2012 dataset. To prevent cherry-piking, these images were randomly sampled. Geodesic IG heatmaps appears to be less blurry than the ones generated with original IG method.
+We also qualitatively compare on Figure \ref{fig:more_images} Geodesic IG with the original IG on 5 different images of the Pascal VOC 2012 dataset. Geodesic IG heatmaps appears to be less blurry than the ones generated with original IG method.
 
 \begin{figure}[ht]
 \vskip 0.2in
 \begin{center}
-\centerline{\includegraphics[width=0.9\textwidth]{figures/topk.png}}
-\caption{Evaluation of several attribution methods on Pascal VOC 2012 dataset, using different values of top k\%. }
-\label{fig:topk}
-\end{center}
-\vskip -0.2in
-\end{figure}
-
-\begin{figure}[ht]
-\vskip 0.2in
-\begin{center}
-\centerline{\includegraphics[width=0.7\textwidth]{figures/more_images.png}}
+\centerline{\includegraphics[width=0.52\textwidth]{figures/more_images.png}}
 \caption{Heatmaps of Integrated Gradients (middle) and Geodesic IG (right) on 5 randomly chosen images from the test set of Pascal VOC 2012. We can see that Geodesic IG heatmaps are sharper compared with the original IG method.}
 \label{fig:more_images}
 \end{center}

@@ -49,13 +49,12 @@
 \newlabel{fig:bridge}{{5}{4}{When the kNN graph is disconnected, as illustrated here, it would be impossible to compute Geodesic IG between certain points, for instance $\textbf {x}_1$ and $\textbf {x}_5$ here. To solve this, we add a single link between disconnected graphs, here between $\textbf {x}_3$ and $\textbf {x}_7$}{figure.5}{}}
 \newlabel{fig:bridge@cref}{{[figure][5][]5}{[1][4][]4}}
 \citation{sundararajan2017axiomatic}
-\citation{sundararajan2017axiomatic}
 \newlabel{sec:experiments}{{2.3}{5}{}{equation.2.9}{}}
 \newlabel{sec:experiments@cref}{{[subsection][3][2]2.3}{[1][5][]5}}
 \newlabel{fig:svi_moons}{{6}{5}{\textbf {Visualising 10 random paths.} For a simple case of half-moons with 1000 samples, we show the sampled paths between 10 pairs of points. As we see on low gradient regions the sampler prefers straigh lines, whereas in high gredient regions the path becomes closer to perpendicular to the large gradient vectors to cross the region as quickly as possible}{figure.6}{}}
 \newlabel{fig:svi_moons@cref}{{[figure][6][]6}{[1][5][]5}}
 \citation{sundararajan2017axiomatic}
-\citation{sundararajan2017axiomatic}
+\citation{kapishnikov2021guided}
 \citation{scikit-learn}
 \citation{jha2020enhanced}
 \citation{lundberg2017unified}
@@ -73,36 +72,33 @@
 \citation{pascal-voc-2012}
 \citation{he2016deep}
 \citation{shrikumar2016not}
-\citation{ribeiro2016should}
 \citation{lundberg2017unified}
 \citation{zeiler2014visualizing}
 \citation{tonekaboni2020went}
-\citation{jha2020enhanced}
-\citation{deyoung2019eraser}
+\citation{kapishnikov2021guided}
 \citation{deyoung2019eraser}
 \citation{shrikumar2017learning}
-\newlabel{fig:qualitative-comp}{{7}{7}{Comparison between Integrated Gradients and Geodesic IG on one image. The predicted class is ``motor-scooter". The left figure is the original image, while the other two are heatmaps of respectively the IG (center) and the Geodesic IG (right). We can see that our method seems to reduce the amount of noise and is able to provide a sharper heatmap, compared with the vanilla IG. More comparisons are presented in Appendix \ref {app:voc}}{figure.7}{}}
-\newlabel{fig:qualitative-comp@cref}{{[figure][7][]7}{[1][7][]7}}
+\citation{crane2020survey}
+\citation{tenenbaum2000global}
 \newlabel{tab:results_moons_2}{{1}{7}{Evaluation of different attribution methods on a half-moons dataset with Gaussian noise $\mathcal {N}(0, 0.2)$. The results over 5 different seeds are averaged, with the corresponding standard deviation in brackets. We present in Appendix \ref {app:half-moons} more results with different amounts of Gaussian noise}{table.1}{}}
 \newlabel{tab:results_moons_2@cref}{{[table][1][]1}{[1][6][]7}}
 \newlabel{subsec:voc}{{3.2}{7}{}{subsection.3.2}{}}
 \newlabel{subsec:voc@cref}{{[subsection][2][3]3.2}{[1][7][]7}}
-\citation{crane2020survey}
-\citation{tenenbaum2000global}
+\newlabel{tab:results_voc}{{2}{7}{Evaluation of different attribution methods on 100 randomly sampled images from the Pascal VOC test set. Fig. \ref {fig:voc_metrics} shows the curves where these metrics are extracted from}{table.2}{}}
+\newlabel{tab:results_voc@cref}{{[table][2][]2}{[1][7][]7}}
+\newlabel{sec:related_work}{{4}{7}{}{section.4}{}}
+\newlabel{sec:related_work@cref}{{[section][4][]4}{[1][7][]7}}
 \citation{jha2020enhanced}
 \citation{kapishnikov2021guided}
-\newlabel{tab:results_voc}{{2}{8}{Evaluation of different attribution methods on 100 randomly sampled images from the Pascal VOC test set. The metrics are computed by removing or keeping the top 5\% most important features. More results are provided in Appendix \ref {app:voc}}{table.2}{}}
-\newlabel{tab:results_voc@cref}{{[table][2][]2}{[1][8][]8}}
-\newlabel{sec:related_work}{{4}{8}{}{section.4}{}}
-\newlabel{sec:related_work@cref}{{[section][4][]4}{[1][8][]8}}
-\newlabel{fig:enhanced_ig}{{8}{8}{\textbf {Enhanced IG attributions.} Enhanced IG computes a kNN algorithm, uses Dijsktra to find the shortest path between an input and a reference baseline, and computes gradients along this path. However, this method is model agnostic and can as a result cross a high gradients region, which is the case in this example, between the input A and the baseline B. Input A therefore has a high attribution which does not reflect the model's true behavior. In this example, the noise is $\mathcal {N}(0, 0.15)$}{figure.8}{}}
-\newlabel{fig:enhanced_ig@cref}{{[figure][8][]8}{[1][8][]8}}
-\citation{dombrowski2019explanations}
 \citation{sundararajan2017axiomatic}
 \citation{langley00}
 \bibdata{bib}
 \bibcite{chen2019fast}{{1}{2019}{{Chen et~al.}}{{Chen, Ferroni, Klushyn, Paraschos, Bayer, and Smagt}}}
 \bibcite{crane2020survey}{{2}{2020}{{Crane et~al.}}{{Crane, Livesu, Puppo, and Qin}}}
+\newlabel{fig:enhanced_ig}{{7}{8}{\textbf {Enhanced IG attributions.} Enhanced IG computes a kNN algorithm, uses Dijsktra to find the shortest path between an input and a reference baseline, and computes gradients along this path. However, this method is model agnostic and can as a result cross a high gradients region, which is the case in this example, between the input A and the baseline B. Input A therefore has a high attribution which does not reflect the model's true behavior. In this example, the noise is $\mathcal {N}(0, 0.15)$}{figure.7}{}}
+\newlabel{fig:enhanced_ig@cref}{{[figure][7][]7}{[1][8][]8}}
+\newlabel{sec:discussion}{{5}{8}{}{section.5}{}}
+\newlabel{sec:discussion@cref}{{[section][5][]5}{[1][8][]8}}
 \bibcite{das2020opportunities}{{3}{2020}{{Das \& Rad}}{{Das and Rad}}}
 \bibcite{deyoung2019eraser}{{4}{2019}{{DeYoung et~al.}}{{DeYoung, Jain, Rajani, Lehman, Xiong, Socher, and Wallace}}}
 \bibcite{dombrowski2019explanations}{{5}{2019}{{Dombrowski et~al.}}{{Dombrowski, Alber, Anders, Ackermann, M{\"u}ller, and Kessel}}}
@@ -113,8 +109,6 @@
 \bibcite{kapishnikov2021guided}{{10}{2021}{{Kapishnikov et~al.}}{{Kapishnikov, Venugopalan, Avci, Wedin, Terry, and Bolukbasi}}}
 \bibcite{lundberg2017unified}{{11}{2017}{{Lundberg \& Lee}}{{Lundberg and Lee}}}
 \bibcite{marcus2018deep}{{12}{2018}{{Marcus}}{{}}}
-\newlabel{sec:discussion}{{5}{9}{}{section.5}{}}
-\newlabel{sec:discussion@cref}{{[section][5][]5}{[1][9][]9}}
 \bibcite{scikit-learn}{{13}{2011}{{Pedregosa et~al.}}{{Pedregosa, Varoquaux, Gramfort, Michel, Thirion, Grisel, Blondel, Prettenhofer, Weiss, Dubourg, Vanderplas, Passos, Cournapeau, Brucher, Perrot, and Duchesnay}}}
 \bibcite{ribeiro2016should}{{14}{2016}{{Ribeiro et~al.}}{{Ribeiro, Singh, and Guestrin}}}
 \bibcite{sap2019risk}{{15}{2019}{{Sap et~al.}}{{Sap, Card, Gabriel, Choi, and Smith}}}
@@ -127,24 +121,14 @@
 \bibcite{yang2018geodesic}{{22}{2018}{{Yang et~al.}}{{Yang, Arvanitidis, Fu, Li, and Hauberg}}}
 \bibcite{zeiler2014visualizing}{{23}{2014}{{Zeiler \& Fergus}}{{Zeiler and Fergus}}}
 \bibstyle{icml2023}
-\citation{dombrowski2019explanations}
-\citation{dombrowski2019explanations}
-\newlabel{app:softplus}{{A}{11}{}{appendix.A}{}}
-\newlabel{app:softplus@cref}{{[appendix][1][2147483647]A}{[1][11][]11}}
-\newlabel{fig:softplus}{{9}{11}{Evaluation of different attribution methods on the half-moons dataset using a MLP with ReLU, Softplus($\beta = 5$) and Softplus($\beta = 2$) activations. Integrated Gradient improves significantly when using Softplus activations, while other method either improve marginally or perform similarly as when using ReLU activations}{figure.9}{}}
-\newlabel{fig:softplus@cref}{{[figure][9][2147483647]9}{[1][11][]11}}
-\newlabel{fig:softplus_acc}{{10}{11}{Accuracy of the MLP with ReLU, Softplus($\beta = 5$) and Softplus($\beta = 2$) activations. We see a sharp drop of accuracy when $\beta $ decreases. We also plot the predictions on the test set of the MLP with ReLU activations (middle plot) and Softplus($\beta = 2$) activations (right plot) to illustrate this drop of accuracy}{figure.10}{}}
-\newlabel{fig:softplus_acc@cref}{{[figure][10][2147483647]10}{[1][11][]11}}
-\newlabel{app:half-moons}{{B}{12}{}{appendix.B}{}}
-\newlabel{app:half-moons@cref}{{[appendix][2][2147483647]B}{[1][12][]12}}
-\newlabel{fig:noises}{{11}{12}{Evaluation of different attribution methods on the half-moons dataset with different amounts of noise: $\mathcal {N}(0, x)$ where $x$ is defined as the axis of each plot}{figure.11}{}}
-\newlabel{fig:noises@cref}{{[figure][11][2147483647]11}{[1][12][]12}}
-\newlabel{fig:knn}{{12}{12}{Evaluation of Geodesic IG and Enhanced IG for different values of k in the kNN algorithm. We can see that increasing this parameter harms Enhanced IG performance, while it does not seem to have a major effect on Geodesic IG performance}{figure.12}{}}
-\newlabel{fig:knn@cref}{{[figure][12][2147483647]12}{[1][12][]12}}
-\newlabel{app:voc}{{C}{13}{}{appendix.C}{}}
-\newlabel{app:voc@cref}{{[appendix][3][2147483647]C}{[1][13][]13}}
-\newlabel{fig:topk}{{13}{13}{Evaluation of several attribution methods on Pascal VOC 2012 dataset, using different values of top k\%}{figure.13}{}}
-\newlabel{fig:topk@cref}{{[figure][13][2147483647]13}{[1][13][]13}}
-\newlabel{fig:more_images}{{14}{14}{Heatmaps of Integrated Gradients (middle) and Geodesic IG (right) on 5 randomly chosen images from the test set of Pascal VOC 2012. We can see that Geodesic IG heatmaps are sharper compared with the original IG method}{figure.14}{}}
-\newlabel{fig:more_images@cref}{{[figure][14][2147483647]14}{[1][13][]14}}
-\gdef \@abspage@last{14}
+\newlabel{app:half-moons}{{A}{10}{}{appendix.A}{}}
+\newlabel{app:half-moons@cref}{{[appendix][1][2147483647]A}{[1][10][]10}}
+\newlabel{fig:noises}{{8}{10}{Evaluation of different attribution methods on the half-moons dataset with different amounts of noise: $\mathcal {N}(0, x)$ where $x$ is defined as the axis of each plot}{figure.8}{}}
+\newlabel{fig:noises@cref}{{[figure][8][2147483647]8}{[1][10][]10}}
+\newlabel{fig:knn}{{9}{10}{Evaluation of Geodesic IG and Enhanced IG for different values of k in the kNN algorithm. We can see that increasing this parameter harms Enhanced IG performance, while it does not seem to have a major effect on Geodesic IG performance}{figure.9}{}}
+\newlabel{fig:knn@cref}{{[figure][9][2147483647]9}{[1][10][]10}}
+\newlabel{app:voc}{{B}{11}{}{appendix.B}{}}
+\newlabel{app:voc@cref}{{[appendix][2][2147483647]B}{[1][11][]11}}
+\newlabel{fig:more_images}{{10}{11}{Heatmaps of Integrated Gradients (middle) and Geodesic IG (right) on 5 randomly chosen images from the test set of Pascal VOC 2012. We can see that Geodesic IG heatmaps are sharper compared with the original IG method}{figure.10}{}}
+\newlabel{fig:more_images@cref}{{[figure][10][2147483647]10}{[1][11][]11}}
+\gdef \@abspage@last{11}

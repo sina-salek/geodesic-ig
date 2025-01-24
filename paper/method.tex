@@ -133,7 +133,7 @@ We use this method in our computer vision experiments and show its efficacy in s
 \begin{figure}[ht]
 	\vskip 0.2in
 	\begin{center}
-		\centerline{\includegraphics[width=0.95\columnwidth]{figures/svi_ig_moons.png}}
+		\centerline{\includegraphics[width=\columnwidth]{figures/svi_ig_moons.png}}
 		\caption{\textbf{Visualising 10 random paths.} For a simple case of half-moons with 1000 samples, we show the sampled paths between 10 pairs of points. As we see on low gradient regions the sampler prefers straigh lines, whereas in high gredient regions the path becomes closer to perpendicular to the large gradient vectors to cross the region as quickly as possible.}
 		\label{fig:svi_moons}
 	\end{center}
@@ -141,10 +141,18 @@ We use this method in our computer vision experiments and show its efficacy in s
 \end{figure}
 
 \subsection{Axiomatic properties}
+The family of generalisations of Integrated Gradients to non-straight paths, such as Eq. \ref{eq:geodesic_ig}, is called \emph{path methods} of explanation. We see in \citet{sundararajan2017axiomatic} that all path methods satisfy all of the axioms that IG is based on, apart from the symmetry axiom. Therefore, here we focus on this axiom only.
 
 \paragraph{Symmetry preserving of Geodesic IG}
 
-The family of generalisations of Integrated Gradients to non-straight paths, such as Eq. \ref{eq:geodesic_ig}, is called \emph{path methods} of explanation. We see in \citet{sundararajan2017axiomatic} that all path methods satisfy all of the axioms that IG is based on, apart from the symmetry axiom that we discussed in the introduction. \citet[Theorem 1]{sundararajan2017axiomatic} shows that Integrated Gradients is the only path-method on Euclidean surfaces that is symmetry preserving. Here we demonstrate that Geodesic Integrated Gradients satisfies symmetry property on Riemannian manifolds, and it is the only path-based method that does so. 
+The symmetry axiom is defined in the following way. 
+\begin{definition}
+	Consider an input-baseline pair $\textbf{x}$ and $\overline{\textbf{x}}$, and a function $f$ that is symmetric in dimensions $i$ and $j$. If $\textbf{x}_i = \textbf{x}_j$ and $\overline{\textbf{x}}_i = \overline{\textbf{x}}_j$, then an attribution method is Symmetry-Preserving if $attr_i(\textbf{x}; f) = attr_j(\textbf{x}; f)$, where $attr_n(\textbf{x}; f)$ is the attribution of $\textbf{x}_n$.
+\end{definition}
+
+\citep[Theorem 1]{sundararajan2017axiomatic} shows that IG is the only path method that satisfies symmetry for any function. However, as noted in \cite{kapishnikov2021guided}, while straight path is the only one satisfying symmetry for any function, given a specific function, it may be possible to find other paths that satisfy Symmetry. We generalise this theorem for Geodesic IG on Riemannian manifolds and how that our method satisfies Symetry for the neural network function we sample the paths for.
+
+Here we demonstrate that Geodesic Integrated Gradients satisfies symmetry property on Riemannian manifolds induced by the input space and the gradients of the model. 
 
 Let the $i$th and $j$th dimensions of $\gamma(t)$ be $\gamma_i(t)$ and $\gamma_j(t)$ respectively and $f$ be a function differentiable almost everywhere on $t$. Furthermore, take $f$ to be symmetric with respect to $x_i$ and $x_j$. If $\gamma_i(t) = \gamma_j(t)$ for all $t \in [0,1]$, then we have 
 \begin{equation}
@@ -153,10 +161,4 @@ Let the $i$th and $j$th dimensions of $\gamma(t)$ be $\gamma_i(t)$ and $\gamma_j
 	\end{split}
 	\label{eq:norms}
 \end{equation}
-almost everywhere on $t$. Therefore, the $i$th and $j$th components of Eq. \ref{eq:length} are equal. Furthermore, since  Eq. \ref{eq:geodesic_ig} integrates along the path that is an approximation of Eq. \ref{eq:length}, we have $\textrm{Geodesic IG}_i = \textrm{Geodesic IG}_j$. Indeed our geodesic paths satisfy  $\gamma_i(t) = \gamma_j(t)$ for all $t \in [0,1]$ on the Riemannian manifolds. To see this, let us select a baseline $\overline{\textbf{x}}$ and $U$ a Riemann neighbourhood centred at $\overline{\textbf{x}}$. Let us also define the geodesic path $\gamma$ such as $\gamma(0) = \overline{\textbf{x}}$. Further, define $\textbf{v}(t):=\gamma'(t)$, where $\gamma'$ is the derivative of $\gamma$. Then, in the local coordinates system of the neighbourhood of any point, called normal coordinates, we have $\gamma(t) = (tv_1(t), ..., tv_n(t))$. Since the function is symmetric in the $i$th and $j$th dimensions, we have $v_i$ and $v_j$ are the same everywhere. From this, we can see that $\gamma_i(t) = \gamma_j(t)$ for all $t \in [0,1]$ and therefore Geodesic IG satisfies symmetry. In other words, since the geodesic generalises straight paths to Riemannian manifolds, it follows that the symmetry property of IG on Euclidean space is extended to Geodesic IG on Riemannian manifolds. In fact, using the same argument as above, the proof of \citet[Theorem 1]{sundararajan2017axiomatic} can be readily used to show that Geodesic IG is the only path method on Riemannian manifolds that satisfy symmetry.
-
-, including symmetry. The symmetry axiom is defined in the following way. 
-\begin{definition}
-	Consider an input-baseline pair $\textbf{x}$ and $\overline{\textbf{x}}$, and a function $f$ that is symmetric in dimensions $i$ and $j$. If $\textbf{x}_i = \textbf{x}_j$ and $\overline{\textbf{x}}_i = \overline{\textbf{x}}_j$, then an attribution method is Symmetry-Preserving if $attr_i(\textbf{x}; f) = attr_j(\textbf{x}; f)$, where $attr_n(\textbf{x}; f)$ is the attribution of $\textbf{x}_n$.
-\end{definition}
-\citep[Theorem 1]{sundararajan2017axiomatic} shows that IG is the only path method that satisfies symmetry on Euclidean space. We generalise this theorem for Geodesic IG on Riemannian manifolds.
+almost everywhere on $t$. Therefore, the $i$th and $j$th components of Eq. \ref{eq:length} are equal. Furthermore, since  Eq. \ref{eq:geodesic_ig} integrates along the path that is an approximation of Eq. \ref{eq:length}, we have $\textrm{Geodesic IG}_i = \textrm{Geodesic IG}_j$. Indeed our geodesic paths satisfy  $\gamma_i(t) = \gamma_j(t)$ for all $t \in [0,1]$ on the Riemannian manifolds. To see this, let us select a baseline $\overline{\textbf{x}}$ and $U$ a Riemann neighbourhood centred at $\overline{\textbf{x}}$. Let us also define the geodesic path $\gamma$ such as $\gamma(0) = \overline{\textbf{x}}$. Further, define $\textbf{v}(t):=\gamma'(t)$, where $\gamma'$ is the derivative of $\gamma$. Then, in the local coordinates system of the neighbourhood of any point, called normal coordinates, we have $\gamma(t) = (tv_1(t), ..., tv_n(t))$. Since the function is symmetric in the $i$th and $j$th dimensions, we have $v_i$ and $v_j$ are the same everywhere. From this, we can see that $\gamma_i(t) = \gamma_j(t)$ for all $t \in [0,1]$ and therefore Geodesic IG satisfies symmetry.

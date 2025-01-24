@@ -1,4 +1,4 @@
-This is pdfTeX, Version 3.141592653-2.6-1.40.26 (TeX Live 2024) (preloaded format=pdflatex 2025.1.23)  24 JAN 2025 14:35
+This is pdfTeX, Version 3.141592653-2.6-1.40.26 (TeX Live 2024) (preloaded format=pdflatex 2025.1.23)  24 JAN 2025 17:31
 entering extended mode
  restricted \write18 enabled.
  %&-line parsing enabled.
@@ -932,12 +932,12 @@ s been already used, duplicate ignored
                                                   \__shipout_drop_firstpage_...
 l.26 
       <./figures/voc_compare.png>]
-<figures/half_moons_y.png, id=58, 531.9072pt x 232.7094pt>
+<figures/half_moons_y.png, id=61, 531.9072pt x 232.7094pt>
 File: figures/half_moons_y.png Graphic file (type png)
 <use figures/half_moons_y.png>
 Package pdftex.def Info: figures/half_moons_y.png  used on input line 36.
 (pdftex.def)             Requested size: 234.8775pt x 102.76173pt.
-<figures/voc_metrics_vertical.png, id=59, 284.0211pt x 451.6875pt>
+<figures/voc_metrics_vertical.png, id=62, 284.0211pt x 451.6875pt>
 File: figures/voc_metrics_vertical.png Graphic file (type png)
 <use figures/voc_metrics_vertical.png>
 Package pdftex.def Info: figures/voc_metrics_vertical.png  used on input line 4
@@ -951,192 +951,129 @@ pdfTeX warning (ext4): destination with the same identifier (name{figure.2}) ha
 s been already used, duplicate ignored
 <argument> ...shipout:D \box_use:N \l_shipout_box 
                                                   \__shipout_drop_firstpage_...
-l.57 
+l.55 
      
 pdfTeX warning (ext4): destination with the same identifier (name{figure.3}) ha
 s been already used, duplicate ignored
 <argument> ...shipout:D \box_use:N \l_shipout_box 
                                                   \__shipout_drop_firstpage_...
-l.57 
+l.55 
       <./figures/half_moons_y.png> <./figures/voc_metrics_vertical.png>])
 (./method.tex [3]
-<figures/method.png, id=128, 855.195pt x 157.58875pt>
+<figures/method.png, id=132, 855.195pt x 157.58875pt>
 File: figures/method.png Graphic file (type png)
 <use figures/method.png>
 Package pdftex.def Info: figures/method.png  used on input line 79.
 (pdftex.def)             Requested size: 439.03726pt x 80.9006pt.
-<figures/bridge.png, id=133, 330.23375pt x 140.525pt>
+<figures/bridge.png, id=137, 330.23375pt x 140.525pt>
 File: figures/bridge.png Graphic file (type png)
 <use figures/bridge.png>
 Package pdftex.def Info: figures/bridge.png  used on input line 106.
 (pdftex.def)             Requested size: 187.90271pt x 79.9607pt.
-
-Underfull \vbox (badness 5519) has occurred while \output is active []
-
  [4
 pdfTeX warning (ext4): destination with the same identifier (name{figure.4}) ha
 s been already used, duplicate ignored
 <argument> ...shipout:D \box_use:N \l_shipout_box 
                                                   \__shipout_drop_firstpage_...
-l.117 
+l.114 
       
 pdfTeX warning (ext4): destination with the same identifier (name{figure.5}) ha
 s been already used, duplicate ignored
 <argument> ...shipout:D \box_use:N \l_shipout_box 
                                                   \__shipout_drop_firstpage_...
-l.117 
+l.114 
        <./figures/method.png> <./figures/bridge.png>]
-<figures/svi_ig_moons.png, id=148, 462.528pt x 346.896pt>
+<figures/svi_ig_moons.png, id=152, 462.528pt x 346.896pt>
 File: figures/svi_ig_moons.png Graphic file (type png)
 <use figures/svi_ig_moons.png>
 Package pdftex.def Info: figures/svi_ig_moons.png  used on input line 136.
-(pdftex.def)             Requested size: 223.1329pt x 167.3498pt.
+(pdftex.def)             Requested size: 234.8775pt x 176.15768pt.
  [5
 pdfTeX warning (ext4): destination with the same identifier (name{figure.6}) ha
 s been already used, duplicate ignored
 <argument> ...shipout:D \box_use:N \l_shipout_box 
                                                   \__shipout_drop_firstpage_...
-l.150 \begin{equation}
+l.151 \end{definition}
                        <./figures/svi_ig_moons.png>]) (./experiments.tex
 [6]
-<figures/images.png, id=200, 817.0525pt x 300.12125pt>
-File: figures/images.png Graphic file (type png)
-<use figures/images.png>
-Package pdftex.def Info: figures/images.png  used on input line 61.
-(pdftex.def)             Requested size: 439.03726pt x 161.27081pt.
-LaTeX Font Info:    Trying to load font information for TS1+ptm on input line 7
+LaTeX Font Info:    Trying to load font information for TS1+ptm on input line 6
 7.
  (/usr/local/texlive/2024/texmf-dist/tex/latex/psnfss/ts1ptm.fd
 File: ts1ptm.fd 2001/06/04 font definitions for TS1/ptm.
-) [7
-pdfTeX warning (ext4): destination with the same identifier (name{figure.7}) ha
-s been already used, duplicate ignored
-<argument> ...shipout:D \box_use:N \l_shipout_box 
-                                                  \__shipout_drop_firstpage_...
-l.80 \end{itemize}
-                  
+))
+(./related_work.tex [7
 pdfTeX warning (ext4): destination with the same identifier (name{table.1}) has
  been already used, duplicate ignored
 <argument> ...shipout:D \box_use:N \l_shipout_box 
                                                   \__shipout_drop_firstpage_...
-l.80 \end{itemize}
-                   <./figures/images.png>]
-
-LaTeX Warning: Reference `eq:guide' on page 8 undefined on input line 107.
-
-
-Underfull \hbox (badness 1990) in paragraph at lines 107--108
-[]\OT1/ptm/m/n/10 (+20) Figure []7[] pro-vides a qual-i-ta-tive com-par-i-son b
-e-tween
- []
-
-) (./related_work.tex
-<figures/enhanced_ig_y.pdf, id=258, 722.7pt x 578.16pt>
-File: figures/enhanced_ig_y.pdf Graphic file (type pdf)
-<use figures/enhanced_ig_y.pdf>
-Package pdftex.def Info: figures/enhanced_ig_y.pdf  used on input line 11.
-(pdftex.def)             Requested size: 234.8775pt x 187.89977pt.
- [8
+l.5 
+    
 pdfTeX warning (ext4): destination with the same identifier (name{table.2}) has
  been already used, duplicate ignored
 <argument> ...shipout:D \box_use:N \l_shipout_box 
                                                   \__shipout_drop_firstpage_...
-l.20 
-     
-pdfTeX warning (ext4): destination with the same identifier (name{figure.8}) ha
-s been already used, duplicate ignored
-<argument> ...shipout:D \box_use:N \l_shipout_box 
-                                                  \__shipout_drop_firstpage_...
-l.20 
-      <./figures/enhanced_ig_y.pdf>]) (./discussion.tex)
-Underfull \vbox (badness 10000) has occurred while \output is active []
-
-
+l.5 
+    ]
+<figures/enhanced_ig_y.pdf, id=247, 722.7pt x 578.16pt>
+File: figures/enhanced_ig_y.pdf Graphic file (type pdf)
+<use figures/enhanced_ig_y.pdf>
+Package pdftex.def Info: figures/enhanced_ig_y.pdf  used on input line 11.
+(pdftex.def)             Requested size: 234.8775pt x 187.89977pt.
+) (./discussion.tex)
 
 Package natbib Warning: Citation `langley00' undefined on input line 123.
 
 (./main.bbl
+Underfull \vbox (badness 1394) has occurred while \output is active []
+
+ [8
+pdfTeX warning (ext4): destination with the same identifier (name{figure.7}) ha
+s been already used, duplicate ignored
+<argument> ...shipout:D \box_use:N \l_shipout_box 
+                                                  \__shipout_drop_firstpage_...
+l.20 
+      <./figures/enhanced_ig_y.pdf>]
 Overfull \hbox (12.59517pt too wide) in paragraph at lines 43--48
 \OT1/ptm/m/n/10 (-20) network.org/challenges/VOC/voc2012/workshop/index.html. 
  []
 
-[9]) [10
-
-] (./appendix.tex
-<figures/softplus.png, id=317, 858.20625pt x 206.7725pt>
-File: figures/softplus.png Graphic file (type png)
-<use figures/softplus.png>
-Package pdftex.def Info: figures/softplus.png  used on input line 9.
-(pdftex.def)             Requested size: 439.03726pt x 105.7807pt.
-<figures/softplus_acc.png, id=318, 876.27374pt x 196.735pt>
-File: figures/softplus_acc.png Graphic file (type png)
-<use figures/softplus_acc.png>
-Package pdftex.def Info: figures/softplus_acc.png  used on input line 19.
-(pdftex.def)             Requested size: 439.03726pt x 98.57137pt.
- [11
+) [9] (./appendix.tex
+<figures/noises.png, id=292, 824.07875pt x 206.7725pt>
+File: figures/noises.png Graphic file (type png)
+<use figures/noises.png>
+Package pdftex.def Info: figures/noises.png  used on input line 9.
+(pdftex.def)             Requested size: 439.03726pt x 110.15996pt.
+<figures/knn.png, id=294, 870.25125pt x 204.765pt>
+File: figures/knn.png Graphic file (type png)
+<use figures/knn.png>
+Package pdftex.def Info: figures/knn.png  used on input line 21.
+(pdftex.def)             Requested size: 439.03726pt x 103.30396pt.
+ [10
 
 
+pdfTeX warning (ext4): destination with the same identifier (name{figure.8}) ha
+s been already used, duplicate ignored
+<argument> ...shipout:D \box_use:N \l_shipout_box 
+                                                  \__shipout_drop_firstpage_...
+l.28 \newpage
+             
 pdfTeX warning (ext4): destination with the same identifier (name{figure.9}) ha
 s been already used, duplicate ignored
 <argument> ...shipout:D \box_use:N \l_shipout_box 
                                                   \__shipout_drop_firstpage_...
-l.26 \newpage
-             
-pdfTeX warning (ext4): destination with the same identifier (name{figure.10}) h
-as been already used, duplicate ignored
-<argument> ...shipout:D \box_use:N \l_shipout_box 
-                                                  \__shipout_drop_firstpage_...
-l.26 \newpage
-              <./figures/softplus.png> <./figures/softplus_acc.png>]
-<figures/noises.png, id=328, 824.07875pt x 206.7725pt>
-File: figures/noises.png Graphic file (type png)
-<use figures/noises.png>
-Package pdftex.def Info: figures/noises.png  used on input line 36.
-(pdftex.def)             Requested size: 439.03726pt x 110.15996pt.
-<figures/knn.png, id=330, 870.25125pt x 204.765pt>
-File: figures/knn.png Graphic file (type png)
-<use figures/knn.png>
-Package pdftex.def Info: figures/knn.png  used on input line 48.
-(pdftex.def)             Requested size: 439.03726pt x 103.30396pt.
- [12
-pdfTeX warning (ext4): destination with the same identifier (name{figure.11}) h
-as been already used, duplicate ignored
-<argument> ...shipout:D \box_use:N \l_shipout_box 
-                                                  \__shipout_drop_firstpage_...
-l.55 \newpage
-             
-pdfTeX warning (ext4): destination with the same identifier (name{figure.12}) h
-as been already used, duplicate ignored
-<argument> ...shipout:D \box_use:N \l_shipout_box 
-                                                  \__shipout_drop_firstpage_...
-l.55 \newpage
+l.28 \newpage
               <./figures/noises.png> <./figures/knn.png>]
-<figures/topk.png, id=341, 824.07875pt x 199.74625pt>
-File: figures/topk.png Graphic file (type png)
-<use figures/topk.png>
-Package pdftex.def Info: figures/topk.png  used on input line 67.
-(pdftex.def)             Requested size: 439.03726pt x 106.41667pt.
-<figures/more_images.png, id=342, 1630.09pt x 2951.025pt>
+<figures/more_images.png, id=304, 1630.09pt x 2951.025pt>
 File: figures/more_images.png Graphic file (type png)
 <use figures/more_images.png>
-Package pdftex.def Info: figures/more_images.png  used on input line 77.
-(pdftex.def)             Requested size: 341.47424pt x 618.15753pt.
-
-
-LaTeX Warning: Float too large for page by 16.72754pt on input line 82.
-
+Package pdftex.def Info: figures/more_images.png  used on input line 38.
+(pdftex.def)             Requested size: 253.66977pt x 459.2053pt.
 )
 
 Package natbib Warning: There were undefined citations.
 
-[13
-pdfTeX warning (ext4): destination with the same identifier (name{figure.13}) h
-as been already used, duplicate ignored
-<argument> ...shipout:D \box_use:N \l_shipout_box 
-                                                  \__shipout_drop_firstpage_...
-l.142 \end{document}
-                     <./figures/topk.png>] [14
-pdfTeX warning (ext4): destination with the same identifier (name{figure.14}) h
+[11
+pdfTeX warning (ext4): destination with the same identifier (name{figure.10}) h
 as been already used, duplicate ignored
 <argument> ...shipout:D \box_use:N \l_shipout_box 
                                                   \__shipout_drop_firstpage_...
@@ -1148,22 +1085,19 @@ L3 programming layer <2024-02-20>
  ***********
 
 
-LaTeX Warning: There were undefined references.
-
-
 LaTeX Warning: There were multiply-defined labels.
 
 Package rerunfilecheck Info: File `main.out' has not changed.
 (rerunfilecheck)             Checksum: D41D8CD98F00B204E9800998ECF8427E;0.
  ) 
 Here is how much of TeX's memory you used:
- 26969 strings out of 474116
- 499320 string characters out of 5743682
+ 26907 strings out of 474116
+ 498201 string characters out of 5743682
  1960187 words of memory out of 5000000
- 48419 multiletter control sequences out of 15000+600000
- 602123 words of font info for 309 fonts, out of 8000000 for 9000
+ 48380 multiletter control sequences out of 15000+600000
+ 601582 words of font info for 299 fonts, out of 8000000 for 9000
  1141 hyphenation exceptions out of 8191
- 99i,18n,101p,1823b,597s stack positions out of 10000i,1000n,20000p,200000b,200000s
+ 99i,18n,101p,1823b,583s stack positions out of 10000i,1000n,20000p,200000b,200000s
 </usr/local/texlive/2024/texmf-dist/fonts/type1/public/amsfonts/cmextra/cmbsy
 7.pfb></usr/local/texlive/2024/texmf-dist/fonts/type1/public/amsfonts/cm/cmex10
 .pfb></usr/local/texlive/2024/texmf-dist/fonts/type1/public/amsfonts/cmextra/cm
@@ -1185,10 +1119,10 @@ exlive/2024/texmf-dist/fonts/type1/urw/times/utmb8a.pfb></usr/local/texlive/202
 4/texmf-dist/fonts/type1/urw/times/utmr8a.pfb></usr/local/texlive/2024/texmf-di
 st/fonts/type1/urw/times/utmr8a.pfb></usr/local/texlive/2024/texmf-dist/fonts/t
 ype1/urw/times/utmri8a.pfb>
-Output written on main.pdf (14 pages, 9040268 bytes).
+Output written on main.pdf (11 pages, 7761499 bytes).
 PDF statistics:
- 465 PDF objects out of 1000 (max. 8388607)
- 352 compressed objects within 4 object streams
- 85 named destinations out of 1000 (max. 500000)
- 65619 words of extra memory for PDF output out of 74296 (max. 10000000)
+ 419 PDF objects out of 1000 (max. 8388607)
+ 318 compressed objects within 4 object streams
+ 78 named destinations out of 1000 (max. 500000)
+ 65599 words of extra memory for PDF output out of 74296 (max. 10000000)
 
