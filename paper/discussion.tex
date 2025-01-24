@@ -1,0 +1,8 @@
+\section{Discussion}
+\label{sec:discussion}
+
+We have identified in this paper potential issues with path-based attribution methods: the presence of artefacts and high variation of attributions between close points. To overcome these issues, we have introduced Geodesic Integrated Gradients, an adaptation of the original IG method which integrates gradients not along a straight line, but along the geodesic of a manifold defined by the model.
+
+By avoiding high-gradients regions in the input space, we have shown that Geodesic IG can successfully address these issues. Moreover, it follows all of the axioms defined by \citet{sundararajan2017axiomatic}. It can also be efficiently estimated by computing gradients in batches.
+
+Moreover, while integrating gradients over an approximated geodesic path should be preferred compared with a straight line, the questions remains in how to generate points to compute this approximation, especially in high-dimensional settings. We have presented one possible method, using the straight line as a guide, but we believe further research should be conducted to improve this approximation while keeping the amount of computing low.

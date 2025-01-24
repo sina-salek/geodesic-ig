@@ -1,0 +1,138 @@
+\section{Method}
+\label{sec:method}
+
+In section \ref{sec:introduction}, we gave the intuition that using geodesic paths can correct the misattribuion in IG that arise from integrating along straight paths. Let us now formalise this idea.
+
+\paragraph{Geodesic distance formulation.} Let us define a neural network as a function $f: \mathbb{R}^n \to \mathbb{R}$, where $n$ is the dimension of the input space. Let us also define $\textbf{x}$ a point in this input space. We denote the Jacobian of $f$ at $\textbf{x}$ as $\textrm{J}_{\textbf{x}}$.
+
+Using Taylor's theorem, for a vector $\boldsymbol{\delta}$ with an infinitesimal norm: $\forall \epsilon, ||\boldsymbol{\delta}|| \le \epsilon$, we have:
+
+\begin{align}
+\begin{split}
+    ||f(\textbf{x} + \boldsymbol{\delta}) - f(\textbf{x})|| \approx ||\textrm{J}_{\textbf{x}}\boldsymbol{\delta}|| \approx \boldsymbol{\delta}^T \textrm{J}_{\textbf{x}}^T \textrm{J}_{\textbf{x}} \boldsymbol{\delta}
+\end{split}
+\label{eq:taylor}
+\end{align}
+
+Using equation \ref{eq:taylor}, we can now define a tangent space $\textrm{T}_\textbf{x}\textrm{M}$ of all $\boldsymbol{\delta}$, equipped with a local inner product $\textrm{G}_\textbf{x}$:
+
+\begin{equation}
+    <\boldsymbol{\delta}, \boldsymbol{\delta'}>_\textbf{x} = \boldsymbol{\delta}^T \textrm{G}_\textbf{x} \boldsymbol{\delta'}
+    = \boldsymbol{\delta}^T \textrm{J}_{\textbf{x}}^T \textrm{J}_{\textbf{x}}\boldsymbol{\delta'}
+\label{eq:inner_product}
+\end{equation}
+
+As a result, we can view the input space as a Riemannian manifold $(\mathbb{R}^n, \textrm{G})$, where the Riemannian metric $\textrm{G}$ is defined above. On this manifold, the length of a curve $\gamma(t): [0, 1] \to \mathbb{R}^n$ is defined as:
+
+\begin{align}
+\begin{split}
+    \textrm{L}(\gamma) &= \int_0^1 \sqrt{<\dot \gamma(t), \dot \gamma(t)>_{\gamma(t)}}dt \\
+    &= \int_0^1 ||\partial_t f(\gamma(t)) \times \dot\gamma(t)|| \, dt,
+\end{split}
+\label{eq:length}
+\end{align}
+where $\dot\gamma(t)$ is the derivative of $\gamma(t)$ with respect to $t$.
+The \textbf{geodesic distance}, denoted $\textrm{L}^*$, between $\textbf{a}$ and $\textbf{b}$ is then defined as the minimum length among curves $\gamma$ such that $\gamma(0) = \textbf{a}$ and $\gamma(1) = \textbf{b}$. We also call \textbf{geodesic path} the curve $\gamma^*$ which minimises the length L. This path can be interpreted as the shortest path between $\textbf{a}$ and $\textbf{b}$ in the manifold. 
+
+\begin{remark}
+We can infer from Equation \ref{eq:length} that the geodesic path avoids as much as possible high-gradients regions. This is the main desired property of a path to be used for path-based attributions. Representing the path of least resistance, the geodesic path circumvents superficially high values of attributions.
+\end{remark}
+
+\paragraph{Approximation of the geodesic.} Computing the exact geodesic would require computing $L$ on an infinite number of paths $\gamma$, which is not possible in practice. However, several methods have been proposed to approximate this value. We draw from previous work \citep{yang2018geodesic, chen2019fast} and present one with desirable characteristics.
+
+First, we compute the K Nearest Neighbors (kNN) algorithm on points between (and including) input and baseline. These points can be either sampled or generated. The geodesic distance between two neighbouring points, $\textbf{x}_i$ and $\textbf{x}_j$, can be approximated by a straight path $\textbf{x}_i + t \times (\textbf{x}_j - \textbf{x}_i)$. We have the above approximation because for dense enough data, the euclidean distance between neighbouring points is a good approximation of the geodesic distance. This reflects the fact that a small region of a Riemannian manifold, called Riemann neighbourhood, is locally isometric to a Euclidean space\footnote{We shall further formalise this intuition later in this section.}. So the geodesic distance between the two neighbouring points is approximated by: 
+
+\begin{align}
+\begin{split}
+    \textrm{L}^*_{ij} &= \int_0^1 ||\partial_t f(\textbf{x}_i + t \times (\textbf{x}_j - \textbf{x}_i)) \times (\textbf{x}_i - \textbf{x}_j) || \, dt \\
+    &= ||\textbf{x}_i - \textbf{x}_j|| \int_0^1 ||\partial_t f(\textbf{x}_i + t \times (\textbf{x}_j - \textbf{x}_i))|| \, dt
+\end{split}
+\label{eq:loc_geo}
+\end{align}
+
+Equation \ref{eq:loc_geo} corresponds to the original Integrated Gradients method, albeit with the norm. This integral can be approximated by a Riemannian sum similarly to \cite{sundararajan2017axiomatic}: 
+
+\begin{equation}
+    \textrm{L}^*_{ij} \approx ||\textbf{x}_i - \textbf{x}_j|| \sum_{k=0}^m || \partial f(\textbf{x}_i + \frac{k}{m} \times (\textbf{x}_j - \textbf{x}_i))||
+\label{eq:log_geo_approx}
+\end{equation}
+
+For input-baseline pair, $\textbf{x}$ and $\overline{\textbf{x}}$, we can now see the set ($\textbf{x}$, $\overline{\textbf{x}}$, $\textbf{x}_i$) as a weighted graph, with the weights being the geodesic distances between two neighbors $\textrm{L}^*_{ij}$. To compute the geodesic path between $\textbf{x}$ and $\overline{\textbf{x}}$, we can use a shortest path algorithm, such as Dijkstra or $\textrm{A}^*$ with the euclidean distance as the heuristic.
+
+The resulting Geodesic Integrated Gradients corresponds to the sum of the gradients along this shortest path:
+
+\begin{equation}
+\begin{split}
+    & \textrm{Geodesic IG}_i(\textbf{x}) = \\ & (x_i - \overline{x}_i) \sum_{k=0}^m \int_0^1 \frac{\partial f(\textbf{x}^k + t \times (\textbf{x}^{k+1} - \textbf{x}_k))}{x^k_i} \, dt
+\end{split}
+\label{eq:geodesic_ig}
+\end{equation}
+
+where $\textbf{x}^k$ are the points along the shortest path. The integrals in Equation \ref{eq:geodesic_ig} can also be approximated with Riemannian sums.
+
+The gradients between each pair of neighbours can also be estimated in batches to speed up the attribution computation. Moreover, several inputs' attributions can be computed together, with similar speed as IG: if we want to compute the attribution of $N$ inputs, with 10 interpolation steps and 5 nearest neighbors, the number of gradients to calculate is $10 \times 5 \times \textrm{N} = 50 \textrm{N}$, which amounts to computing IG with 50 steps. This does not include the computation of the shortest path, which is for instance $O(\textrm{N}^2)$ for Dijkstra algorithm. Please also refer to Figure \ref{fig:method} for an illustration of this method.
+
+\begin{figure*}[t]
+\vskip 0.2in
+\begin{center}
+\centerline{\includegraphics[width=0.9\textwidth]{figures/method.png}}
+\caption{\textbf{Method overview.} For an input $\textbf{x}$, a baseline $\overline{\textbf{x}}$, and a set of points $\textbf{x}_i$, we compute the kNN graph using the euclidean distance (dashed lines). For each couple $(\textbf{x}_i, \textbf{x}_j)$, we then compute the integrated gradients $\textrm{L}^*_{ij}$ using Equation \ref{eq:log_geo_approx}. For clarity, not all $\textrm{L}^*_{ij}$ are present on the figure. 0 and 7 represent $\overline{\textbf{x}}$ and $\textbf{x}$ respectively. Using the resulting undirected weighted graph, we use the Dijkstra algorithm to find the shortest path between $\textbf{x}$ and $\overline{\textbf{x}}$ (blue continuous lines). On the left, the points $\textbf{x}_i$ are provided while, on the right, the points are generated along the straight line between $\textbf{x}$ and $\overline{\textbf{x}}$ (dotted line).}
+\label{fig:method}
+\end{center}
+\vskip -0.2in
+\end{figure*}
+
+\paragraph{Symmetry preserving of Geodesic IG}
+
+The family of generalisations of Integrated Gradients to non-straight paths, such as Eq. \ref{eq:geodesic_ig}, is called \emph{path methods} of explanation. We see in \citet{sundararajan2017axiomatic} that all path methods satisfy all of the axioms that IG is based on, apart from the symmetry axiom that we discussed in the introduction. \citet[Theorem 1]{sundararajan2017axiomatic} shows that Integrated Gradients is the only path-method on Euclidean surfaces that is symmetry preserving. Here we demonstrate that Geodesic Integrated Gradients satisfies symmetry property on Riemannian manifolds, and it is the only path-based method that does so. 
+
+Let the $i$th and $j$th dimensions of $\gamma(t)$ be $\gamma_i(t)$ and $\gamma_j(t)$ respectively and $f$ be a function differentiable almost everywhere on $t$. Furthermore, take $f$ to be symmetric with respect to $x_i$ and $x_j$. If $\gamma_i(t) = \gamma_j(t)$ for all $t \in [0,1]$, then we have 
+\begin{equation}
+\begin{split}
+    & ||\partial_t f(\gamma_i(t)) \times \dot\gamma_i(t)|| = ||\partial_t f(\gamma_j(t)) \times \dot\gamma_j(t)||,
+\end{split}
+\label{eq:norms}
+\end{equation}
+almost everywhere on $t$. Therefore, the $i$th and $j$th components of Eq. \ref{eq:length} are equal. Furthermore, since  Eq. \ref{eq:geodesic_ig} integrates along the path that is an approximation of Eq. \ref{eq:length}, we have $\textrm{Geodesic IG}_i = \textrm{Geodesic IG}_j$. Indeed our geodesic paths satisfy  $\gamma_i(t) = \gamma_j(t)$ for all $t \in [0,1]$ on the Riemannian manifolds. To see this, let us select a baseline $\overline{\textbf{x}}$ and $U$ a Riemann neighbourhood centred at $\overline{\textbf{x}}$. Let us also define the geodesic path $\gamma$ such as $\gamma(0) = \overline{\textbf{x}}$. Further, define $\textbf{v}(t):=\gamma'(t)$, where $\gamma'$ is the derivative of $\gamma$. Then, in the local coordinates system of the neighbourhood of any point, called normal coordinates, we have $\gamma(t) = (tv_1(t), ..., tv_n(t))$. Since the function is symmetric in the $i$th and $j$th dimensions, we have $v_i$ and $v_j$ are the same everywhere. From this, we can see that $\gamma_i(t) = \gamma_j(t)$ for all $t \in [0,1]$ and therefore Geodesic IG satisfies symmetry. In other words, since the geodesic generalises straight paths to Riemannian manifolds, it follows that the symmetry property of IG on Euclidean space is extended to Geodesic IG on Riemannian manifolds. In fact, using the same argument as above, the proof of \citet[Theorem 1]{sundararajan2017axiomatic} can be readily used to show that Geodesic IG is the only path method on Riemannian manifolds that satisfy symmetry.
+
+\paragraph{Assumption of the approximation.} 
+
+Here we formalise the intuition that, for a pair of neighbours, the geodesic path between them is close to the euclidean one. Notice that the derivative of the neural network $f$ is Lipschitz continuous,
+
+\begin{equation}
+    \exists \textrm{K} \, \forall \textbf{x}, \textbf{y}, \, ||\textrm{J}_{\textbf{x}} - \textrm{J}_{\textbf{y}}|| \leq \textrm{K} \times ||\textbf{x} - \textbf{y}||.
+\label{eq:deriv_lip}
+\end{equation}
+
+Equation \ref{eq:deriv_lip} is equivalent to the Hessian of $f$ being bounded. Under this assumption, if two points $\textbf{x}$ and $\textbf{y}$ are close enough, the Jacobian of one point is approximately equal to the other: if $||\textbf{x} - \textbf{y}|| \le \epsilon$, then $\textrm{J}_{\textbf{x}} \approx \textrm{J}_{\textbf{y}}$. As a result, the length between $\textbf{x}$ and $\textbf{y}$, for a curve $\gamma$, is: $\textrm{L}(\gamma) \approx \int_{\gamma} ||\textrm{J}_{\textbf{x}}|| \, d\textbf{x} \approx ||\textrm{J}_{\textbf{x}}|| \int_{\gamma} d\textbf{x}$. Due to the triangular inequality, the shortest path $\gamma^*$ is then a straight line, and we have: $\textrm{L}^*(\textbf{x}, \textbf{y}) \approx ||\textrm{J}_{\textbf{x}}|| \times ||\textbf{x} - \textbf{y}||$.
+
+As a result, under this assumption, if two points are close, the geodesic path can be approximated with a straight line. Note that even though we take the path between two neighbouring points to be a straight line, we do not assume that the Jacobian of the function between the two points is constant. 
+
+\paragraph{Choice of the set of points $\textbf{x}_i$}
+
+When using Geodesic IG, the choice of the points $\textbf{x}_i$ to approximate the geodesic path is of great importance. A wrong choice of points could indeed lead to a bad approximation. We present here two different strategies to select such points.
+
+In a low dimensional setting, such as in the half-moons experiment presented in the introduction, one natural choice is to use points either from the train or from the test set. However, when data is high dimensional, or when the available data is too sparse to be used to approximate the geodesic, others strategies must be used. In these situations, we propose to generate points between an input $\textbf{x}$ and a reference baseline $\overline{\textbf{x}}$ using the following equation. 
+\begin{equation}
+    \textbf{x}_i = \overline{\textbf{x}} + t \times (\textbf{x} - \overline{\textbf{x}}) + \textbf{u}.
+\label{eq:guide}
+\end{equation} 
+Here, we uniformly sample points on the straight line between the input and the baseline, using $t \sim \mathcal{U}[0, 1]$, and we add Gaussian noise to these interpolations, using $\textbf{u} \sim \mathcal{N}(0, \textrm{I})$, to generate points around this straight line. 
+
+The above method of approximating the geodesic using a straight line as a guide is presented as a baseline for practical implementation in high dimensions. However, we believe further research should be undertaken in order to better approximate the geodesic in high dimensional spaces which potentially have a high curvature. For instance, a slightly more advanced method would be to randomly and sparsely seed a larger volume of the space between the input and baseline, then use the shortest path of lowest gradient through these points. After finding such a path, we can use this as a guide, instead of the straight line. Finally, we can repeat this process multiple times and use the path that avoids the most gradients. Such method should yield a better approximation of the geodesic path, albeit requiring more gradients estimations.
+
+\paragraph{Handling disconnected graphs}
+
+An issue with the graph computed with the kNN algorithm is that it could be disconnected, in which case it could be impossible to compute a path between an input and a baseline. To alleviate this issue, we add so called ``bridges'' to the graph, as following: for each disconnected component, we add one link between them, specifically between two points of each component having the lowest euclidean distance. An illustration of this method is displayed on Figure \ref{fig:bridge}.
+
+\begin{figure}[ht]
+\vskip 0.2in
+\begin{center}
+\centerline{\includegraphics[width=0.8\columnwidth]{figures/bridge.png}}
+\caption{When the kNN graph is disconnected, as illustrated here, it would be impossible to compute Geodesic IG between certain points, for instance $\textbf{x}_1$ and $\textbf{x}_5$ here. To solve this, we add a single link between disconnected graphs, here between $\textbf{x}_3$ and $\textbf{x}_7$.}
+\label{fig:bridge}
+\end{center}
+\vskip -0.2in
+\end{figure}
+
+However, we stress that this solution is not optimal, and argue that a better way of handling this issue would be to avoid disconnected graphs in the first place. This can be done by increasing the number of neighbours k.

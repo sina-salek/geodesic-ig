@@ -1,0 +1,49 @@
+This is BibTeX, Version 0.99d (TeX Live 2024)
+Capacity: max_strings=200000, hash_size=200000, hash_prime=170003
+The top-level auxiliary file: main.aux
+The style file: icml2023.bst
+Database file #1: bib.bib
+Warning--I didn't find a database entry for "langley00"
+Warning--empty year in pascal-voc-2012
+You've used 24 entries,
+            2773 wiz_defined-function locations,
+            727 strings with 10172 characters,
+and the built_in function-call counts, 14546 in all, are:
+= -- 1260
+> -- 1087
+< -- 13
++ -- 363
+- -- 339
+* -- 1231
+:= -- 2206
+add.period$ -- 77
+call.type$ -- 24
+change.case$ -- 185
+chr.to.int$ -- 24
+cite$ -- 49
+duplicate$ -- 602
+empty$ -- 1012
+format.name$ -- 369
+if$ -- 3066
+int.to.chr$ -- 1
+int.to.str$ -- 1
+missing$ -- 23
+newline$ -- 128
+num.names$ -- 96
+pop$ -- 387
+preamble$ -- 1
+purify$ -- 161
+quote$ -- 0
+skip$ -- 527
+stack$ -- 0
+substring$ -- 495
+swap$ -- 122
+text.length$ -- 9
+text.prefix$ -- 0
+top$ -- 0
+type$ -- 264
+warning$ -- 1
+while$ -- 108
+width$ -- 0
+write$ -- 315
+(There were 2 warnings)
