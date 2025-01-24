@@ -3,7 +3,7 @@
 
 In section \ref{sec:introduction}, we gave the intuition that using geodesic paths can correct the misattribuion in IG that arise from integrating along straight paths. Let us now formalise this idea.
 
-\paragraph{Geodesic distance formulation.} Let us define a neural network as a function $f: \mathbb{R}^n \to \mathbb{R}$, where $n$ is the dimension of the input space. Let us also define $\textbf{x}$ a point in this input space. We denote the Jacobian of $f$ at $\textbf{x}$ as $\textrm{J}_{\textbf{x}}$.
+\subsection{Geodesic distance formulation.} Let us define a neural network as a function $f: \mathbb{R}^n \to \mathbb{R}$, where $n$ is the dimension of the input space. Let us also define $\textbf{x}$ a point in this input space. We denote the Jacobian of $f$ at $\textbf{x}$ as $\textrm{J}_{\textbf{x}}$.
 
 Using Taylor's theorem, for a vector $\boldsymbol{\delta}$ with an infinitesimal norm: $\forall \epsilon, ||\boldsymbol{\delta}|| \le \epsilon$, we have:
 
@@ -35,12 +35,13 @@ where $\dot\gamma(t)$ is the derivative of $\gamma(t)$ with respect to $t$.
 The \textbf{geodesic distance}, denoted $\textrm{L}^*$, between $\textbf{a}$ and $\textbf{b}$ is then defined as the minimum length among curves $\gamma$ such that $\gamma(0) = \textbf{a}$ and $\gamma(1) = \textbf{b}$. We also call \textbf{geodesic path} the curve $\gamma^*$ which minimises the length L. This path can be interpreted as the shortest path between $\textbf{a}$ and $\textbf{b}$ in the manifold. 
 
 \begin{remark}
+\label{rem:shortest}
 We can infer from Equation \ref{eq:length} that the geodesic path avoids as much as possible high-gradients regions. This is the main desired property of a path to be used for path-based attributions. Representing the path of least resistance, the geodesic path circumvents superficially high values of attributions.
 \end{remark}
 
-\paragraph{Approximation of the geodesic.} Computing the exact geodesic would require computing $L$ on an infinite number of paths $\gamma$, which is not possible in practice. However, several methods have been proposed to approximate this value. We draw from previous work \citep{yang2018geodesic, chen2019fast} and present one with desirable characteristics.
+\subsection{Approximation of the geodesic with $K$ Nearest Neighbours.} Computing the exact geodesic would require computing $L$ on an infinite number of paths $\gamma$, which is not possible in practice. However, several methods have been proposed to approximate this value. We draw from previous work \citep{yang2018geodesic, chen2019fast} and present one with desirable characteristics.
 
-First, we compute the K Nearest Neighbors (kNN) algorithm on points between (and including) input and baseline. These points can be either sampled or generated. The geodesic distance between two neighbouring points, $\textbf{x}_i$ and $\textbf{x}_j$, can be approximated by a straight path $\textbf{x}_i + t \times (\textbf{x}_j - \textbf{x}_i)$. We have the above approximation because for dense enough data, the euclidean distance between neighbouring points is a good approximation of the geodesic distance. This reflects the fact that a small region of a Riemannian manifold, called Riemann neighbourhood, is locally isometric to a Euclidean space\footnote{We shall further formalise this intuition later in this section.}. So the geodesic distance between the two neighbouring points is approximated by: 
+First, we compute the K Nearest Neighbours (kNN) algorithm on points between (and including) input and baseline. These points can be either sampled or generated. The geodesic distance between two neighbouring points, $\textbf{x}_i$ and $\textbf{x}_j$, can be approximated by a straight path $\textbf{x}_i + t \times (\textbf{x}_j - \textbf{x}_i)$. We have the above approximation because for dense enough data, the euclidean distance between neighbouring points is a good approximation of the geodesic distance. This reflects the fact that a small region of a Riemannian manifold, called Riemann neighbourhood, is locally isometric to a Euclidean space\footnote{We shall further formalise this intuition later in this section.}. So the geodesic distance between the two neighbouring points is approximated by: 
 
 \begin{align}
 \begin{split}
@@ -82,19 +83,6 @@ The gradients between each pair of neighbours can also be estimated in batches t
 \vskip -0.2in
 \end{figure*}
 
-\paragraph{Symmetry preserving of Geodesic IG}
-
-The family of generalisations of Integrated Gradients to non-straight paths, such as Eq. \ref{eq:geodesic_ig}, is called \emph{path methods} of explanation. We see in \citet{sundararajan2017axiomatic} that all path methods satisfy all of the axioms that IG is based on, apart from the symmetry axiom that we discussed in the introduction. \citet[Theorem 1]{sundararajan2017axiomatic} shows that Integrated Gradients is the only path-method on Euclidean surfaces that is symmetry preserving. Here we demonstrate that Geodesic Integrated Gradients satisfies symmetry property on Riemannian manifolds, and it is the only path-based method that does so. 
-
-Let the $i$th and $j$th dimensions of $\gamma(t)$ be $\gamma_i(t)$ and $\gamma_j(t)$ respectively and $f$ be a function differentiable almost everywhere on $t$. Furthermore, take $f$ to be symmetric with respect to $x_i$ and $x_j$. If $\gamma_i(t) = \gamma_j(t)$ for all $t \in [0,1]$, then we have 
-\begin{equation}
-\begin{split}
-    & ||\partial_t f(\gamma_i(t)) \times \dot\gamma_i(t)|| = ||\partial_t f(\gamma_j(t)) \times \dot\gamma_j(t)||,
-\end{split}
-\label{eq:norms}
-\end{equation}
-almost everywhere on $t$. Therefore, the $i$th and $j$th components of Eq. \ref{eq:length} are equal. Furthermore, since  Eq. \ref{eq:geodesic_ig} integrates along the path that is an approximation of Eq. \ref{eq:length}, we have $\textrm{Geodesic IG}_i = \textrm{Geodesic IG}_j$. Indeed our geodesic paths satisfy  $\gamma_i(t) = \gamma_j(t)$ for all $t \in [0,1]$ on the Riemannian manifolds. To see this, let us select a baseline $\overline{\textbf{x}}$ and $U$ a Riemann neighbourhood centred at $\overline{\textbf{x}}$. Let us also define the geodesic path $\gamma$ such as $\gamma(0) = \overline{\textbf{x}}$. Further, define $\textbf{v}(t):=\gamma'(t)$, where $\gamma'$ is the derivative of $\gamma$. Then, in the local coordinates system of the neighbourhood of any point, called normal coordinates, we have $\gamma(t) = (tv_1(t), ..., tv_n(t))$. Since the function is symmetric in the $i$th and $j$th dimensions, we have $v_i$ and $v_j$ are the same everywhere. From this, we can see that $\gamma_i(t) = \gamma_j(t)$ for all $t \in [0,1]$ and therefore Geodesic IG satisfies symmetry. In other words, since the geodesic generalises straight paths to Riemannian manifolds, it follows that the symmetry property of IG on Euclidean space is extended to Geodesic IG on Riemannian manifolds. In fact, using the same argument as above, the proof of \citet[Theorem 1]{sundararajan2017axiomatic} can be readily used to show that Geodesic IG is the only path method on Riemannian manifolds that satisfy symmetry.
-
 \paragraph{Assumption of the approximation.} 
 
 Here we formalise the intuition that, for a pair of neighbours, the geodesic path between them is close to the euclidean one. Notice that the derivative of the neural network $f$ is Lipschitz continuous,
@@ -107,19 +95,6 @@ Here we formalise the intuition that, for a pair of neighbours, the geodesic pat
 Equation \ref{eq:deriv_lip} is equivalent to the Hessian of $f$ being bounded. Under this assumption, if two points $\textbf{x}$ and $\textbf{y}$ are close enough, the Jacobian of one point is approximately equal to the other: if $||\textbf{x} - \textbf{y}|| \le \epsilon$, then $\textrm{J}_{\textbf{x}} \approx \textrm{J}_{\textbf{y}}$. As a result, the length between $\textbf{x}$ and $\textbf{y}$, for a curve $\gamma$, is: $\textrm{L}(\gamma) \approx \int_{\gamma} ||\textrm{J}_{\textbf{x}}|| \, d\textbf{x} \approx ||\textrm{J}_{\textbf{x}}|| \int_{\gamma} d\textbf{x}$. Due to the triangular inequality, the shortest path $\gamma^*$ is then a straight line, and we have: $\textrm{L}^*(\textbf{x}, \textbf{y}) \approx ||\textrm{J}_{\textbf{x}}|| \times ||\textbf{x} - \textbf{y}||$.
 
 As a result, under this assumption, if two points are close, the geodesic path can be approximated with a straight line. Note that even though we take the path between two neighbouring points to be a straight line, we do not assume that the Jacobian of the function between the two points is constant. 
-
-\paragraph{Choice of the set of points $\textbf{x}_i$}
-
-When using Geodesic IG, the choice of the points $\textbf{x}_i$ to approximate the geodesic path is of great importance. A wrong choice of points could indeed lead to a bad approximation. We present here two different strategies to select such points.
-
-In a low dimensional setting, such as in the half-moons experiment presented in the introduction, one natural choice is to use points either from the train or from the test set. However, when data is high dimensional, or when the available data is too sparse to be used to approximate the geodesic, others strategies must be used. In these situations, we propose to generate points between an input $\textbf{x}$ and a reference baseline $\overline{\textbf{x}}$ using the following equation. 
-\begin{equation}
-    \textbf{x}_i = \overline{\textbf{x}} + t \times (\textbf{x} - \overline{\textbf{x}}) + \textbf{u}.
-\label{eq:guide}
-\end{equation} 
-Here, we uniformly sample points on the straight line between the input and the baseline, using $t \sim \mathcal{U}[0, 1]$, and we add Gaussian noise to these interpolations, using $\textbf{u} \sim \mathcal{N}(0, \textrm{I})$, to generate points around this straight line. 
-
-The above method of approximating the geodesic using a straight line as a guide is presented as a baseline for practical implementation in high dimensions. However, we believe further research should be undertaken in order to better approximate the geodesic in high dimensional spaces which potentially have a high curvature. For instance, a slightly more advanced method would be to randomly and sparsely seed a larger volume of the space between the input and baseline, then use the shortest path of lowest gradient through these points. After finding such a path, we can use this as a guide, instead of the straight line. Finally, we can repeat this process multiple times and use the path that avoids the most gradients. Such method should yield a better approximation of the geodesic path, albeit requiring more gradients estimations.
 
 \paragraph{Handling disconnected graphs}
 
@@ -136,3 +111,52 @@ An issue with the graph computed with the kNN algorithm is that it could be disc
 \end{figure}
 
 However, we stress that this solution is not optimal, and argue that a better way of handling this issue would be to avoid disconnected graphs in the first place. This can be done by increasing the number of neighbours k.
+
+\subsection{Approximation of the geodesic with energy-based sampling.}
+While our $k$NN-based method is effective for explaining simpler models, its applicability diminishes as model complexity increases. In such cases, a prohibitively large number of samples is required between the baseline and the input to provide accurate estimates of the geodesic path. Even with relatively large number of samples, it is not trivial where on the manifold to sample the points to adequately capture the gradient landscape. Furthermore, once the points are sampled, searching the graph for the shortest path will be computationally too intensive. For such use-cases, we devise another approximation procedure based on an energy-base sampling method, such as Stochastic Variational Inference (SVI).
+
+As we observed in Remark \ref{rem:shortest}, we would like to sample from the shortest paths between two points on the input space that avoids high gradient regions as much as possible. Therefore, we want to deviate from the straight line to avoid high gradient regions. This process can be approximated in the following way. First we start with a straight line between the two points and define a potential energy as a combination of two terms. One for the distance of the path to be optimised to the straight line,  and the other is a curvature penalty term. Finding the minimum energy path, therefore samples approximately on the geodesic lines. More formally, let us define the distance term: $d(x,y) := |x-y|_2$, and the curvature term: $c(x):=|\nabla f(x)|_2$ where $f$ is the neural network. The total energy being minimised is
+
+\begin{equation}
+E(\gamma) = \sum_{i=1}^{n} \|\gamma_i - \gamma^0_i\|_2 - \beta\|\nabla f(\gamma_i)\|_2, 
+\end{equation}
+where $\gamma$ is the path $\gamma^0$ is the initial path $beta$ controls trade-off between distance and curvature.
+
+With this energy function, one can use a suitable sampling method, such as SVI or Hamiltoniam Monte Carlo to sample points on the geodesic paths. Here we briefly describe the SVI optimisation, as this has a good balance of computational efficiency and accuracy.
+
+SVI provides a probabilistic framework for optimising paths between input and baseline points. To achieve this, SVI defines a probability distribution $p(\gamma|\gamma_0)$ proportional to $exp(-E(\gamma))$, where $E(\gamma)$ is our defined potential energy. Rather than directly sampling from this complex distribution, we introduce a simpler variational distribution $q(\gamma)$ parameterised by learnable means and scales. This guide distribution takes the form of a factorised normal distribution $\prod_i N(\mu_i,\sigma_i)$ over path deviations.
+
+The optimisation proceeds by minimising the KL divergence between $q(\gamma)$ and the true posterior through maximisation of the Evidence Lower Bound (ELBO). Critically, this allows us to learn optimal parameters for $q(\gamma)$ through gradient-based optimisation. The learned means $\mu_i$ define the optimal path deviations from the initial straight-line path, while the scales $\sigma$ capture uncertainty in these deviations. This probabilistic approach naturally samples of the low-energy regions.
+
+We use this method in our computer vision experiments and show its efficacy in section \label{sec:experiments}. However here we find it instructive to visualise these paths on the 2D example of half-moons, Fig. \ref{fig:svi_moons}, even though for simpler use-cases such as this we would prefer the $k$NN method, as they are easier to control. 
+
+\begin{figure}[ht]
+	\vskip 0.2in
+	\begin{center}
+		\centerline{\includegraphics[width=0.95\columnwidth]{figures/svi_ig_moons.png}}
+		\caption{\textbf{Visualising 10 random paths.} For a simple case of half-moons with 1000 samples, we show the sampled paths between 10 pairs of points. As we see on low gradient regions the sampler prefers straigh lines, whereas in high gredient regions the path becomes closer to perpendicular to the large gradient vectors to cross the region as quickly as possible.}
+		\label{fig:svi_moons}
+	\end{center}
+	\vskip -0.2in
+\end{figure}
+
+\subsection{Axiomatic properties}
+
+\paragraph{Symmetry preserving of Geodesic IG}
+
+The family of generalisations of Integrated Gradients to non-straight paths, such as Eq. \ref{eq:geodesic_ig}, is called \emph{path methods} of explanation. We see in \citet{sundararajan2017axiomatic} that all path methods satisfy all of the axioms that IG is based on, apart from the symmetry axiom that we discussed in the introduction. \citet[Theorem 1]{sundararajan2017axiomatic} shows that Integrated Gradients is the only path-method on Euclidean surfaces that is symmetry preserving. Here we demonstrate that Geodesic Integrated Gradients satisfies symmetry property on Riemannian manifolds, and it is the only path-based method that does so. 
+
+Let the $i$th and $j$th dimensions of $\gamma(t)$ be $\gamma_i(t)$ and $\gamma_j(t)$ respectively and $f$ be a function differentiable almost everywhere on $t$. Furthermore, take $f$ to be symmetric with respect to $x_i$ and $x_j$. If $\gamma_i(t) = \gamma_j(t)$ for all $t \in [0,1]$, then we have 
+\begin{equation}
+	\begin{split}
+		& ||\partial_t f(\gamma_i(t)) \times \dot\gamma_i(t)|| = ||\partial_t f(\gamma_j(t)) \times \dot\gamma_j(t)||,
+	\end{split}
+	\label{eq:norms}
+\end{equation}
+almost everywhere on $t$. Therefore, the $i$th and $j$th components of Eq. \ref{eq:length} are equal. Furthermore, since  Eq. \ref{eq:geodesic_ig} integrates along the path that is an approximation of Eq. \ref{eq:length}, we have $\textrm{Geodesic IG}_i = \textrm{Geodesic IG}_j$. Indeed our geodesic paths satisfy  $\gamma_i(t) = \gamma_j(t)$ for all $t \in [0,1]$ on the Riemannian manifolds. To see this, let us select a baseline $\overline{\textbf{x}}$ and $U$ a Riemann neighbourhood centred at $\overline{\textbf{x}}$. Let us also define the geodesic path $\gamma$ such as $\gamma(0) = \overline{\textbf{x}}$. Further, define $\textbf{v}(t):=\gamma'(t)$, where $\gamma'$ is the derivative of $\gamma$. Then, in the local coordinates system of the neighbourhood of any point, called normal coordinates, we have $\gamma(t) = (tv_1(t), ..., tv_n(t))$. Since the function is symmetric in the $i$th and $j$th dimensions, we have $v_i$ and $v_j$ are the same everywhere. From this, we can see that $\gamma_i(t) = \gamma_j(t)$ for all $t \in [0,1]$ and therefore Geodesic IG satisfies symmetry. In other words, since the geodesic generalises straight paths to Riemannian manifolds, it follows that the symmetry property of IG on Euclidean space is extended to Geodesic IG on Riemannian manifolds. In fact, using the same argument as above, the proof of \citet[Theorem 1]{sundararajan2017axiomatic} can be readily used to show that Geodesic IG is the only path method on Riemannian manifolds that satisfy symmetry.
+
+, including symmetry. The symmetry axiom is defined in the following way. 
+\begin{definition}
+	Consider an input-baseline pair $\textbf{x}$ and $\overline{\textbf{x}}$, and a function $f$ that is symmetric in dimensions $i$ and $j$. If $\textbf{x}_i = \textbf{x}_j$ and $\overline{\textbf{x}}_i = \overline{\textbf{x}}_j$, then an attribution method is Symmetry-Preserving if $attr_i(\textbf{x}; f) = attr_j(\textbf{x}; f)$, where $attr_n(\textbf{x}; f)$ is the attribution of $\textbf{x}_n$.
+\end{definition}
+\citep[Theorem 1]{sundararajan2017axiomatic} shows that IG is the only path method that satisfies symmetry on Euclidean space. We generalise this theorem for Geodesic IG on Riemannian manifolds.
