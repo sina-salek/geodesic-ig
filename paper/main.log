@@ -1,4 +1,4 @@
-This is pdfTeX, Version 3.141592653-2.6-1.40.26 (TeX Live 2024) (preloaded format=pdflatex 2025.1.23)  24 JAN 2025 17:31
+This is pdfTeX, Version 3.141592653-2.6-1.40.26 (TeX Live 2024) (preloaded format=pdflatex 2025.1.23)  26 JAN 2025 08:30
 entering extended mode
  restricted \write18 enabled.
  %&-line parsing enabled.
@@ -804,14 +804,7 @@ File: l3backend-pdftex.def 2024-02-20 L3 backend support: PDF output (pdfTeX)
 \l__color_backend_stack_int=\count338
 \l__pdf_internal_box=\box72
 )
-(./main.aux
-
-LaTeX Warning: Label `sec:experiments' multiply defined.
-
-
-LaTeX Warning: Label `sec:experiments@cref' multiply defined.
-
-)
+(./main.aux)
 \openout1 = `main.aux'.
 
 LaTeX Font Info:    Checking defaults for OML/cmm/m/it on input line 62.
@@ -850,8 +843,7 @@ Package microtype Info: No adjustment of interword spacing.
 Package microtype Info: No adjustment of character kerning.
  (/usr/local/texlive/2024/texmf-dist/tex/latex/microtype/mt-ptm.cfg
 File: mt-ptm.cfg 2006/04/20 v1.7 microtype config. file: Times (RS)
-)
-(/usr/local/texlive/2024/texmf-dist/tex/context/base/mkii/supp-pdf.mkii
+) (/usr/local/texlive/2024/texmf-dist/tex/context/base/mkii/supp-pdf.mkii
 [Loading MPS to PDF converter (version 2006.09.02).]
 \scratchcounter=\count339
 \scratchdimen=\dimen294
@@ -915,11 +907,11 @@ LaTeX Font Info:    Font shape `OML/ptm/m/n' in size <9> not available
 (Font)              Font shape `OML/cmm/m/it' tried instead on input line 107.
 
 (./introduction.tex
-<figures/voc_compare.png, id=22, 459.1554pt x 153.6942pt>
+<figures/voc_compare.png, id=22, 784.9325pt x 246.9225pt>
 File: figures/voc_compare.png Graphic file (type png)
 <use figures/voc_compare.png>
 Package pdftex.def Info: figures/voc_compare.png  used on input line 18.
-(pdftex.def)             Requested size: 223.1329pt x 74.69167pt.
+(pdftex.def)             Requested size: 223.1329pt x 70.19278pt.
  [1{/usr/local/texlive/2024/texmf-var/fonts/map/pdftex/updmap/pdftex.map}{/usr/
 local/texlive/2024/texmf-dist/fonts/enc/dvips/base/8r.enc}
 
@@ -932,40 +924,50 @@ s been already used, duplicate ignored
                                                   \__shipout_drop_firstpage_...
 l.26 
       <./figures/voc_compare.png>]
-<figures/half_moons_y.png, id=61, 531.9072pt x 232.7094pt>
+<figures/half_moons_y.png, id=60, 531.9072pt x 232.7094pt>
 File: figures/half_moons_y.png Graphic file (type png)
 <use figures/half_moons_y.png>
 Package pdftex.def Info: figures/half_moons_y.png  used on input line 36.
 (pdftex.def)             Requested size: 234.8775pt x 102.76173pt.
-<figures/voc_metrics_vertical.png, id=62, 284.0211pt x 451.6875pt>
+
+Underfull \hbox (badness 1895) in paragraph at lines 39--39
+[][][]\OT1/ptm/b/n/9 (+20) Integrated Gra-di-ents (IG) at-tri-bu-tions (left) v
+s.
+ []
+
+<figures/voc_metrics_vertical.png, id=61, 284.0211pt x 451.6875pt>
 File: figures/voc_metrics_vertical.png Graphic file (type png)
 <use figures/voc_metrics_vertical.png>
 Package pdftex.def Info: figures/voc_metrics_vertical.png  used on input line 4
-7.
+8.
 (pdftex.def)             Requested size: 199.64731pt x 317.50928pt.
 
 Underfull \vbox (badness 10000) has occurred while \output is active []
 
- [2
+
+
+LaTeX Warning: Text page 2 contains only floats.
+
+[2
 pdfTeX warning (ext4): destination with the same identifier (name{figure.2}) ha
 s been already used, duplicate ignored
 <argument> ...shipout:D \box_use:N \l_shipout_box 
                                                   \__shipout_drop_firstpage_...
-l.55 
+l.56 
      
 pdfTeX warning (ext4): destination with the same identifier (name{figure.3}) ha
 s been already used, duplicate ignored
 <argument> ...shipout:D \box_use:N \l_shipout_box 
                                                   \__shipout_drop_firstpage_...
-l.55 
+l.56 
       <./figures/half_moons_y.png> <./figures/voc_metrics_vertical.png>])
 (./method.tex [3]
-<figures/method.png, id=132, 855.195pt x 157.58875pt>
+<figures/method.png, id=119, 855.195pt x 157.58875pt>
 File: figures/method.png Graphic file (type png)
 <use figures/method.png>
 Package pdftex.def Info: figures/method.png  used on input line 79.
 (pdftex.def)             Requested size: 439.03726pt x 80.9006pt.
-<figures/bridge.png, id=137, 330.23375pt x 140.525pt>
+<figures/bridge.png, id=124, 330.23375pt x 140.525pt>
 File: figures/bridge.png Graphic file (type png)
 <use figures/bridge.png>
 Package pdftex.def Info: figures/bridge.png  used on input line 106.
@@ -975,33 +977,45 @@ pdfTeX warning (ext4): destination with the same identifier (name{figure.4}) ha
 s been already used, duplicate ignored
 <argument> ...shipout:D \box_use:N \l_shipout_box 
                                                   \__shipout_drop_firstpage_...
-l.114 
-      
+l.117 
+       <./figures/method.png>]
+<figures/svi_ig_moons.png, id=141, 462.528pt x 346.896pt>
+File: figures/svi_ig_moons.png Graphic file (type png)
+<use figures/svi_ig_moons.png>
+Package pdftex.def Info: figures/svi_ig_moons.png  used on input line 138.
+(pdftex.def)             Requested size: 234.8775pt x 176.15768pt.
+
+Underfull \vbox (badness 10000) has occurred while \output is active []
+
+ [5
 pdfTeX warning (ext4): destination with the same identifier (name{figure.5}) ha
 s been already used, duplicate ignored
 <argument> ...shipout:D \box_use:N \l_shipout_box 
                                                   \__shipout_drop_firstpage_...
-l.114 
-       <./figures/method.png> <./figures/bridge.png>]
-<figures/svi_ig_moons.png, id=152, 462.528pt x 346.896pt>
-File: figures/svi_ig_moons.png Graphic file (type png)
-<use figures/svi_ig_moons.png>
-Package pdftex.def Info: figures/svi_ig_moons.png  used on input line 136.
-(pdftex.def)             Requested size: 234.8775pt x 176.15768pt.
- [5
+l.149 
+      
 pdfTeX warning (ext4): destination with the same identifier (name{figure.6}) ha
 s been already used, duplicate ignored
 <argument> ...shipout:D \box_use:N \l_shipout_box 
                                                   \__shipout_drop_firstpage_...
-l.151 \end{definition}
-                       <./figures/svi_ig_moons.png>]) (./experiments.tex
+l.149 
+       <./figures/bridge.png> <./figures/svi_ig_moons.png>]) (./experiments.tex
 [6]
 LaTeX Font Info:    Trying to load font information for TS1+ptm on input line 6
 7.
  (/usr/local/texlive/2024/texmf-dist/tex/latex/psnfss/ts1ptm.fd
 File: ts1ptm.fd 2001/06/04 font definitions for TS1/ptm.
-))
-(./related_work.tex [7
+)
+Underfull \vbox (badness 10000) has occurred while \output is active []
+
+
+
+LaTeX Warning: Reference `fig:puppy' on page 7 undefined on input line 96.
+
+) (./related_work.tex
+Underfull \vbox (badness 10000) has occurred while \output is active []
+
+ [7
 pdfTeX warning (ext4): destination with the same identifier (name{table.1}) has
  been already used, duplicate ignored
 <argument> ...shipout:D \box_use:N \l_shipout_box 
@@ -1014,7 +1028,7 @@ pdfTeX warning (ext4): destination with the same identifier (name{table.2}) has
                                                   \__shipout_drop_firstpage_...
 l.5 
     ]
-<figures/enhanced_ig_y.pdf, id=247, 722.7pt x 578.16pt>
+<figures/enhanced_ig_y.pdf, id=237, 722.7pt x 578.16pt>
 File: figures/enhanced_ig_y.pdf Graphic file (type pdf)
 <use figures/enhanced_ig_y.pdf>
 Package pdftex.def Info: figures/enhanced_ig_y.pdf  used on input line 11.
@@ -1024,26 +1038,26 @@ Package pdftex.def Info: figures/enhanced_ig_y.pdf  used on input line 11.
 Package natbib Warning: Citation `langley00' undefined on input line 123.
 
 (./main.bbl
-Underfull \vbox (badness 1394) has occurred while \output is active []
+Underfull \vbox (badness 10000) has occurred while \output is active []
 
  [8
 pdfTeX warning (ext4): destination with the same identifier (name{figure.7}) ha
 s been already used, duplicate ignored
 <argument> ...shipout:D \box_use:N \l_shipout_box 
                                                   \__shipout_drop_firstpage_...
-l.20 
+l.15 
       <./figures/enhanced_ig_y.pdf>]
 Overfull \hbox (12.59517pt too wide) in paragraph at lines 43--48
 \OT1/ptm/m/n/10 (-20) network.org/challenges/VOC/voc2012/workshop/index.html. 
  []
 
 ) [9] (./appendix.tex
-<figures/noises.png, id=292, 824.07875pt x 206.7725pt>
+<figures/noises.png, id=284, 824.07875pt x 206.7725pt>
 File: figures/noises.png Graphic file (type png)
 <use figures/noises.png>
 Package pdftex.def Info: figures/noises.png  used on input line 9.
 (pdftex.def)             Requested size: 439.03726pt x 110.15996pt.
-<figures/knn.png, id=294, 870.25125pt x 204.765pt>
+<figures/knn.png, id=286, 870.25125pt x 204.765pt>
 File: figures/knn.png Graphic file (type png)
 <use figures/knn.png>
 Package pdftex.def Info: figures/knn.png  used on input line 21.
@@ -1063,11 +1077,11 @@ s been already used, duplicate ignored
                                                   \__shipout_drop_firstpage_...
 l.28 \newpage
               <./figures/noises.png> <./figures/knn.png>]
-<figures/more_images.png, id=304, 1630.09pt x 2951.025pt>
+<figures/more_images.png, id=296, 375.804pt x 704.3916pt>
 File: figures/more_images.png Graphic file (type png)
 <use figures/more_images.png>
 Package pdftex.def Info: figures/more_images.png  used on input line 38.
-(pdftex.def)             Requested size: 253.66977pt x 459.2053pt.
+(pdftex.def)             Requested size: 243.91124pt x 457.18274pt.
 )
 
 Package natbib Warning: There were undefined citations.
@@ -1085,17 +1099,17 @@ L3 programming layer <2024-02-20>
  ***********
 
 
-LaTeX Warning: There were multiply-defined labels.
+LaTeX Warning: There were undefined references.
 
 Package rerunfilecheck Info: File `main.out' has not changed.
 (rerunfilecheck)             Checksum: D41D8CD98F00B204E9800998ECF8427E;0.
  ) 
 Here is how much of TeX's memory you used:
- 26907 strings out of 474116
- 498201 string characters out of 5743682
- 1960187 words of memory out of 5000000
- 48380 multiletter control sequences out of 15000+600000
- 601582 words of font info for 299 fonts, out of 8000000 for 9000
+ 26913 strings out of 474116
+ 498255 string characters out of 5743682
+ 1961187 words of memory out of 5000000
+ 48381 multiletter control sequences out of 15000+600000
+ 601751 words of font info for 302 fonts, out of 8000000 for 9000
  1141 hyphenation exceptions out of 8191
  99i,18n,101p,1823b,583s stack positions out of 10000i,1000n,20000p,200000b,200000s
 </usr/local/texlive/2024/texmf-dist/fonts/type1/public/amsfonts/cmextra/cmbsy
@@ -1119,10 +1133,10 @@ exlive/2024/texmf-dist/fonts/type1/urw/times/utmb8a.pfb></usr/local/texlive/202
 4/texmf-dist/fonts/type1/urw/times/utmr8a.pfb></usr/local/texlive/2024/texmf-di
 st/fonts/type1/urw/times/utmr8a.pfb></usr/local/texlive/2024/texmf-dist/fonts/t
 ype1/urw/times/utmri8a.pfb>
-Output written on main.pdf (11 pages, 7761499 bytes).
+Output written on main.pdf (11 pages, 4015753 bytes).
 PDF statistics:
- 419 PDF objects out of 1000 (max. 8388607)
- 318 compressed objects within 4 object streams
+ 411 PDF objects out of 1000 (max. 8388607)
+ 314 compressed objects within 4 object streams
  78 named destinations out of 1000 (max. 500000)
  65599 words of extra memory for PDF output out of 74296 (max. 10000000)
 

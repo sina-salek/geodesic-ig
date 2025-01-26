@@ -7,7 +7,6 @@
 .DS_Store
 docs/.DS_Store
 dist
-figures
 weights
 data
 plots

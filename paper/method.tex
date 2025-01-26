@@ -41,7 +41,7 @@ We can infer from Equation \ref{eq:length} that the geodesic path avoids as much
 
 \subsection{Approximation of the geodesic with $K$ Nearest Neighbours.} Computing the exact geodesic would require computing $L$ on an infinite number of paths $\gamma$, which is not possible in practice. However, several methods have been proposed to approximate this value. We draw from previous work \citep{yang2018geodesic, chen2019fast} and present one with desirable characteristics.
 
-First, we compute the K Nearest Neighbours (kNN) algorithm on points between (and including) input and baseline. These points can be either sampled or generated. The geodesic distance between two neighbouring points, $\textbf{x}_i$ and $\textbf{x}_j$, can be approximated by a straight path $\textbf{x}_i + t \times (\textbf{x}_j - \textbf{x}_i)$. We have the above approximation because for dense enough data, the euclidean distance between neighbouring points is a good approximation of the geodesic distance. This reflects the fact that a small region of a Riemannian manifold, called Riemann neighbourhood, is locally isometric to a Euclidean space\footnote{We shall further formalise this intuition later in this section.}. So the geodesic distance between the two neighbouring points is approximated by: 
+First, we compute the $K$ Nearest Neighbours ($k$NN) algorithm on points between (and including) input and baseline. These points can be either sampled or generated. The geodesic distance between two neighbouring points, $\textbf{x}_i$ and $\textbf{x}_j$, can be approximated by a straight path $\textbf{x}_i + t \times (\textbf{x}_j - \textbf{x}_i)$. We have the above approximation because for dense enough data, the euclidean distance between neighbouring points is a good approximation of the geodesic distance. This reflects the fact that a small region of a Riemannian manifold, called Riemann neighbourhood, is locally isometric to a Euclidean space\footnote{We shall further formalise this intuition later in this section.}. So the geodesic distance between the two neighbouring points is approximated by: 
 
 \begin{align}
 \begin{split}
@@ -71,13 +71,13 @@ The resulting Geodesic Integrated Gradients corresponds to the sum of the gradie
 
 where $\textbf{x}^k$ are the points along the shortest path. The integrals in Equation \ref{eq:geodesic_ig} can also be approximated with Riemannian sums.
 
-The gradients between each pair of neighbours can also be estimated in batches to speed up the attribution computation. Moreover, several inputs' attributions can be computed together, with similar speed as IG: if we want to compute the attribution of $N$ inputs, with 10 interpolation steps and 5 nearest neighbors, the number of gradients to calculate is $10 \times 5 \times \textrm{N} = 50 \textrm{N}$, which amounts to computing IG with 50 steps. This does not include the computation of the shortest path, which is for instance $O(\textrm{N}^2)$ for Dijkstra algorithm. Please also refer to Figure \ref{fig:method} for an illustration of this method.
+The gradients between each pair of neighbours can also be estimated in batches to speed up the attribution computation. Moreover, several inputs' attributions can be computed together, with similar speed as IG: if we want to compute the attribution of $N$ inputs, with 10 interpolation steps and 5 nearest neighbors, the number of gradients to calculate is $10 \times 5 \times \textrm{N} = 50 \textrm{N}$, which amounts to computing IG with 50 steps. This does not include the computation of the shortest path, which is for instance $O(\textrm{N}^2)$ for Dijkstra algorithm. See Fig. \ref{fig:method} for an illustration of this method.
 
 \begin{figure*}[t]
 \vskip 0.2in
 \begin{center}
 \centerline{\includegraphics[width=0.9\textwidth]{figures/method.png}}
-\caption{\textbf{Method overview.} For an input $\textbf{x}$, a baseline $\overline{\textbf{x}}$, and a set of points $\textbf{x}_i$, we compute the kNN graph using the euclidean distance (dashed lines). For each couple $(\textbf{x}_i, \textbf{x}_j)$, we then compute the integrated gradients $\textrm{L}^*_{ij}$ using Equation \ref{eq:log_geo_approx}. For clarity, not all $\textrm{L}^*_{ij}$ are present on the figure. 0 and 7 represent $\overline{\textbf{x}}$ and $\textbf{x}$ respectively. Using the resulting undirected weighted graph, we use the Dijkstra algorithm to find the shortest path between $\textbf{x}$ and $\overline{\textbf{x}}$ (blue continuous lines). On the left, the points $\textbf{x}_i$ are provided while, on the right, the points are generated along the straight line between $\textbf{x}$ and $\overline{\textbf{x}}$ (dotted line).}
+\caption{\textbf{Method overview.} For an input $\textbf{x}$, a baseline $\overline{\textbf{x}}$, and a set of points $\textbf{x}_i$, we compute the $k$NN graph using the euclidean distance (dashed lines). For each couple $(\textbf{x}_i, \textbf{x}_j)$, we then compute the integrated gradients $\textrm{L}^*_{ij}$ using Equation \ref{eq:log_geo_approx}. For clarity, not all $\textrm{L}^*_{ij}$ are present on the figure. 0 and 7 represent $\overline{\textbf{x}}$ and $\textbf{x}$ respectively. Using the resulting undirected weighted graph, we use the Dijkstra algorithm to find the shortest path between $\textbf{x}$ and $\overline{\textbf{x}}$ (blue continuous lines). On the left, the points $\textbf{x}_i$ are provided while, on the right, the points are generated along the straight line between $\textbf{x}$ and $\overline{\textbf{x}}$ (dotted line).}
 \label{fig:method}
 \end{center}
 \vskip -0.2in
@@ -98,7 +98,7 @@ As a result, under this assumption, if two points are close, the geodesic path c
 
 \paragraph{Handling disconnected graphs}
 
-An issue with the graph computed with the kNN algorithm is that it could be disconnected, in which case it could be impossible to compute a path between an input and a baseline. To alleviate this issue, we add so called ``bridges'' to the graph, as following: for each disconnected component, we add one link between them, specifically between two points of each component having the lowest euclidean distance. An illustration of this method is displayed on Figure \ref{fig:bridge}.
+An issue with the graph computed with the $k$NN algorithm is that it could be disconnected, in which case it could be impossible to compute a path between an input and a baseline. To alleviate this issue, we add so called ``bridges'' to the graph, as following: for each disconnected component, we add one link between them, specifically between two points of each component having the lowest euclidean distance. An illustration of this method is displayed on Figure \ref{fig:bridge}.
 
 \begin{figure}[ht]
 \vskip 0.2in
@@ -113,32 +113,36 @@ An issue with the graph computed with the kNN algorithm is that it could be disc
 However, we stress that this solution is not optimal, and argue that a better way of handling this issue would be to avoid disconnected graphs in the first place. This can be done by increasing the number of neighbours k.
 
 \subsection{Approximation of the geodesic with energy-based sampling.}
-While our $k$NN-based method is effective for explaining simpler models, its applicability diminishes as model complexity increases. In such cases, a prohibitively large number of samples is required between the baseline and the input to provide accurate estimates of the geodesic path. Even with relatively large number of samples, it is not trivial where on the manifold to sample the points to adequately capture the gradient landscape. Furthermore, once the points are sampled, searching the graph for the shortest path will be computationally too intensive. For such use-cases, we devise another approximation procedure based on an energy-base sampling method, such as Stochastic Variational Inference (SVI).
+While our $k$NN-based method is effective for explaining simpler models, its applicability diminishes as model complexity increases. In such cases, a prohibitively large number of samples is required between the baseline and the input to provide accurate estimates of the geodesic path. Even with relatively large number of samples, it is not trivial where on the manifold to sample the points to adequately capture the gradient landscape. Furthermore, once the points are sampled, searching the graph for the shortest path will be computationally too intensive. For such use-cases, in this subsection, we devise an energy-base sampling method as another approximation procedure.
 
-As we observed in Remark \ref{rem:shortest}, we would like to sample from the shortest paths between two points on the input space that avoids high gradient regions as much as possible. Therefore, we want to deviate from the straight line to avoid high gradient regions. This process can be approximated in the following way. First we start with a straight line between the two points and define a potential energy as a combination of two terms. One for the distance of the path to be optimised to the straight line,  and the other is a curvature penalty term. Finding the minimum energy path, therefore samples approximately on the geodesic lines. More formally, let us define the distance term: $d(x,y) := |x-y|_2$, and the curvature term: $c(x):=|\nabla f(x)|_2$ where $f$ is the neural network. The total energy being minimised is
+As noted in Remark \ref{rem:shortest}, we aim to sample from the shortest paths between two points in the input space while avoiding regions of high gradients. To achieve this, we deviate from the straight line to minimise the influence of high-gradient areas. This process can be approximated as follows: we begin with a straight-line path between the two points and define a potential energy function composed of two terms—a distance term to maintain proximity to the straight line and a curvature penalty term to account for high gradients. Minimising this energy function approximates the geodesic path.
+
+Formally, the distance term is defined as $d(\textbf{x},\textbf{y}) := \|\textbf{x}-\textbf{y}\|_2$, and the curvature term as $c(\textbf{x}):=\|\nabla f(\textbf{x})\|_2$ where $f$ represents the neural network. The total energy being minimised is
 
 \begin{equation}
-E(\gamma) = \sum_{i=1}^{n} \|\gamma_i - \gamma^0_i\|_2 - \beta\|\nabla f(\gamma_i)\|_2, 
+E(\gamma) = \sum_{i=1}^{n} d(\gamma_i, \gamma^0_i) - \beta c(\gamma_i), 
 \end{equation}
-where $\gamma$ is the path $\gamma^0$ is the initial path $beta$ controls trade-off between distance and curvature.
+where $\gamma$ is the path $\gamma^0$ is the initial path $\beta$ controls trade-off between distance and curvature.
 
-With this energy function, one can use a suitable sampling method, such as SVI or Hamiltoniam Monte Carlo to sample points on the geodesic paths. Here we briefly describe the SVI optimisation, as this has a good balance of computational efficiency and accuracy.
+With this energy function, one can use a suitable sampling method, such as Stochastic Variational Inference (SVI) or Hamiltoniam Monte Carlo to sample points on the geodesic paths. Here we briefly describe the SVI optimisation, as this has a suitable balance of computational efficiency and accuracy.
 
-SVI provides a probabilistic framework for optimising paths between input and baseline points. To achieve this, SVI defines a probability distribution $p(\gamma|\gamma_0)$ proportional to $exp(-E(\gamma))$, where $E(\gamma)$ is our defined potential energy. Rather than directly sampling from this complex distribution, we introduce a simpler variational distribution $q(\gamma)$ parameterised by learnable means and scales. This guide distribution takes the form of a factorised normal distribution $\prod_i N(\mu_i,\sigma_i)$ over path deviations.
+SVI provides a probabilistic framework for optimising paths between input and baseline points. To achieve this, it defines a probability distribution $p(\gamma|\gamma_0)$ proportional to $exp(-E(\gamma))$, where $E(\gamma)$ is our defined potential energy. Rather than directly sampling from this complex distribution, we introduce a simpler variational distribution $q(\gamma)$ parameterised by learnable means and scales. This guide distribution takes the form of a factorised normal distribution $\prod_i N(\mu_i,\sigma_i)$ over path deviations.
 
-The optimisation proceeds by minimising the KL divergence between $q(\gamma)$ and the true posterior through maximisation of the Evidence Lower Bound (ELBO). Critically, this allows us to learn optimal parameters for $q(\gamma)$ through gradient-based optimisation. The learned means $\mu_i$ define the optimal path deviations from the initial straight-line path, while the scales $\sigma$ capture uncertainty in these deviations. This probabilistic approach naturally samples of the low-energy regions.
+The optimisation proceeds by minimising the KL divergence between $q(\gamma)$ and the true posterior through maximisation of the Evidence Lower Bound. Critically, this allows us to learn optimal parameters for $q(\gamma)$ through gradient-based optimisation. The learned means $\mu_i$ define the optimal path deviations from the initial straight-line path, while the scales $\sigma$ capture uncertainty in these deviations. This probabilistic approach naturally samples of the low-energy regions.
 
-We use this method in our computer vision experiments and show its efficacy in section \label{sec:experiments}. However here we find it instructive to visualise these paths on the 2D example of half-moons, Fig. \ref{fig:svi_moons}, even though for simpler use-cases such as this we would prefer the $k$NN method, as they are easier to control. 
+We apply this method in our computer vision experiments, demonstrating its efficacy in Section \ref{sec:experiments}. However, for clarity, we visualise these paths on a simpler 2D half-moons example in Fig. \ref{fig:svi_moons}. While the $k$NN method would typically be preferred for such simpler cases due to its ease of control, this example serves as an instructive illustration.
 
 \begin{figure}[ht]
 	\vskip 0.2in
 	\begin{center}
 		\centerline{\includegraphics[width=\columnwidth]{figures/svi_ig_moons.png}}
-		\caption{\textbf{Visualising 10 random paths.} For a simple case of half-moons with 1000 samples, we show the sampled paths between 10 pairs of points. As we see on low gradient regions the sampler prefers straigh lines, whereas in high gredient regions the path becomes closer to perpendicular to the large gradient vectors to cross the region as quickly as possible.}
+		\caption{\textbf{Visualisation of 10 random paths.} For the simple case of half-moons with 1,000 samples, we display the sampled paths between 10 pairs of points. In low-gradient regions, the sampler favours straight lines, whereas in high-gradient regions, the paths adjust to become nearly perpendicular to the large gradient vectors, crossing these regions as quickly as possible.}
 		\label{fig:svi_moons}
 	\end{center}
 	\vskip -0.2in
 \end{figure}
+
+Of course, using the SVI method comes with its own challanges. For example, in this case a suitable value of $\beta$ for the potential energy, as well as learning rate for the SVI algorithm itself needs to be chose. As for any standard machine learinng training, these values can be chosen using hyperparameter tuning, as we discuss in section \ref{sec:experiments}.
 
 \subsection{Axiomatic properties}
 The family of generalisations of Integrated Gradients to non-straight paths, such as Eq. \ref{eq:geodesic_ig}, is called \emph{path methods} of explanation. We see in \citet{sundararajan2017axiomatic} that all path methods satisfy all of the axioms that IG is based on, apart from the symmetry axiom. Therefore, here we focus on this axiom only.
@@ -150,9 +154,7 @@ The symmetry axiom is defined in the following way.
 	Consider an input-baseline pair $\textbf{x}$ and $\overline{\textbf{x}}$, and a function $f$ that is symmetric in dimensions $i$ and $j$. If $\textbf{x}_i = \textbf{x}_j$ and $\overline{\textbf{x}}_i = \overline{\textbf{x}}_j$, then an attribution method is Symmetry-Preserving if $attr_i(\textbf{x}; f) = attr_j(\textbf{x}; f)$, where $attr_n(\textbf{x}; f)$ is the attribution of $\textbf{x}_n$.
 \end{definition}
 
-\citep[Theorem 1]{sundararajan2017axiomatic} shows that IG is the only path method that satisfies symmetry for any function. However, as noted in \cite{kapishnikov2021guided}, while straight path is the only one satisfying symmetry for any function, given a specific function, it may be possible to find other paths that satisfy Symmetry. We generalise this theorem for Geodesic IG on Riemannian manifolds and how that our method satisfies Symetry for the neural network function we sample the paths for.
-
-Here we demonstrate that Geodesic Integrated Gradients satisfies symmetry property on Riemannian manifolds induced by the input space and the gradients of the model. 
+\citep[Theorem 1]{sundararajan2017axiomatic} shows that IG is the only path-based attribution method that satisfies symmetry for any function. However, as noted in \cite{kapishnikov2021guided}, while the straight path is the only one satisfying symmetry for \emph{any} function, for a specific function, it may be possible to find other paths that also satisfy symmetry. Below, we demonstrate that Geodesic IG satisfies symmetry for Riemannian manifolds, and thus for the neural network functions we use when sampling the paths.
 
 Let the $i$th and $j$th dimensions of $\gamma(t)$ be $\gamma_i(t)$ and $\gamma_j(t)$ respectively and $f$ be a function differentiable almost everywhere on $t$. Furthermore, take $f$ to be symmetric with respect to $x_i$ and $x_j$. If $\gamma_i(t) = \gamma_j(t)$ for all $t \in [0,1]$, then we have 
 \begin{equation}
