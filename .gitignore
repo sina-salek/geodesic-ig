@@ -9,9 +9,11 @@ docs/.DS_Store
 dist
 figures
 weights
+checkpoints*
 data
 plots
 *.csv
+*.log
 
 # Pytest
 .htmlcov
