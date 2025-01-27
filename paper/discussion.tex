@@ -1,0 +1,7 @@
+\section{Discussion} \label{sec:discussion}
+
+In this paper, we identified potential issues with path-based attribution methods, particularly the artefacts arising from ignoring the curvature of the model. To address these challenges, we introduced Geodesic IG, an adaptation of the original IG method that integrates gradients along geodesic paths on a manifold defined by the model, rather than straight lines.
+
+By avoiding regions of high gradient in the input space, Geodesic IG effectively mitigates these issues while adhering to all the axioms outlined by \citet{sundararajan2017axiomatic}. We demonstrated its advantages through both theoretical analysis and empirical evaluation using metrics such as Comprehensiveness and Log-Odds.
+
+To approximate geodesic paths, we proposed two methods: one based on $k$NN and the other on Stochastic Variational Inference (SVI). While these methods show clear advantages over alternatives, they also raise important questions for future research. One challenge is the computational cost, as discussed in Section \ref{sec:experiments}. Another is the inherent noise in sampling-based approaches for approximating geodesic paths. A promising direction could involve solving the geodesic equation directly, which may reduce noise and provide more accurate path approximations. Additionally, depending on the chosen approach to solve these equations, it might be possible to achieve greater computational efficiency compared to the current reliance on SVI.
