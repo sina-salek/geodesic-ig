@@ -259,6 +259,7 @@ def main(
         # }
 
         heads = {
+            # "trained_head": trained_head.eval().to(device),
             "trained_head": trained_head.eval().to(device),
             "untrained_head": untrained_head.eval().to(device),
             "svi_head": svi_head.eval().to(device)
@@ -294,7 +295,7 @@ def main(
     # y_test = list()
     i = 0
     for data, target in voc_loader:
-        if i == 100:
+        if i == 1:
             break
         
         # # Extract first object class as the target
@@ -976,16 +977,16 @@ def parse_args():
         default=[
             # "geodesic_integrated_gradients",
             
-            "input_x_gradient",
-            "kernel_shap",
+            # "input_x_gradient",
+            # "kernel_shap",
             "svi_integrated_gradients",
-            "guided_integrated_gradients",
+            # "guided_integrated_gradients",
             "integrated_gradients",
-            "gradient_shap",
-            "lime",
-            "augmented_occlusion",
-            "occlusion",
-            "random",
+            # "gradient_shap",
+            # "lime",
+            # "augmented_occlusion",
+            # "occlusion",
+            # "random",
 
             # "smooth_grad"
         ],

@@ -242,7 +242,7 @@ class SVI_IG(GradientAttribution):
             lr_patience: int = 25,  # How many steps before lr decay
             use_endpoints_matching: bool = True,
             do_linear_interp: bool = True,
-            patience: int = 100,
+            patience: int = 4000,
             rel_improvement_threshold: float = 1e-4,
         ) -> Tensor:
                         
