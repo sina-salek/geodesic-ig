@@ -6,9 +6,9 @@ To validate our method, we performed experiments on two datasets: one is the syn
 \subsection{Experiments on the half-moons dataset}
 \label{subsec:half-moons}
 
-Here we give the details of the half-moons experiment discussed in the Introduction section. We use the half-moons dataset provided by Scikit learn \citep{scikit-learn} to generate 10,000 points with a Gaussian noise of $\mathcal{N}(0, 0.2)$. The dataset is split into 8,000 training points and 2,000 testing ones. The model used is an MLP.
+We use the half-moons dataset provided by Scikit learn \citep{scikit-learn} to generate 10,000 points with a Gaussian noise of $\mathcal{N}(0, 0.2)$. The dataset is split into 8,000 training points and 2,000 testing ones. The model used is an MLP.
 
-We measure two indicators of performance for each attribution method: a lack of artifacts not reflecting the model's behaviour, and a low variation of attributions between close points. To that goal, we use two metrics, \textbf{purity} and \textbf{standard deviation}, defined in the following way. We know that a well-trained model should classify about half of the data points as upper moon, class $1$, and the other half as lower moon, class $0$. Such a model should consider both features of each point important for the classification into class $1$. Therefore, for such a model, we expect in a good attribution method, the top $50\%$ points as ranked by the quantity $\widetilde{attr}(\textbf{x}; f) = \sum_{i=0}^1 |attr_i(\textbf{x}; f)|$, to be classified as $1$ (assuming the baseline is chosen as a point to which the network gives a near-zero score). With this in mind, purity is defined as
+We measure two indicators of performance for each attribution method: a lack of artefacts not reflecting the model's behaviour, and a low variation of attributions between close points. To that goal, we use two metrics, \textbf{purity} and \textbf{standard deviation}, defined in the following way. We know that a well-trained model should classify about half of the data points as upper moon, class $1$, and the other half as lower moon, class $0$. Such a model should consider both features of each point important for the classification into class $1$. Therefore, for such a model, we expect in a good attribution method, the top $50\%$ points as ranked by the quantity $\widetilde{attr}(\textbf{x}; f) = \sum_{i=0}^1 |attr_i(\textbf{x}; f)|$, to be classified as $1$ (assuming the baseline is chosen as a point to which the network gives a near-zero score). With this in mind, purity is defined as
 \begin{equation}
 \begin{split}
     \textrm{Purity} &= \frac{1}{N/2}\sum_{\textbf{x}, \, \widetilde{attr}(\textbf{x}; f) \in \textrm{Top 50\% of all attr}} \textrm{argmax}(f(\textbf{x})),
@@ -28,7 +28,7 @@ We expect this standard deviation metric to be low for the points belonging to e
 
 In this experiment, we compare the results of attributions from Geodesic IG with the original IG, as well as more recent comparable methods including Enhanced IG \citep{jha2020enhanced}, GradientShap \citep{lundberg2017unified}, SmoothGrad \citep{smilkov2017smoothgrad}.
 
-For all of the methods, we use $(-0.5, -0.5)$ as a baseline. Enhanced IG is an improvement over IG where the kNN algorithm is used to avoid computing gradients on paths on out of sample distributions. The chosen number of neighbours for the kNN part of both Enhanced IG and Geodesic IG is $5$. We perform an ablation study of this parameter in Appendix \ref{app:half-moons}. 
+For all of the methods, we use $(-0.5, -0.5)$ as a baseline. Enhanced IG is an improvement over IG where the $k$NN algorithm is used to avoid computing gradients on paths on out of sample distributions. The chosen number of neighbours for the $k$NN part of both Enhanced IG and Geodesic IG is $5$. We perform an ablation study of this parameter in Appendix \ref{app:half-moons}. 
 
 \begin{table}[t]
 	\centering
@@ -55,16 +55,15 @@ The quantitative analysis of the results are given in Table \ref{tab:results_moo
 \subsection{Experiments on the Pascal VOC 2012 dataset}
 \label{subsec:voc}
 
-Now we would like to test our method on a real-world dataset. To this aim, we use the Pascal VOC 2012 dataset, which consists of labelled images \citep{pascal-voc-2012}. We trained a classification head on this dataset and added it to the pre-trained ConvNext model from torch vision to generate predictions to be explained \citep{he2016deep}. We also perform the analysis on 100 randomly sampled images from the test set.
+To evaluate our method on a real-world dataset, we used the Pascal VOC 2012 dataset \citep{pascal-voc-2012}, which consists of labeled images. We trained a classification head on this dataset and integrated it with the pre-trained ConvNext model \citep{liu2022convnet} from TorchVision to generate predictions for explanation.
 
-We compare our method with various baselines: Integrated Gradients, GradientShap, InputXGradients \citep{shrikumar2016not}, KernelShap \citep{lundberg2017unified}, Occlusion \citep{zeiler2014visualizing} Augmented Occlusion \citep{tonekaboni2020went} and Guided IG \citep{kapishnikov2021guided}. 
+We applied the following attribution methods to explain the classifications for 100 randomly selected images: Integrated Gradients, GradientShap, InputXGradients \citep{shrikumar2016not}, KernelShap \citep{lundberg2017unified}, Occlusion \citep{zeiler2014visualizing}, Augmented Occlusion \citep{tonekaboni2020went}, and Guided IG \citep{kapishnikov2021guided}.
+For explainers that require a baseline, such as IG and our proposed method, a uniformly black image was used as the baseline.
 
-Where an explainer needs a baseline, such as in IG as well as our method, a uniformly black image was chosen as baseline.
-
-To evaluate the performance of an attribution method, we use 2 different metrics:
+To measure the performance of an attribution method, we use 2 different metrics:
 
 \begin{itemize}
-    \item \textbf{Comprehensiveness} \citep{deyoung2019eraser}: We mask the top k\% most important features in absolute value, and compute the average change of the predicted class probability compared with the original image. A higher score is better as it indicates masking these features results in a large change of predictions.
+    \item \textbf{Comprehensiveness} \citep{deyoung2019eraser}: We maks the top k\% most important features in absolute value, and compute the average change of the predicted class probability compared with the original image. A higher score is better as it indicates masking these features results in a large change of predictions.
 
     \item \textbf{Log-odds}\footnote{This metric should be called \emph{Log-probabilities}. However, since Log-odds is a commonly used name in the literature, we refer to it as Log-odds.} \citep{shrikumar2017learning}: We mask the top k\% most important features in absolute value, and measure the negative logarithmic probabilities on the predicted class compared with the original one. Lower scores are better.
 \end{itemize}
@@ -93,6 +92,8 @@ To evaluate the performance of an attribution method, we use 2 different metrics
 	\label{tab:results_voc}
 \end{table}
 
-We calculated these two metrics for a range of top-$k$\%s, from 1\% to 56\%, which is shown in Fig. \ref{fig:voc_metrics}. To summarise the values from different top-$k$\%s, we calculate the area between the curves and the horizontal line at $y = 0$, a.k.a. area under the curve, and report them in Table \ref{tab:results_voc}.   Fig. \ref{fig:puppy} provides a qualitative comparison between Geodesic IG and Integrated Gradients. The analysis shows that Geodesic IG outperforms other methods in explaining the model's behaviour on the dataset, and it does so with a striking gap in the case of comprehensiveness.
+We evaluated these metrics for a range of top-$k\%$, from 1\% to 65\%, as shown in Fig. \ref{fig:voc_metrics}. To summarise performance across different $k\%$ values, we calculated the area under the curve (AUC) between the metric curves and the horizontal line at $y=0$. These results are presented in Table \ref{tab:results_voc}.
 
-The one downside of using Geodesic IG for explaining complex deep learning models is the computational cost. Running the above experiment on 100 images took 23 hours using an L4 GPU. However, this would be a reasonable price to pay to get more accurate explanations in use-cases where understanding the model is more critical.
+Additionally, Fig. \ref{fig:duck} provides a qualitative comparison between Geodesic IG and Integrated Gradients. The results demonstrate that Geodesic IG outperforms other methods in explaining the model's behaviour on the dataset, with a particularly notable improvement in comprehensiveness. Further qualitative comparisons can be found in Appendix \ref{app:voc}.
+
+Using Geodesic IG to explain complex deep learning models comes with several challenges. One major issue is the high computational cost of sampling methods like SVI or HMC. For instance, running the aforementioned experiment on 100 images required 23 hours on an L4 GPU. While computationally expensive, this could be justified in scenarios where accurate explanations are crucial. Another challenge is that the performance of the energy-based geodesic method heavily depends on selecting the right value for $\beta$ in Eq. \ref{eq:energy} and tuning SVI hyperparameters, such as the learning rate. In principle, hyperparameter tuning using metrics like Comprehensiveness or Log-odds could help optimize these parameters. However, due to limited computational resources, we were unable to perform such tuning in this study, though it has the potential to significantly improve results. Lastly, the optimization nature of these sampling methods can cause the endpoints of the paths to deviate slightly from the baseline and input points, favoring nearby points in lower gradient regions. To address this, we we added a term to the potential energy to correct for these deviations and ensure more accurate alignment with the intended points.  Formally, the extra term is $w \sum_{t \in \text{endpoints}} |\gamma(t) - \gamma_{\text{init}}(t)|_2$, where $w$ is endpoint weight and the first/ last 10\% of the paths are counted as endpoints .

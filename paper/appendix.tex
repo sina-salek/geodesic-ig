@@ -13,13 +13,13 @@ We present on Figure \ref{fig:noises} more results on the half-moons dataset, us
 \vskip -0.2in
 \end{figure}
 
-We also perform here an ablation study using different values of k for the kNN algorithm. We show the results on Figure \ref{fig:knn}. The results show that increasing $k$ harms the performance of Enhanced IG, leaving the ones of Geodesic IG unchanged. This is probably due to the fact that increasing k allows connections between points further apart, potentially crossing high-gradients regions. While Geodesic IG would not follow such paths, Enhanced IG only uses euclidean distance, and is therefore more likely to generate paths crossing high-gradients regions.
+We also perform here an ablation study using different values of k for the $k$NN algorithm. We show the results on Figure \ref{fig:knn}. The results show that increasing $k$ harms the performance of Enhanced IG, leaving the ones of Geodesic IG unchanged. This is probably due to the fact that increasing k allows connections between points further apart, potentially crossing high-gradients regions. While Geodesic IG would not follow such paths, Enhanced IG only uses euclidean distance, and is therefore more likely to generate paths crossing high-gradients regions.
 
 \begin{figure}[ht]
 \vskip 0.2in
 \begin{center}
 \centerline{\includegraphics[width=0.9\textwidth]{figures/knn.png}}
-\caption{Evaluation of Geodesic IG and Enhanced IG for different values of k in the kNN algorithm. We can see that increasing this parameter harms Enhanced IG performance, while it does not seem to have a major effect on Geodesic IG performance.}
+\caption{Evaluation of Geodesic IG and Enhanced IG for different values of k in the $k$NN algorithm. We can see that increasing this parameter harms Enhanced IG performance, while it does not seem to have a major effect on Geodesic IG performance.}
 \label{fig:knn}
 \end{center}
 \vskip -0.2in
@@ -30,13 +30,13 @@ We also perform here an ablation study using different values of k for the kNN a
 \section{Additional heatmaps and results on Pascal VOC 2012}
 \label{app:voc}
 
-We also qualitatively compare on Figure \ref{fig:more_images} Geodesic IG with the original IG on 5 different images of the Pascal VOC 2012 dataset. Geodesic IG heatmaps appears to be less blurry than the ones generated with original IG method.
+We also qualitatively compare on Figure \ref{fig:more_images} Geodesic IG with the original IG on 5 different images of the Pascal VOC 2012 dataset. In these images Geodesic IG heatmaps appears to to have fewer artefacts.
 
 \begin{figure}[ht]
 \vskip 0.2in
 \begin{center}
 \centerline{\includegraphics[width=0.5\textwidth]{figures/more_images.png}}
-\caption{Heatmaps of Integrated Gradients (middle) and Geodesic IG (right) on 5 randomly chosen images from the test set of Pascal VOC 2012. We can see that Geodesic IG heatmaps are sharper compared with the original IG method.}
+\caption{Heatmaps of Integrated Gradients (middle) and Geodesic IG (right) on 5 images from the test set of Pascal VOC 2012.}
 \label{fig:more_images}
 \end{center}
 \vskip -0.2in

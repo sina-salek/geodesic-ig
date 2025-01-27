@@ -5,45 +5,45 @@ The style file: icml2023.bst
 Database file #1: bib.bib
 Warning--I didn't find a database entry for "langley00"
 Warning--empty year in pascal-voc-2012
-You've used 23 entries,
+You've used 20 entries,
             2773 wiz_defined-function locations,
-            719 strings with 9922 characters,
-and the built_in function-call counts, 14034 in all, are:
-= -- 1209
-> -- 1075
-< -- 12
-+ -- 359
-- -- 336
-* -- 1196
-:= -- 2139
-add.period$ -- 73
-call.type$ -- 23
-change.case$ -- 181
-chr.to.int$ -- 23
-cite$ -- 47
-duplicate$ -- 571
-empty$ -- 958
-format.name$ -- 365
-if$ -- 2944
+            703 strings with 9080 characters,
+and the built_in function-call counts, 12145 in all, are:
+= -- 1053
+> -- 913
+< -- 11
++ -- 305
+- -- 285
+* -- 1023
+:= -- 1844
+add.period$ -- 64
+call.type$ -- 20
+change.case$ -- 155
+chr.to.int$ -- 20
+cite$ -- 41
+duplicate$ -- 499
+empty$ -- 837
+format.name$ -- 311
+if$ -- 2556
 int.to.chr$ -- 1
 int.to.str$ -- 1
-missing$ -- 22
-newline$ -- 123
-num.names$ -- 92
-pop$ -- 376
+missing$ -- 19
+newline$ -- 108
+num.names$ -- 80
+pop$ -- 325
 preamble$ -- 1
-purify$ -- 158
+purify$ -- 135
 quote$ -- 0
-skip$ -- 506
+skip$ -- 442
 stack$ -- 0
-substring$ -- 464
-swap$ -- 113
-text.length$ -- 8
+substring$ -- 415
+swap$ -- 102
+text.length$ -- 7
 text.prefix$ -- 0
 top$ -- 0
-type$ -- 253
+type$ -- 220
 warning$ -- 1
-while$ -- 103
+while$ -- 89
 width$ -- 0
-write$ -- 301
+write$ -- 262
 (There were 2 warnings)

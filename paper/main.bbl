@@ -1,4 +1,4 @@
-\begin{thebibliography}{23}
+\begin{thebibliography}{20}
 \providecommand{\natexlab}[1]{#1}
 \providecommand{\url}[1]{\texttt{#1}}
 \expandafter\ifx\csname urlstyle\endcsname\relax
@@ -31,13 +31,6 @@ DeYoung, J., Jain, S., Rajani, N.~F., Lehman, E., Xiong, C., Socher, R., and
 \newblock Eraser: A benchmark to evaluate rationalized nlp models.
 \newblock \emph{arXiv preprint arXiv:1911.03429}, 2019.
 
-\bibitem[Dombrowski et~al.(2019)Dombrowski, Alber, Anders, Ackermann,
-  M{\"u}ller, and Kessel]{dombrowski2019explanations}
-Dombrowski, A.-K., Alber, M., Anders, C., Ackermann, M., M{\"u}ller, K.-R., and
-  Kessel, P.
-\newblock Explanations can be manipulated and geometry is to blame.
-\newblock \emph{Advances in Neural Information Processing Systems}, 32, 2019.
-
 \bibitem[Everingham et~al.()Everingham, Van~Gool, Williams, Winn, and
   Zisserman]{pascal-voc-2012}
 Everingham, M., Van~Gool, L., Williams, C. K.~I., Winn, J., and Zisserman, A.
@@ -45,20 +38,6 @@ Everingham, M., Van~Gool, L., Williams, C. K.~I., Winn, J., and Zisserman, A.
   {R}esults.
 \newblock
   http://www.pascal-network.org/challenges/VOC/voc2012/workshop/index.html.
-
-\bibitem[Hassija et~al.(2024)Hassija, Chamola, Mahapatra, Singal, Goel, Huang,
-  Scardapane, Spinelli, Mahmud, and Hussain]{hassija2024interpreting}
-Hassija, V., Chamola, V., Mahapatra, A., Singal, A., Goel, D., Huang, K.,
-  Scardapane, S., Spinelli, I., Mahmud, M., and Hussain, A.
-\newblock Interpreting black-box models: a review on explainable artificial
-  intelligence.
-\newblock \emph{Cognitive Computation}, 16\penalty0 (1):\penalty0 45--74, 2024.
-
-\bibitem[He et~al.(2016)He, Zhang, Ren, and Sun]{he2016deep}
-He, K., Zhang, X., Ren, S., and Sun, J.
-\newblock Deep residual learning for image recognition.
-\newblock In \emph{Proceedings of the IEEE conference on computer vision and
-  pattern recognition}, pp.\  770--778, 2016.
 
 \bibitem[Jha et~al.(2020)Jha, K~Aicher, R~Gazzara, Singh, and
   Barash]{jha2020enhanced}
@@ -75,6 +54,13 @@ Kapishnikov, A., Venugopalan, S., Avci, B., Wedin, B., Terry, M., and
   noise.
 \newblock In \emph{Proceedings of the IEEE/CVF conference on computer vision
   and pattern recognition}, pp.\  5050--5058, 2021.
+
+\bibitem[Liu et~al.(2022)Liu, Mao, Wu, Feichtenhofer, Darrell, and
+  Xie]{liu2022convnet}
+Liu, Z., Mao, H., Wu, C.-Y., Feichtenhofer, C., Darrell, T., and Xie, S.
+\newblock A convnet for the 2020s.
+\newblock In \emph{Proceedings of the IEEE/CVF conference on computer vision
+  and pattern recognition}, pp.\  11976--11986, 2022.
 
 \bibitem[Lundberg \& Lee(2017)Lundberg and Lee]{lundberg2017unified}
 Lundberg, S.~M. and Lee, S.-I.
@@ -95,13 +81,6 @@ Pedregosa, F., Varoquaux, G., Gramfort, A., Michel, V., Thirion, B., Grisel,
 \newblock Scikit-learn: Machine learning in {P}ython.
 \newblock \emph{Journal of Machine Learning Research}, 12:\penalty0 2825--2830,
   2011.
-
-\bibitem[Ribeiro et~al.(2016)Ribeiro, Singh, and Guestrin]{ribeiro2016should}
-Ribeiro, M.~T., Singh, S., and Guestrin, C.
-\newblock " why should i trust you?" explaining the predictions of any
-  classifier.
-\newblock In \emph{Proceedings of the 22nd ACM SIGKDD international conference
-  on knowledge discovery and data mining}, pp.\  1135--1144, 2016.
 
 \bibitem[Sap et~al.(2019)Sap, Card, Gabriel, Choi, and Smith]{sap2019risk}
 Sap, M., Card, D., Gabriel, S., Choi, Y., and Smith, N.~A.

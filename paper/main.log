@@ -1,4 +1,4 @@
-This is pdfTeX, Version 3.141592653-2.6-1.40.26 (TeX Live 2024) (preloaded format=pdflatex 2025.1.23)  26 JAN 2025 08:30
+This is pdfTeX, Version 3.141592653-2.6-1.40.26 (TeX Live 2024) (preloaded format=pdflatex 2025.1.23)  27 JAN 2025 07:53
 entering extended mode
  restricted \write18 enabled.
  %&-line parsing enabled.
@@ -982,7 +982,7 @@ l.117
 <figures/svi_ig_moons.png, id=141, 462.528pt x 346.896pt>
 File: figures/svi_ig_moons.png Graphic file (type png)
 <use figures/svi_ig_moons.png>
-Package pdftex.def Info: figures/svi_ig_moons.png  used on input line 138.
+Package pdftex.def Info: figures/svi_ig_moons.png  used on input line 139.
 (pdftex.def)             Requested size: 234.8775pt x 176.15768pt.
 
 Underfull \vbox (badness 10000) has occurred while \output is active []
@@ -992,72 +992,67 @@ pdfTeX warning (ext4): destination with the same identifier (name{figure.5}) ha
 s been already used, duplicate ignored
 <argument> ...shipout:D \box_use:N \l_shipout_box 
                                                   \__shipout_drop_firstpage_...
-l.149 
+l.150 
       
 pdfTeX warning (ext4): destination with the same identifier (name{figure.6}) ha
 s been already used, duplicate ignored
 <argument> ...shipout:D \box_use:N \l_shipout_box 
                                                   \__shipout_drop_firstpage_...
-l.149 
+l.150 
        <./figures/bridge.png> <./figures/svi_ig_moons.png>]) (./experiments.tex
 [6]
 LaTeX Font Info:    Trying to load font information for TS1+ptm on input line 6
-7.
+6.
  (/usr/local/texlive/2024/texmf-dist/tex/latex/psnfss/ts1ptm.fd
 File: ts1ptm.fd 2001/06/04 font definitions for TS1/ptm.
-)
-Underfull \vbox (badness 10000) has occurred while \output is active []
-
-
-
-LaTeX Warning: Reference `fig:puppy' on page 7 undefined on input line 96.
-
-) (./related_work.tex
-Underfull \vbox (badness 10000) has occurred while \output is active []
-
- [7
+))
+(./related_work.tex [7
 pdfTeX warning (ext4): destination with the same identifier (name{table.1}) has
  been already used, duplicate ignored
 <argument> ...shipout:D \box_use:N \l_shipout_box 
                                                   \__shipout_drop_firstpage_...
-l.5 
-    
+l.1 \section
+            {Related Work}
 pdfTeX warning (ext4): destination with the same identifier (name{table.2}) has
  been already used, duplicate ignored
 <argument> ...shipout:D \box_use:N \l_shipout_box 
                                                   \__shipout_drop_firstpage_...
-l.5 
-    ]
-<figures/enhanced_ig_y.pdf, id=237, 722.7pt x 578.16pt>
+l.1 \section
+            {Related Work}]
+<figures/enhanced_ig_y.pdf, id=243, 722.7pt x 578.16pt>
 File: figures/enhanced_ig_y.pdf Graphic file (type pdf)
 <use figures/enhanced_ig_y.pdf>
 Package pdftex.def Info: figures/enhanced_ig_y.pdf  used on input line 11.
 (pdftex.def)             Requested size: 234.8775pt x 187.89977pt.
-) (./discussion.tex)
-
-Package natbib Warning: Citation `langley00' undefined on input line 123.
-
-(./main.bbl
+) (./discussion.tex
 Underfull \vbox (badness 10000) has occurred while \output is active []
+
+
+Underfull \vbox (badness 1005) has occurred while \output is active []
 
  [8
 pdfTeX warning (ext4): destination with the same identifier (name{figure.7}) ha
 s been already used, duplicate ignored
 <argument> ...shipout:D \box_use:N \l_shipout_box 
                                                   \__shipout_drop_firstpage_...
-l.15 
-      <./figures/enhanced_ig_y.pdf>]
-Overfull \hbox (12.59517pt too wide) in paragraph at lines 43--48
+l.7 T
+     o approximate geodesic paths, we proposed two methods: one based on $k$...
+ <./figures/enhanced_ig_y.pdf>])
+
+Package natbib Warning: Citation `langley00' undefined on input line 123.
+
+(./main.bbl
+Overfull \hbox (12.59517pt too wide) in paragraph at lines 36--41
 \OT1/ptm/m/n/10 (-20) network.org/challenges/VOC/voc2012/workshop/index.html. 
  []
 
 ) [9] (./appendix.tex
-<figures/noises.png, id=284, 824.07875pt x 206.7725pt>
+<figures/noises.png, id=287, 824.07875pt x 206.7725pt>
 File: figures/noises.png Graphic file (type png)
 <use figures/noises.png>
 Package pdftex.def Info: figures/noises.png  used on input line 9.
 (pdftex.def)             Requested size: 439.03726pt x 110.15996pt.
-<figures/knn.png, id=286, 870.25125pt x 204.765pt>
+<figures/knn.png, id=289, 870.25125pt x 204.765pt>
 File: figures/knn.png Graphic file (type png)
 <use figures/knn.png>
 Package pdftex.def Info: figures/knn.png  used on input line 21.
@@ -1077,7 +1072,7 @@ s been already used, duplicate ignored
                                                   \__shipout_drop_firstpage_...
 l.28 \newpage
               <./figures/noises.png> <./figures/knn.png>]
-<figures/more_images.png, id=296, 375.804pt x 704.3916pt>
+<figures/more_images.png, id=299, 375.804pt x 704.3916pt>
 File: figures/more_images.png Graphic file (type png)
 <use figures/more_images.png>
 Package pdftex.def Info: figures/more_images.png  used on input line 38.
@@ -1097,46 +1092,43 @@ l.142 \end{document}
 LaTeX2e <2023-11-01> patch level 1
 L3 programming layer <2024-02-20>
  ***********
-
-
-LaTeX Warning: There were undefined references.
-
 Package rerunfilecheck Info: File `main.out' has not changed.
 (rerunfilecheck)             Checksum: D41D8CD98F00B204E9800998ECF8427E;0.
  ) 
 Here is how much of TeX's memory you used:
- 26913 strings out of 474116
- 498255 string characters out of 5743682
- 1961187 words of memory out of 5000000
- 48381 multiletter control sequences out of 15000+600000
- 601751 words of font info for 302 fonts, out of 8000000 for 9000
+ 26896 strings out of 474116
+ 497880 string characters out of 5743682
+ 1960187 words of memory out of 5000000
+ 48372 multiletter control sequences out of 15000+600000
+ 601475 words of font info for 299 fonts, out of 8000000 for 9000
  1141 hyphenation exceptions out of 8191
  99i,18n,101p,1823b,583s stack positions out of 10000i,1000n,20000p,200000b,200000s
 </usr/local/texlive/2024/texmf-dist/fonts/type1/public/amsfonts/cmextra/cmbsy
 7.pfb></usr/local/texlive/2024/texmf-dist/fonts/type1/public/amsfonts/cm/cmex10
 .pfb></usr/local/texlive/2024/texmf-dist/fonts/type1/public/amsfonts/cmextra/cm
 ex7.pfb></usr/local/texlive/2024/texmf-dist/fonts/type1/public/amsfonts/cm/cmmi
-10.pfb></usr/local/texlive/2024/texmf-dist/fonts/type1/public/amsfonts/cm/cmmi6
-.pfb></usr/local/texlive/2024/texmf-dist/fonts/type1/public/amsfonts/cm/cmmi7.p
-fb></usr/local/texlive/2024/texmf-dist/fonts/type1/public/amsfonts/cm/cmmi9.pfb
-></usr/local/texlive/2024/texmf-dist/fonts/type1/public/amsfonts/cm/cmmib10.pfb
-></usr/local/texlive/2024/texmf-dist/fonts/type1/public/amsfonts/cm/cmr10.pfb><
-/usr/local/texlive/2024/texmf-dist/fonts/type1/public/amsfonts/cm/cmr6.pfb></us
-r/local/texlive/2024/texmf-dist/fonts/type1/public/amsfonts/cm/cmr7.pfb></usr/l
-ocal/texlive/2024/texmf-dist/fonts/type1/public/amsfonts/cm/cmr9.pfb></usr/loca
-l/texlive/2024/texmf-dist/fonts/type1/public/amsfonts/cm/cmsy10.pfb></usr/local
-/texlive/2024/texmf-dist/fonts/type1/public/amsfonts/cm/cmsy6.pfb></usr/local/t
-exlive/2024/texmf-dist/fonts/type1/public/amsfonts/cm/cmsy7.pfb></usr/local/tex
-live/2024/texmf-dist/fonts/type1/public/amsfonts/cm/cmsy9.pfb></usr/local/texli
-ve/2024/texmf-dist/fonts/type1/public/amsfonts/symbols/msbm10.pfb></usr/local/t
-exlive/2024/texmf-dist/fonts/type1/urw/times/utmb8a.pfb></usr/local/texlive/202
-4/texmf-dist/fonts/type1/urw/times/utmr8a.pfb></usr/local/texlive/2024/texmf-di
-st/fonts/type1/urw/times/utmr8a.pfb></usr/local/texlive/2024/texmf-dist/fonts/t
-ype1/urw/times/utmri8a.pfb>
-Output written on main.pdf (11 pages, 4015753 bytes).
+10.pfb></usr/local/texlive/2024/texmf-dist/fonts/type1/public/amsfonts/cm/cmmi5
+.pfb></usr/local/texlive/2024/texmf-dist/fonts/type1/public/amsfonts/cm/cmmi6.p
+fb></usr/local/texlive/2024/texmf-dist/fonts/type1/public/amsfonts/cm/cmmi7.pfb
+></usr/local/texlive/2024/texmf-dist/fonts/type1/public/amsfonts/cm/cmmi9.pfb><
+/usr/local/texlive/2024/texmf-dist/fonts/type1/public/amsfonts/cm/cmmib10.pfb><
+/usr/local/texlive/2024/texmf-dist/fonts/type1/public/amsfonts/cm/cmr10.pfb></u
+sr/local/texlive/2024/texmf-dist/fonts/type1/public/amsfonts/cm/cmr6.pfb></usr/
+local/texlive/2024/texmf-dist/fonts/type1/public/amsfonts/cm/cmr7.pfb></usr/loc
+al/texlive/2024/texmf-dist/fonts/type1/public/amsfonts/cm/cmr9.pfb></usr/local/
+texlive/2024/texmf-dist/fonts/type1/public/amsfonts/cm/cmsy10.pfb></usr/local/t
+exlive/2024/texmf-dist/fonts/type1/public/amsfonts/cm/cmsy6.pfb></usr/local/tex
+live/2024/texmf-dist/fonts/type1/public/amsfonts/cm/cmsy7.pfb></usr/local/texli
+ve/2024/texmf-dist/fonts/type1/public/amsfonts/cm/cmsy9.pfb></usr/local/texlive
+/2024/texmf-dist/fonts/type1/public/amsfonts/symbols/msbm10.pfb></usr/local/tex
+live/2024/texmf-dist/fonts/type1/urw/times/utmb8a.pfb></usr/local/texlive/2024/
+texmf-dist/fonts/type1/urw/times/utmr8a.pfb></usr/local/texlive/2024/texmf-dist
+/fonts/type1/urw/times/utmr8a.pfb></usr/local/texlive/2024/texmf-dist/fonts/typ
+e1/urw/times/utmri8a.pfb>
+Output written on main.pdf (11 pages, 4023604 bytes).
 PDF statistics:
- 411 PDF objects out of 1000 (max. 8388607)
- 314 compressed objects within 4 object streams
- 78 named destinations out of 1000 (max. 500000)
+ 417 PDF objects out of 1000 (max. 8388607)
+ 318 compressed objects within 4 object streams
+ 75 named destinations out of 1000 (max. 500000)
  65599 words of extra memory for PDF output out of 74296 (max. 10000000)
 

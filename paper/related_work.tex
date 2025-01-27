@@ -3,13 +3,13 @@
 
 Approximating geodesic paths is a widely studied area of research, and many methods to do so have been developed. For a comprehensive survey on this subject, please refer to \citet{crane2020survey}. Our work is specifically inspired from the ISOMAP method \citep{tenenbaum2000global}, a dimensionality reduction method which approximates geodesic paths on a manifold. However, our method differs from ISOMAP in that we weight our graph not using euclidean distance, but the norms of a model's gradients. Our aim is indeed not to model the input space, but to explain a neural network by building paths avoiding high-gradients regions.
 
-As mentioned in Section \ref{sec:experiments}, the idea of using a kNN algorithm to avoid computing gradients on out of distribution data points has also been used in Enhanced Integrated Gradients \citet{jha2020enhanced}. However, this method creates a path which is model agnostic, as it does not necessarily avoid high gradients regions. As a result, it can lead to significant artefacts which do not reflect the model's behaviour. To support this argument, we provide an example where this method fails on the half-moons datasets (Figure \ref{fig:enhanced_ig}). 
+As mentioned in Section \ref{sec:experiments}, the idea of using a $k$NN algorithm to avoid computing gradients on out of distribution data points has also been used in Enhanced Integrated Gradients \citet{jha2020enhanced}. However, this method creates a path which is model agnostic, as it does not necessarily avoid high gradients regions. As a result, it can lead to significant artefacts which do not reflect the model's behaviour. To support this argument, we provide an example where this method fails on the half-moons datasets (Figure \ref{fig:enhanced_ig}). 
 
 \begin{figure}[ht]
 \vskip -0.2in
 \begin{center}
 \centerline{\includegraphics[width=\columnwidth]{figures/enhanced_ig_y.pdf}}
-\caption{\textbf{Enhanced IG attributions.} Enhanced IG computes a kNN algorithm, uses Dijsktra to find the shortest path between an input and a reference baseline, and computes gradients along this path. However, this method is model agnostic and can as a result cross a high gradients region, which is the case in this example, between the input A and the baseline B. Input A therefore has a high attribution which does not reflect the model's true behavior. In this example, the noise is $\mathcal{N}(0, 0.15)$.}
+\caption{\textbf{Enhanced IG attributions.} Enhanced IG computes a $k$NN algorithm, uses Dijsktra to find the shortest path between an input and a reference baseline, and computes gradients along this path. However, this method is model agnostic and can as a result cross a high gradients region, which is the case in this example, between the input A and the baseline B. Input A therefore has a high attribution which does not reflect the model's true behavior. In this example, the noise is $\mathcal{N}(0, 0.15)$.}
 \label{fig:enhanced_ig}
 \end{center}
 \vskip -0.2in
