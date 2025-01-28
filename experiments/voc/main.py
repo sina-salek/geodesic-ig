@@ -693,12 +693,6 @@ def parse_args():
         action="store_true",
         help="Whether to make training deterministic or not.",
     )
-    parser.add_argument(
-        "--classifier_name",
-        type=str,
-        default="resnet18",
-        help="Name of the classifier to use.",
-    )
     return parser.parse_args()
 
 
