@@ -38,22 +38,16 @@ def _base_metric(
     draw_baseline_from_distrib: bool = False,
     topk: float = 0.2,
     largest: bool = True,
-    weight_fn: Callable[
-        [Tuple[Tensor, ...], Tuple[Tensor, ...]], Tensor
-    ] = None,
+    weight_fn: Callable[[Tuple[Tensor, ...], Tuple[Tensor, ...]], Tensor] = None,
     classification: bool = True,
     **kwargs,
 ) -> float:
     # Format data
     inputs = _format_tensor_into_tuples(inputs)  # type: ignore
-    additional_forward_args = _format_additional_forward_args(
-        additional_forward_args
-    )
+    additional_forward_args = _format_additional_forward_args(additional_forward_args)
     attributions = _format_tensor_into_tuples(attributions)  # type: ignore
     if baselines is not None:
-        baselines = _format_baseline(
-            baselines, cast(Tuple[Tensor, ...], inputs)
-        )
+        baselines = _format_baseline(baselines, cast(Tuple[Tensor, ...], inputs))
         _validate_input(
             inputs,
             baselines,
@@ -129,16 +123,16 @@ def _base_metric(
         # Replace topk values with baseline
         if _baselines is None:
             inputs_pert = tuple(
-                inp.reshape(len(inp), -1)
-                .scatter(-1, topk_idx, 0)
-                .reshape(inp.shape)
+                inp.reshape(len(inp), -1).scatter(-1, topk_idx, 0).reshape(inp.shape)
                 for inp, topk_idx in zip(inputs_pert, topk_indices)
             )
         else:
             _baselines = tuple(
-                baseline
-                if isinstance(baseline, (int, float))
-                else baseline.reshape(len(baseline), -1).gather(-1, topk_idx)
+                (
+                    baseline
+                    if isinstance(baseline, (int, float))
+                    else baseline.reshape(len(baseline), -1).gather(-1, topk_idx)
+                )
                 for baseline, topk_idx in zip(_baselines, topk_indices)
             )
             inputs_pert = tuple(

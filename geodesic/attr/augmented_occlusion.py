@@ -74,9 +74,7 @@ class AugmentedOcclusion(Occlusion):
     def attribute(  # type: ignore
         self,
         inputs: TensorOrTupleOfTensorsGeneric,
-        sliding_window_shapes: Union[
-            Tuple[int, ...], Tuple[Tuple[int, ...], ...]
-        ],
+        sliding_window_shapes: Union[Tuple[int, ...], Tuple[Tuple[int, ...], ...]],
         strides: Union[
             None, int, Tuple[int, ...], Tuple[Union[int, Tuple[int, ...]], ...]
         ] = None,

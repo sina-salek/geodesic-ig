@@ -1,4 +1,3 @@
-
 import torch
 
 from captum.log import log_usage
@@ -15,9 +14,7 @@ from typing import Any, Callable, Tuple, Union
 from .base import _base_metric
 
 
-def _log_odds(
-    prob_original: Tensor, prob_pert: Tensor, target: Tensor
-) -> Tensor:
+def _log_odds(prob_original: Tensor, prob_pert: Tensor, target: Tensor) -> Tensor:
     return _select_targets(torch.log(prob_pert), target) - _select_targets(
         torch.log(prob_original), target
     )
@@ -36,9 +33,7 @@ def log_odds(
     stdevs: Union[float, Tuple[float, ...]] = 0.0,
     draw_baseline_from_distrib: bool = False,
     topk: float = 0.2,
-    weight_fn: Callable[
-        [Tuple[Tensor, ...], Tuple[Tensor, ...]], Tensor
-    ] = None,
+    weight_fn: Callable[[Tuple[Tensor, ...], Tuple[Tensor, ...]], Tensor] = None,
 ) -> float:
     """
     Log-odds metric.

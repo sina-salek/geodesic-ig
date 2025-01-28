@@ -102,8 +102,12 @@ def main(
             # Create dataloaders
             train = TensorDataset(x_train, y_train)
             test = TensorDataset(x_test, y_test)
-            train_loader = DataLoader(train, batch_size=32, shuffle=True, pin_memory=True)
-            test_loader = DataLoader(test, batch_size=32, shuffle=False, pin_memory=True)
+            train_loader = DataLoader(
+                train, batch_size=32, shuffle=True, pin_memory=True
+            )
+            test_loader = DataLoader(
+                test, batch_size=32, shuffle=False, pin_memory=True
+            )
 
             # Train model
             print(f"trainer device: {device}")
@@ -123,7 +127,7 @@ def main(
             th.save(y_test.cpu(), os.path.join(data_path, "y_test.pth"))
             th.save(test_loader, os.path.join(data_path, "test_loader.pth"))
             th.save(trainer, os.path.join(model_path, "trainer.pth"))
-            
+
             # Move model back to device
             net = net.to(device)
         else:
@@ -141,7 +145,9 @@ def main(
             # if device.startswith("cuda"):
             #     th.backends.cudnn.enabled = False
 
-        print(f"device at prediction: {device}. \n net device at prediction: {net.device}")
+        print(
+            f"device at prediction: {device}. \n net device at prediction: {net.device}"
+        )
         # Get predictions (already on GPU)
         pred = trainer.predict(net, test_loader)
 
@@ -162,8 +168,8 @@ def main(
         # # Create scatter plot with CPU tensors
         # plt.figure(figsize=(10, 8))
         # scatter = plt.scatter(
-        #     x_test.cpu().detach().numpy()[:, 0], 
-        #     x_test.cpu().detach().numpy()[:, 1], 
+        #     x_test.cpu().detach().numpy()[:, 0],
+        #     x_test.cpu().detach().numpy()[:, 1],
         #     c=prob_diff,
         #     cmap="viridis",
         #     s=50
@@ -181,7 +187,7 @@ def main(
             endpoint_matching = [True, False]
             for li in linear_interpolation:
                 for em in endpoint_matching:
-                        
+
                     explainer = SVI_IG(net)
                     _attr = th.zeros_like(x_test)
                     paths = []
@@ -198,7 +204,6 @@ def main(
                         use_endpoints_matching=em,
                         return_paths=True,
                     )
-
 
                     if gig_path is not None:
                         gig_path = gig_path[0]

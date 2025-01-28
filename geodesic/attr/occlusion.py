@@ -69,9 +69,7 @@ class Occlusion(FeatureAblation):
     def attribute(  # type: ignore
         self,
         inputs: TensorOrTupleOfTensorsGeneric,
-        sliding_window_shapes: Union[
-            Tuple[int, ...], Tuple[Tuple[int, ...], ...]
-        ],
+        sliding_window_shapes: Union[Tuple[int, ...], Tuple[Tuple[int, ...], ...]],
         strides: Union[
             None, int, Tuple[int, ...], Tuple[Union[int, Tuple[int, ...]], ...]
         ] = None,
@@ -261,13 +259,10 @@ class Occlusion(FeatureAblation):
         # each dimension.
         shift_counts = []
         for i, inp in enumerate(formatted_inputs):
-            current_shape = np.subtract(
-                inp.shape[1:], sliding_window_shapes[i]
-            )
+            current_shape = np.subtract(inp.shape[1:], sliding_window_shapes[i])
             # Verify sliding window doesn't exceed input dimensions.
             assert (np.array(current_shape) >= 0).all(), (
-                "Sliding window dimensions {} cannot exceed input dimensions"
-                "{}."
+                "Sliding window dimensions {} cannot exceed input dimensions" "{}."
             ).format(sliding_window_shapes[i], tuple(inp.shape[1:]))
             # Stride cannot be larger than sliding window for any dimension where
             # the sliding window doesn't cover the entire input.
@@ -283,9 +278,7 @@ class Occlusion(FeatureAblation):
             shift_counts.append(
                 tuple(
                     np.add(
-                        np.ceil(np.divide(current_shape, strides[i])).astype(
-                            int
-                        ),
+                        np.ceil(np.divide(current_shape, strides[i])).astype(int),
                         1,
                     )
                 )
@@ -401,9 +394,7 @@ class Occlusion(FeatureAblation):
             np.add(current_index, sliding_window_tsr.shape),
         )
         pad_values = [
-            val
-            for pair in zip(remaining_padding, current_index)
-            for val in pair
+            val for pair in zip(remaining_padding, current_index) for val in pair
         ]
         pad_values.reverse()
         padded_tensor = torch.nn.functional.pad(
@@ -419,6 +410,4 @@ class Occlusion(FeatureAblation):
 
     def _get_feature_counts(self, inputs, feature_mask, **kwargs):
         """return the numbers of possible input features"""
-        return tuple(
-            np.prod(counts).astype(int) for counts in kwargs["shift_counts"]
-        )
+        return tuple(np.prod(counts).astype(int) for counts in kwargs["shift_counts"])
