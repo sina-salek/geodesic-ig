@@ -1,3 +1,5 @@
+from typing import Any, List
+
 import multiprocessing as mp
 import os
 import torch as th
@@ -19,23 +21,18 @@ from argparse import ArgumentParser
 from pytorch_lightning import seed_everything
 from torch import Tensor
 from torch.utils.data import DataLoader
-from torchvision.datasets import VOCDetection, VOCSegmentation
-from typing import Any, List
+from torchvision.datasets import VOCDetection
 
 import matplotlib.pyplot as plt
 import numpy as np
 
-from geodesic.attr.geodesic_svi_ig import GeodesicIGSVI
-from geodesic.attr.geodesic_knn_ig import GeodesicIntegratedGradients
-from geodesic.attr.occlusion import Occlusion
-from geodesic.attr.augmented_occlusion import AugmentedOcclusion
+from geodesic.attr import GeodesicIGSVI, Occlusion, AugmentedOcclusion
 
 from geodesic.utils.tqdm import get_progress_bars
 
 from experiments.voc.classifier import VocClassifier
 from experiments.voc.constants import VALID_BACKBONE_NAMES
 from experiments.voc.train_classifier import setup_model
-from experiments.voc.train_classifier_softmax import setup_model as setup_model_softmax
 
 from geodesic.metrics import (
     accuracy,
@@ -48,77 +45,6 @@ from geodesic.metrics import (
 
 file_dir = os.path.dirname(__file__)
 warnings.filterwarnings("ignore")
-
-
-def plot_and_save(tensor, filename, is_attribution=False):
-
-    save_path = os.path.join(os.path.join(file_dir, "plots", filename))
-    if not os.path.exists(os.path.dirname(save_path)):
-        os.makedirs(os.path.dirname(save_path))
-
-    # Denormalize if it's the original image
-    if not is_attribution:
-        mean = np.array([0.485, 0.456, 0.406])
-        std = np.array([0.229, 0.224, 0.225])
-        tensor = (
-            tensor.detach().numpy().transpose(1, 2, 0)
-            if tensor.device == "cpu"
-            else tensor.cpu().detach().numpy().transpose(1, 2, 0)
-        )
-        tensor = std * tensor + mean
-        tensor = np.clip(tensor, 0, 1)
-    else:
-        device = tensor.device
-        tensor = (
-            tensor.detach().numpy().transpose(1, 2, 0)
-            if device == "cpu"
-            else tensor.cpu().detach().numpy().transpose(1, 2, 0)
-        )
-        tensor = np.mean(tensor, axis=2)  # Average across channels for attributions
-
-        # mean = np.array([0.485, 0.456, 0.406])
-        # std = np.array([0.229, 0.224, 0.225])
-        # device = tensor.device
-        # tensor = tensor.detach().numpy().transpose(1, 2, 0) if device == "cpu" else tensor.cpu().detach().numpy().transpose(1, 2, 0)
-        # # threshold = np.percentile(np.abs(tensor), percentile)
-        # # mask = np.abs(tensor) >= threshold
-        # # tensor = tensor * mask
-        # tensor = std * tensor + mean
-        # tensor = np.clip(tensor, 0, 1)
-
-    plt.figure(figsize=(8, 8))
-    plt.imshow(tensor)
-    plt.axis("off")
-    plt.savefig(save_path)
-    plt.close()
-
-
-def generate_augmented_points(
-    x, n_base_points=2500, n_noise_points=2500, noise_std=0.1, device="cuda"
-):
-    # Base interpolation points
-    base_points = th.rand((n_base_points,) + x.shape, device=device)
-    base_points, _ = base_points.sort(dim=0)
-
-    # Generate noise points around interpolation
-    noise_points = (
-        base_points.unsqueeze(1)
-        + th.randn(
-            (n_base_points, n_noise_points // n_base_points) + x.shape, device=device
-        )
-        * noise_std
-    )
-    noise_points = noise_points.view(-1, *x.shape)
-
-    # Combine and sort all points
-    all_points = th.cat([base_points, noise_points], dim=0)
-    all_points, _ = all_points.sort(dim=0)
-
-    # Create augmented data
-    x_aug = x.unsqueeze(0) * all_points
-
-    return x_aug
-
 
 class ModelWithSoftmax(nn.Module):
     def __init__(self, base_model, input_dim=20, output_dim=20, add_linear=False):
@@ -153,7 +79,7 @@ def main(
     accelerator = device.split(":")[0]
 
     # Get data transform
-    # TODO: Transformations in the final experiment should 224x224
+    # TODO: Transformations in the final experiment should 224x224. Here we use 128x128 for speed.
     image_size = 128
     centre_crop = 128
     transform = T.Compose(
@@ -165,20 +91,11 @@ def main(
         ]
     )
 
-    target_transform = T.Compose(
-        [
-            T.Resize(image_size),
-            T.CenterCrop(centre_crop),
-            T.ToTensor(),
-            T.Lambda(lambda x: (x * 255).long()),
-        ]
-    )
-
     # Load test data
     voc = VOCDetection(
         root=os.path.join(
             os.path.split(os.path.split(file_dir)[0])[0],
-            "tint",
+            "geodesic-ig",
             "data",
             "voc",
         ),
@@ -187,26 +104,12 @@ def main(
         download=True,
     )
 
-    # voc = VOCSegmentation(
-    #     root=os.path.join(
-    #         os.path.split(os.path.split(file_dir)[0])[0],
-    #         "tint",
-    #         "data",
-    #         "voc",
-    #     ),
-    #     image_set="val",
-    #     transform=transform,
-    #     target_transform=target_transform,
-    #     download=True,
-    # )
-
     voc_loader = DataLoader(
         voc, batch_size=1, shuffle=True, generator=th.Generator().manual_seed(2)
     )
 
     def load_model(checkpoint_path, add_softmax, add_linear=False):
-        # Initialize model
-        # model = setup_model()
+        # Initialise model
         model = setup_model()
 
         # Load checkpoint
@@ -234,28 +137,6 @@ def main(
         device = th.device("cuda" if th.cuda.is_available() else "cpu")
         model = model.to(device)
         return model
-
-    import torch.nn as nn
-    import torch.nn.functional as F
-
-    class VocClassifierWithNewHead(nn.Module):
-        def __init__(self, base_model: VocClassifier):
-            super().__init__()
-            self.base_model = base_model
-            # Freeze base model weights
-            for param in self.base_model.parameters():
-                param.requires_grad = False
-
-            # Add new untrained head (20->20)
-            self.new_head = nn.Linear(20, 20)
-
-        def forward(self, x):
-            # Get base model output before softmax
-            # Note: base_model(x) would include softmax, so we use backbone directly
-            x = self.base_model(x)
-            # Add new head
-            x = self.new_head(x)
-            return F.log_softmax(x, dim=-1)
 
     models = dict()
     # Load models
@@ -287,36 +168,16 @@ def main(
             .to(device)
         )
 
-        # model_with_untrained_head = VocClassifierWithNewHead(trained_head).eval().to(device)
-        # TODO: tidy this up
-        # trained_model = {
-        #     "trained_head": load_model('/home/sinasalek/geodesic-ig/experiments/voc/checkpoints/checkpoint_epoch_180.pt').eval().to(device),
-        #     "untrained_head": VocClassifier(model_name).eval().to(device)
-        # }
-
-        # heads = {
-        #     "trained_head": trained_head.eval().to(device),
-        #     "untrained_head": model_with_untrained_head.eval().to(device)
-        # }
 
         heads = {
-            # "trained_head": trained_head.eval().to(device),
             "trained_head": trained_head.eval().to(device),
             "untrained_head": untrained_head.eval().to(device),
             "svi_head": svi_head.eval().to(device),
         }
         models[model_name] = heads
 
-        # models[model_name] = load_model('/home/sinasalek/geodesic-ig/experiments/voc/checkpoints/checkpoint_epoch_180.pt')
-        # models[model_name] = VocClassifier(model_name).eval().to(device)
-        # models[model_name] = trained_model
         print(f"Loaded model: {model_name}")
 
-        # Switch to eval
-        # models[model_name].eval()
-
-        # # Set model to device
-        # models[model_name].to(device)
 
     # Disable cudnn if using cuda accelerator.
     # Please see https://captum.ai/docs/faq#how-can-i-resolve-cudnn-rnn-backward-error-for-rnn-or-lstm-network
@@ -324,43 +185,14 @@ def main(
     if accelerator == "cuda":
         th.backends.cudnn.enabled = False
 
-    VOC_CLASSES = [
-        "aeroplane",
-        "bicycle",
-        "bird",
-        "boat",
-        "bottle",
-        "bus",
-        "car",
-        "cat",
-        "chair",
-        "cow",
-        "diningtable",
-        "dog",
-        "horse",
-        "motorbike",
-        "person",
-        "pottedplant",
-        "sheep",
-        "sofa",
-        "train",
-        "tvmonitor",
-    ]
-
     # Get data as tensors
     x_test = list()
-    # y_test = list()
     i = 0
     for data, target in voc_loader:
         if i == 1:
             break
 
-        # # Extract first object class as the target
-        # class_name = list(target['annotation']['object'][0]['name'])
-        # class_idx = VOC_CLASSES.index(class_name[0])
-
         x_test.append(data)
-        # y_test.append(class_idx)
         i += 1
 
     print(f"Number of test samples: {len(x_test)}")
@@ -369,84 +201,12 @@ def main(
     # Baseline is a normalised black image
     normalizer = T.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
     baselines = normalizer(th.zeros_like(x_test))
-    # y_test = th.tensor(y_test).to(device)
-
-    # x_test = list()
-    # seg_test = list()
-    # i = 0
-    # for data, seg in voc_loader:
-    #     if i == 1:
-    #         break
-
-    #     seg_ids = seg.unique()
-    #     if len(seg_ids) <= 1:
-    #         continue
-
-    #     seg_ = seg.clone()
-    #     for j, seg_id in enumerate(seg_ids):
-    #         seg_[seg_ == seg_id] = j
-
-    #     x_test.append(data)
-    #     seg_test.append(seg_)
-    #     i += 1
-
-    # x_test = th.cat(x_test).to(device)
-    # seg_test = th.cat(seg_test).to(device)
 
     # Create dict of attributions, explainers
     attr = dict()
-    expl = dict()
 
-    # Save the first 10 images
-    for i in range(min(10, len(x_test))):
-        image_extended_path = os.path.join("original_images", f"original_image_{i}.png")
-        plot_and_save(x_test[i], image_extended_path)
     now = np.datetime64("now").astype(str)
 
-    if "geodesic_integrated_gradients" in explainers:
-        _attr = list()
-        model = models["convnext_base"]
-        y_test = model(x_test).argmax(-1).to(device)
-
-        for model_name, model_with_head in models.items():
-            model = model_with_head["trained_head"]
-            # Target is the model prediction
-            y_test = model(x_test).argmax(-1).to(device)
-
-            for i, (x, y, b) in get_progress_bars()(
-                enumerate(zip(x_test, y_test, baselines)),
-                total=len(x_test),
-                desc=f"{GeodesicIntegratedGradients.get_name()} attribution",
-            ):
-                x_aug = generate_augmented_points(
-                    x, n_base_points=50, n_noise_points=0, device=device
-                )
-                explainer = GeodesicIntegratedGradients(
-                    model, data=x_aug, n_neighbors=5
-                )
-
-                _attr.append(
-                    explainer.attribute(
-                        x.unsqueeze(0),
-                        baselines=b.unsqueeze(0),
-                        target=y.item(),
-                        internal_batch_size=100,
-                    ).squeeze(0)
-                )
-
-            attr[f"geodesic_integrated_gradients_{model_name}"] = th.stack(_attr)
-            expl[f"geodesic_integrated_gradients_{model_name}"] = explainer
-            for i in range(min(10, len(x_test))):
-                image_extended_path = os.path.join(
-                    now,
-                    "attribution_geodesic_integrated_gradients",
-                    f"attribution_geodesic_integrated_gradients_{model_name}_{i}.png",
-                )
-                plot_and_save(
-                    attr[f"geodesic_integrated_gradients_{model_name}"][i],
-                    image_extended_path,
-                    is_attribution=True,
-                )
     if "kernel_shap" in explainers:
         for model_name, model_with_head in models.items():
             model = model_with_head["trained_head"]
@@ -468,18 +228,6 @@ def main(
                     ).squeeze(0)
                 )
             attr[f"kernel_shap_{model_name}"] = th.stack(_attr)
-            expl[f"kernel_shap_{model_name}"] = explainer
-            for i in range(min(10, len(x_test))):
-                image_extended_path = os.path.join(
-                    now,
-                    "attribution_kernel_shap",
-                    f"attribution_kernel_shap_{model_name}_{i}.png",
-                )
-                plot_and_save(
-                    attr[f"kernel_shap_{model_name}"][i],
-                    image_extended_path,
-                    is_attribution=True,
-                )
 
     if "gradient_shap" in explainers:
         for model_name, model_with_head in models.items():
@@ -502,18 +250,6 @@ def main(
                     ).squeeze(0)
                 )
             attr[f"gradient_shap_{model_name}"] = th.stack(_attr)
-            expl[f"gradient_shap_{model_name}"] = explainer
-            for i in range(min(10, len(x_test))):
-                image_extended_path = os.path.join(
-                    now,
-                    "attribution_gradient_shap",
-                    f"attribution_gradient_shap_{model_name}_{i}.png",
-                )
-                plot_and_save(
-                    attr[f"gradient_shap_{model_name}"][i],
-                    image_extended_path,
-                    is_attribution=True,
-                )
 
     if "integrated_gradients" in explainers:
 
@@ -539,25 +275,12 @@ def main(
                     ).squeeze(0)
                 )
             attr[f"integrated_gradients_{model_name}"] = th.stack(_attr)
-            expl[f"integrated_gradients_{model_name}"] = explainer
 
-            for i in range(min(10, len(x_test))):
-                image_extended_path = os.path.join(
-                    now,
-                    "attribution_integrated_gradients",
-                    f"attribution_integrated_gradients_{model_name}_{i}.png",
-                )
-                plot_and_save(
-                    attr[f"integrated_gradients_{model_name}"][i],
-                    image_extended_path,
-                    is_attribution=True,
-                )
 
     if "guided_integrated_gradients" in explainers:
         n_steps = 50
         guided_ig = saliency.GuidedIG()
 
-        # transformer = T.Normalize((0.485, 0.456, 0.406), (0.229, 0.224, 0.225))
         transformer = T.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
 
         def PreprocessImages(images):
@@ -576,16 +299,6 @@ def main(
         for model_name, model_with_head in models.items():
             model = model_with_head["trained_head"]
 
-            # conv_layer = model.Mixed_7c
-            # conv_layer_outputs = {}
-            # def conv_layer_forward(m, i, o):
-            #     # move the RGB dimension to the last dimension
-            #     conv_layer_outputs[saliency.base.CONVOLUTION_LAYER_VALUES] = th.movedim(o, 1, 3).detach().numpy()
-            # def conv_layer_backward(m, i, o):
-            #     # move the RGB dimension to the last dimension
-            #     conv_layer_outputs[saliency.base.CONVOLUTION_OUTPUT_GRADIENTS] = th.movedim(o[0], 1, 3).detach().numpy()
-            # conv_layer.register_forward_hook(conv_layer_forward)
-            # conv_layer.register_full_backward_hook(conv_layer_backward)
             def call_model_function(images, call_model_args=None, expected_keys=None):
                 images = PreprocessImages(images)
                 target_class_idx = call_model_args[class_idx_str]
@@ -600,12 +313,7 @@ def main(
                     grads = th.movedim(grads[0], 1, 3)
                     gradients = grads.detach().numpy()
                     return {saliency.base.INPUT_OUTPUT_GRADIENTS: gradients}
-                else:
-                    one_hot = th.zeros_like(output)
-                    one_hot[:, target_class_idx] = 1
-                    model.zero_grad()
-                    output.backward(gradient=one_hot, retain_graph=True)
-                    return conv_layer_outputs
+
 
             # Target is the model prediction
             y_test = model(x_test).argmax(-1).to(device)
@@ -638,46 +346,26 @@ def main(
                     ).permute(2, 0, 1)
                 )
             attr[f"guided_integrated_gradients_{model_name}"] = th.stack(_attr)
-            expl[f"guided_integrated_gradients_{model_name}"] = guided_ig
-            for i in range(min(10, len(x_test))):
-                image_extended_path = os.path.join(
-                    now,
-                    "attribution_guided_integrated_gradients",
-                    f"attribution_guided_integrated_gradients_{model_name}_{i}.png",
-                )
-                plot_and_save(
-                    attr[f"guided_integrated_gradients_{model_name}"][i],
-                    image_extended_path,
-                    is_attribution=True,
-                )
+            
     if "svi_integrated_gradients" in explainers:
         num_iterations = 500
-        """
-        Notes: 
-        I tried beta = 0.1 and num_iterations = 1000. See the results at 2025-01-19T06:11:35. 
-        The parts that are constructed are very good, but the total image is incomplete. I want
-        to see if there are other settings with shorter num_iterations.
-
-        Settings to try: different models, beta = 0.1, num_iterations = 500 and 1000, learning_rate = 0.001 and 0.01
-        """
-        beta = 0.1  # try  0.1, 0.05
-        linear_interpolation = [False]  # False
-        endpoint_matching = [True]  # True
+        beta = 0.1  
+        linear_interpolation = [False] 
+        endpoint_matching = [True]  
         learning_rate_decay = True
         n_steps = 50
-        learning_rate = 0.01  # 0.01
+        learning_rate = 0.01  
         for li in linear_interpolation:
             for em in endpoint_matching:
                 for model_name, model_with_head in models.items():
-                    # model = model_with_head["untrained_head"]
-                    model = model_with_head["trained_head"]  # trained_head #svi_head
+                    model = model_with_head["trained_head"] 
 
                     # Ensure input data is on same device
                     x_test = x_test.to(device)
                     model = model.to(device)
                     y_test = model_with_head["trained_head"](x_test).argmax(
                         -1
-                    )  # Result already on GPU
+                    )  
 
                     _attr = list()
                     explainer = GeodesicIGSVI(model)
@@ -702,36 +390,6 @@ def main(
                     attr[
                         f"svi_integrated_gradients_{model_name}_{em}_{li}_{num_iterations}_{n_steps}_{beta}_{learning_rate}_{learning_rate_decay}"
                     ] = th.stack(_attr)
-                    expl[
-                        f"svi_integrated_gradients_{model_name}_{em}_{li}_{num_iterations}_{n_steps}_{beta}_{learning_rate}_{learning_rate_decay}"
-                    ] = explainer
-                    for i in range(min(10, len(x_test))):
-                        image_extended_path = os.path.join(
-                            now,
-                            "attribution_svi_integrated_gradients",
-                            f"attribution_svi_integrated_gradients_{model_name}_{em}_{li}_{num_iterations}_{n_steps}_{beta}_{learning_rate}_{learning_rate_decay}_{i}.png",
-                        )
-                        plot_and_save(
-                            attr[
-                                f"svi_integrated_gradients_{model_name}_{em}_{li}_{num_iterations}_{n_steps}_{beta}_{learning_rate}_{learning_rate_decay}"
-                            ][i],
-                            image_extended_path,
-                            is_attribution=True,
-                        )
-
-                    for i in range(min(10, len(x_test))):
-                        image_extended_path = os.path.join(
-                            now,
-                            "attribution_svi_integrated_gradients",
-                            f"attribution_svi_integrated_gradients_{model_name}_{em}_{li}_{num_iterations}_{n_steps}_{beta}_{learning_rate}_{learning_rate_decay}_{i}_n_attr.png",
-                        )
-                        plot_and_save(
-                            attr[
-                                f"svi_integrated_gradients_{model_name}_{em}_{li}_{num_iterations}_{n_steps}_{beta}_{learning_rate}_{learning_rate_decay}"
-                            ][i],
-                            image_extended_path,
-                            is_attribution=False,
-                        )
 
     if "input_x_gradient" in explainers:
         for model_name, model_with_head in models.items():
@@ -755,52 +413,7 @@ def main(
                     ).squeeze(0)
                 )
             attr[f"input_x_gradient_{model_name}"] = th.stack(_attr)
-            expl[f"input_x_gradient_{model_name}"] = explainer
-            for i in range(min(10, len(x_test))):
-                image_extended_path = os.path.join(
-                    now,
-                    "attribution_input_x_gradient",
-                    f"attribution_input_x_gradient_{model_name}_{i}.png",
-                )
-                plot_and_save(
-                    attr[f"input_x_gradient_{model_name}"][i],
-                    image_extended_path,
-                    is_attribution=True,
-                )
-
-    if "lime" in explainers:
-        for model_name, model_with_head in models.items():
-            model = model_with_head["trained_head"]
-            # Target is the model prediction
-            x_test = x_test.to(device)
-            model = model.to(device)
-            y_test = model(x_test).argmax(-1).to(device)
-
-            explainer = Lime(model)
-            _attr = list()
-            for i, (x, y, b) in get_progress_bars()(
-                enumerate(zip(x_test, y_test, baselines)),
-                total=len(x_test),
-                desc="Lime attribution",
-            ):
-                _attr.append(
-                    explainer.attribute(
-                        x.unsqueeze(0),
-                        baselines=b.unsqueeze(0),
-                        target=y.item(),
-                    ).squeeze(0)
-                )
-            attr[f"lime_{model_name}"] = th.stack(_attr)
-            expl[f"lime_{model_name}"] = explainer
-            for i in range(min(10, len(x_test))):
-                image_extended_path = os.path.join(
-                    now, "attribution_lime", f"attribution_lime_{model_name}_{i}.png"
-                )
-                plot_and_save(
-                    attr[f"lime_{model_name}"][i],
-                    image_extended_path,
-                    is_attribution=True,
-                )
+            
 
     if "augmented_occlusion" in explainers:
         for model_name, model_with_head in models.items():
@@ -827,18 +440,7 @@ def main(
                     ).squeeze(0)
                 )
             attr[f"augmented_occlusion_{model_name}"] = th.stack(_attr)
-            expl[f"augmented_occlusion_{model_name}"] = explainer
-            for i in range(min(10, len(x_test))):
-                image_extended_path = os.path.join(
-                    now,
-                    "attribution_augmented_occlusion",
-                    f"attribution_augmented_occlusion_{model_name}_{i}.png",
-                )
-                plot_and_save(
-                    attr[f"augmented_occlusion_{model_name}"][i],
-                    image_extended_path,
-                    is_attribution=True,
-                )
+
 
     if "occlusion" in explainers:
         for model_name, model_with_head in models.items():
@@ -866,19 +468,7 @@ def main(
                     ).squeeze(0)
                 )
             attr[f"occlusion_{model_name}"] = th.stack(_attr)
-            expl[f"occlusion_{model_name}"] = explainer
-            for i in range(min(10, len(x_test))):
-                image_extended_path = os.path.join(
-                    now,
-                    "attribution_occlusion",
-                    f"attribution_occlusion_{model_name}_{i}.png",
-                )
-                plot_and_save(
-                    attr[f"occlusion_{model_name}"][i],
-                    image_extended_path,
-                    is_attribution=True,
-                )
-
+           
     if "smooth_grad" in explainers:
         for model_name, model_with_head in models.items():
             model = model_with_head["trained_head"]
@@ -906,14 +496,6 @@ def main(
                     ).squeeze(0)
                 )
             attr["smooth_grad"] = th.stack(_attr)
-            expl["smooth_grad"] = explainer
-            for i in range(min(10, len(x_test))):
-                image_extended_path = os.path.join(
-                    now, "attribution_smooth_grad", f"attribution_smooth_grad_{i}.png"
-                )
-                plot_and_save(
-                    attr["smooth_grad"][i], image_extended_path, is_attribution=True
-                )
 
     if "random" in explainers:
         for model_name, model in models.items():
@@ -926,18 +508,6 @@ def main(
             ):
                 _attr.append(th.rand_like(x))
             attr[f"random_{model_name}"] = th.stack(_attr)
-            expl[f"random_{model_name}"] = None
-            for i in range(min(10, len(x_test))):
-                image_extended_path = os.path.join(
-                    now,
-                    "attribution_random",
-                    f"attribution_random_{model_name}_{i}.png",
-                )
-                plot_and_save(
-                    attr[f"random_{model_name}"][i],
-                    image_extended_path,
-                    is_attribution=True,
-                )
 
     # Save attributions
     attr_path = os.path.join(os.path.join(file_dir, "plots", now, "attributions"))
@@ -945,23 +515,9 @@ def main(
         os.makedirs(attr_path)
 
     attr_cpu = {k: v.cpu() if th.is_tensor(v) else v for k, v in attr.items()}
-    # expl_cpu = {k: v.cpu() if th.is_tensor(v) else v for k, v in expl.items()}
 
     # Save CPU tensors
     th.save(attr_cpu, os.path.join(attr_path, "attributions.pt"))
-    # th.save(expl_cpu, os.path.join(attr_path, "explainers.pt"))
-
-    # for model_name in VALID_BACKBONE_NAMES:
-    #     # TODO: tidy this up
-    #     models[model_name] = load_model('/home/sinasalek/geodesic-ig/experiments/voc/checkpoints/checkpoint_epoch_180.pt')
-    #     # models[model_name] = VocClassifier(model_name)
-    #     print(f"Loaded model: {model_name}")
-
-    #     # Switch to eval
-    #     models[model_name].eval()
-
-    #     # Set model to device
-    #     models[model_name].to(device)
 
     lock = mp.Lock()
 
@@ -1096,7 +652,6 @@ def parse_args():
             # "guided_integrated_gradients",
             "integrated_gradients",
             # "gradient_shap",
-            # "lime",
             # "augmented_occlusion",
             # "occlusion",
             # "random",
