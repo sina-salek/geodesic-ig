@@ -9,13 +9,20 @@ import os
 from tqdm import tqdm
 from torch.utils.data import Dataset
 
+
 def parse_args():
     parser = argparse.ArgumentParser(description="Train a classifier")
-    parser.add_argument("--model_name", type=str, default="convnext_base", help="Name of the model to train")
+    parser.add_argument(
+        "--model_name",
+        type=str,
+        default="convnext_base",
+        help="Name of the model to train",
+    )
     return parser.parse_args()
 
+
 def setup_model(model_name="convnext_base"):
-    
+
     if model_name == "convnext_base":
         model = convnext_base(weights=ConvNeXt_Base_Weights.IMAGENET1K_V1)
     else:
@@ -36,7 +43,9 @@ def setup_model(model_name="convnext_base"):
     return model
 
 
-def train_model(model, model_name, train_loader, val_loader, num_epochs=1000, patience=10):
+def train_model(
+    model, model_name, train_loader, val_loader, num_epochs=1000, patience=10
+):
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     model = model.to(device)
 
@@ -94,7 +103,9 @@ def train_model(model, model_name, train_loader, val_loader, num_epochs=1000, pa
             best_val_loss = val_loss
             patience_counter = 0
             # Save best model
-            torch.save(model.state_dict(), os.path.join(checkpoint_dir, f"best_model.pt"))
+            torch.save(
+                model.state_dict(), os.path.join(checkpoint_dir, f"best_model.pt")
+            )
         else:
             patience_counter += 1
             if patience_counter >= patience:

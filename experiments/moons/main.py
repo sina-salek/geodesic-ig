@@ -52,9 +52,7 @@ def main(
     for noise in noises:
         # Create dataset
         x, y = make_moons(n_samples=n_samples, noise=noise, random_state=seed)
-        x_train, x_test, y_train, y_test = train_test_split(
-            x, y, random_state=seed
-        )
+        x_train, x_test, y_train, y_test = train_test_split(x, y, random_state=seed)
 
         # Convert to tensors
         x_train = th.from_numpy(x_train).float()
@@ -261,9 +259,7 @@ def main(
                 fp.write(str(noise) + ",")
                 fp.write("softplus," if softplus else "relu,")
                 fp.write(k + ",")
-                fp.write(
-                    f"{th.cat(pred).argmax(-1)[topk_idx].float().mean():.4},"
-                )
+                fp.write(f"{th.cat(pred).argmax(-1)[topk_idx].float().mean():.4},")
                 fp.write(f"{v.abs().sum(-1)[y_test == 0].std():.4},")
                 fp.write(f"{v.abs().sum(-1)[y_test == 1].std():.4}")
                 fp.write("\n")

@@ -44,6 +44,7 @@ logger = logging.getLogger(__name__)
 file_dir = os.path.dirname(__file__)
 warnings.filterwarnings("ignore")
 
+
 class ModelWithSoftmax(nn.Module):
     def __init__(self, base_model, input_dim=20, output_dim=20, add_linear=False):
         super().__init__()
@@ -63,6 +64,7 @@ class ModelWithSoftmax(nn.Module):
 def main(
     explainers: List[str],
     areas: List[float],
+    n_steps: int = 50,
     device: str = "cpu",
     seed: int = 42,
     deterministic: bool = False,
@@ -150,11 +152,17 @@ def main(
         # if file does not exist, train a new model
         if not os.path.exists(model_path):
             print(f"Model {model_name} does not exist. Training a new model...")
-            subprocess.run(["python", "train_classifier.py", "--model_name", model_name])
+            subprocess.run(
+                ["python", "train_classifier.py", "--model_name", model_name]
+            )
 
         else:
-            model_with_softmax = load_model(model_path, add_softmax=True).eval().to(device)
-            model_without_softmax = load_model(model_path, add_softmax=False).eval().to(device)
+            model_with_softmax = (
+                load_model(model_path, add_softmax=True).eval().to(device)
+            )
+            model_without_softmax = (
+                load_model(model_path, add_softmax=False).eval().to(device)
+            )
 
         heads = {
             "model_with_softmax": model_with_softmax,
@@ -163,7 +171,6 @@ def main(
         models[model_name] = heads
 
         print(f"Loaded model: {model_name}")
-
 
     # Disable cudnn if using cuda accelerator.
     # Please see https://captum.ai/docs/faq#how-can-i-resolve-cudnn-rnn-backward-error-for-rnn-or-lstm-network
@@ -239,7 +246,6 @@ def main(
 
     if "integrated_gradients" in explainers:
 
-        n_steps = 50
         for model_name, model_with_head in models.items():
             model = model_with_head["model_with_softmax"]
             # Target is the model prediction
@@ -262,9 +268,7 @@ def main(
                 )
             attr[f"integrated_gradients_{model_name}"] = th.stack(_attr)
 
-
     if "guided_integrated_gradients" in explainers:
-        n_steps = 50
         guided_ig = saliency.GuidedIG()
 
         transformer = T.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
@@ -300,7 +304,6 @@ def main(
                     gradients = grads.detach().numpy()
                     return {saliency.base.INPUT_OUTPUT_GRADIENTS: gradients}
 
-
             # Target is the model prediction
             y_test = model(x_test).argmax(-1).to(device)
 
@@ -332,26 +335,24 @@ def main(
                     ).permute(2, 0, 1)
                 )
             attr[f"guided_integrated_gradients_{model_name}"] = th.stack(_attr)
-            
+
     if "svi_integrated_gradients" in explainers:
+        # TODO: move the hyperparameters to argparse
         num_iterations = 500
-        beta = 0.1  
-        linear_interpolation = [False] 
-        endpoint_matching = [True]  
+        beta = 0.1
+        linear_interpolation = [False]
+        endpoint_matching = [True]
         learning_rate_decay = True
-        n_steps = 50
-        learning_rate = 0.01  
+        learning_rate = 0.01
         for li in linear_interpolation:
             for em in endpoint_matching:
                 for model_name, model_with_head in models.items():
-                    model = model_with_head["model_with_softmax"] 
+                    model = model_with_head["model_with_softmax"]
 
                     # Ensure input data is on same device
                     x_test = x_test.to(device)
                     model = model.to(device)
-                    y_test = model(x_test).argmax(
-                        -1
-                    )  
+                    y_test = model(x_test).argmax(-1)
 
                     _attr = list()
                     explainer = GeodesicIGSVI(model)
@@ -399,7 +400,6 @@ def main(
                     ).squeeze(0)
                 )
             attr[f"input_x_gradient_{model_name}"] = th.stack(_attr)
-            
 
     if "augmented_occlusion" in explainers:
         for model_name, model_with_head in models.items():
@@ -427,7 +427,6 @@ def main(
                 )
             attr[f"augmented_occlusion_{model_name}"] = th.stack(_attr)
 
-
     if "occlusion" in explainers:
         for model_name, model_with_head in models.items():
             model = model_with_head["model_with_softmax"]
@@ -454,7 +453,7 @@ def main(
                     ).squeeze(0)
                 )
             attr[f"occlusion_{model_name}"] = th.stack(_attr)
-           
+
     if "smooth_grad" in explainers:
         for model_name, model_with_head in models.items():
             model = model_with_head["model_with_softmax"]
@@ -628,20 +627,26 @@ def main(
 def parse_args():
     parser = ArgumentParser()
     parser.add_argument(
+        "--n_steps",
+        type=int,
+        default=50,
+        help="Number of steps for methods that require it, such as Integrated Gradients.",
+    )
+    parser.add_argument(
         "--explainers",
         type=str,
         default=[
-            # "geodesic_integrated_gradients",
-            # "input_x_gradient",
-            # "kernel_shap",
+            "geodesic_integrated_gradients",
+            "input_x_gradient",
+            "kernel_shap",
             "svi_integrated_gradients",
-            # "guided_integrated_gradients",
+            "guided_integrated_gradients",
             "integrated_gradients",
-            # "gradient_shap",
-            # "augmented_occlusion",
-            # "occlusion",
-            # "random",
-            # "smooth_grad"
+            "gradient_shap",
+            "augmented_occlusion",
+            "occlusion",
+            "random",
+            "smooth_grad",
         ],
         nargs="+",
         metavar="N",
@@ -703,6 +708,7 @@ if __name__ == "__main__":
         explainers=args.explainers,
         device=args.device,
         areas=args.areas,
+        n_steps=args.n_steps,
         seed=args.seed,
         deterministic=args.deterministic,
     )
