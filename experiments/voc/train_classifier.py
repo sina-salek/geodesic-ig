@@ -8,8 +8,11 @@ from tqdm import tqdm
 from torch.utils.data import Dataset
 
 
-def setup_model():
-    model = convnext_base(weights=ConvNeXt_Base_Weights.IMAGENET1K_V1)
+def setup_model(model_name="convnext_base"):
+    if model_name == "convnext_base":
+        model = convnext_base(weights=ConvNeXt_Base_Weights.IMAGENET1K_V1)
+    else:
+        raise ValueError(f"Unknown model name: {model_name}")
 
     # Freeze all layers
     for param in model.parameters():
@@ -26,7 +29,7 @@ def setup_model():
     return model
 
 
-def train_model(model, train_loader, val_loader, num_epochs=1000, patience=10):
+def train_model(model, model_name, train_loader, val_loader, num_epochs=1000, patience=10):
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     model = model.to(device)
 
@@ -35,7 +38,7 @@ def train_model(model, train_loader, val_loader, num_epochs=1000, patience=10):
 
     best_val_loss = float("inf")
     patience_counter = 0
-    checkpoint_dir = "checkpoints"
+    checkpoint_dir = os.path.join("checkpoints", model_name)
     os.makedirs(checkpoint_dir, exist_ok=True)
 
     for epoch in range(num_epochs):
@@ -76,7 +79,7 @@ def train_model(model, train_loader, val_loader, num_epochs=1000, patience=10):
                     "optimizer_state_dict": optimizer.state_dict(),
                     "val_loss": val_loss,
                 },
-                f"{checkpoint_dir}/checkpoint_epoch_{epoch+1}.pt",
+                os.path.join(checkpoint_dir, f"checkpoint_epoch_{epoch+1}.pt"),
             )
 
         # Early stopping
@@ -84,7 +87,7 @@ def train_model(model, train_loader, val_loader, num_epochs=1000, patience=10):
             best_val_loss = val_loss
             patience_counter = 0
             # Save best model
-            torch.save(model.state_dict(), f"{checkpoint_dir}/best_model.pt")
+            torch.save(model.state_dict(), os.path.join(checkpoint_dir, f"best_model.pt"))
         else:
             patience_counter += 1
             if patience_counter >= patience:
@@ -140,7 +143,7 @@ class VOCDataset(Dataset):
 
 
 if __name__ == "__main__":
-
+    model_name = "convnext_base"
     # Update data loading section
     transform = transforms.Compose(
         [
@@ -162,5 +165,5 @@ if __name__ == "__main__":
     val_loader = DataLoader(val_dataset, batch_size=32, shuffle=False, num_workers=4)
 
     # Setup and train model
-    model = setup_model()
-    train_model(model, train_loader, val_loader)
+    model = setup_model(model_name)
+    train_model(model, model_name, train_loader, val_loader)
