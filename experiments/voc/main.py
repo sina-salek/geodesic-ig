@@ -1,7 +1,9 @@
 from typing import Any, List
 
 import multiprocessing as mp
+import subprocess
 import os
+import logging
 import torch as th
 import torchvision.transforms as T
 import warnings
@@ -13,24 +15,20 @@ from captum.attr import (
     GradientShap,
     InputXGradient,
     NoiseTunnel,
-    Lime,
 )
 import saliency.core as saliency
 
 from argparse import ArgumentParser
 from pytorch_lightning import seed_everything
-from torch import Tensor
 from torch.utils.data import DataLoader
 from torchvision.datasets import VOCDetection
 
-import matplotlib.pyplot as plt
 import numpy as np
 
 from geodesic.attr import GeodesicIGSVI, Occlusion, AugmentedOcclusion
 
 from geodesic.utils.tqdm import get_progress_bars
 
-from experiments.voc.classifier import VocClassifier
 from experiments.voc.constants import VALID_BACKBONE_NAMES
 from experiments.voc.train_classifier import setup_model
 
@@ -42,7 +40,7 @@ from geodesic.metrics import (
     sufficiency,
 )
 
-
+logger = logging.getLogger(__name__)
 file_dir = os.path.dirname(__file__)
 warnings.filterwarnings("ignore")
 
@@ -141,38 +139,26 @@ def main(
     models = dict()
     # Load models
     for model_name in VALID_BACKBONE_NAMES:
-        # trained_head = load_model('/home/sinasalek/geodesic-ig/experiments/voc/checkpoints/checkpoint_epoch_180.pt').eval().to(device)
-        trained_head = (
-            load_model(
-                f"/home/sinasalek/geodesic-ig/experiments/voc/checkpoints/checkpoint_epoch_180.pt",
-                add_softmax=True,
-            )
-            .eval()
-            .to(device)
-        )
-        untrained_head = (
-            load_model(
-                f"/home/sinasalek/geodesic-ig/experiments/voc/checkpoints/checkpoint_epoch_180.pt",
-                add_softmax=False,
-            )
-            .eval()
-            .to(device)
-        )
-        svi_head = (
-            load_model(
-                f"/home/sinasalek/geodesic-ig/experiments/voc/checkpoints/checkpoint_epoch_180.pt",
-                add_softmax=True,
-                add_linear=True,
-            )
-            .eval()
-            .to(device)
+        model_path = os.path.join(
+            os.path.split(os.path.split(file_dir)[0])[0],
+            "voc",
+            "checkpoints",
+            model_name,
+            "best_model.pt",
         )
 
+        # if file does not exist, train a new model
+        if not os.path.exists(model_path):
+            print(f"Model {model_name} does not exist. Training a new model...")
+            subprocess.run(["python", "train_classifier.py", "--model_name", model_name])
+
+        else:
+            model_with_softmax = load_model(model_path, add_softmax=True).eval().to(device)
+            model_without_softmax = load_model(model_path, add_softmax=False).eval().to(device)
 
         heads = {
-            "trained_head": trained_head.eval().to(device),
-            "untrained_head": untrained_head.eval().to(device),
-            "svi_head": svi_head.eval().to(device),
+            "model_with_softmax": model_with_softmax,
+            "model_without_softmax": model_without_softmax,
         }
         models[model_name] = heads
 
@@ -209,7 +195,7 @@ def main(
 
     if "kernel_shap" in explainers:
         for model_name, model_with_head in models.items():
-            model = model_with_head["trained_head"]
+            model = model_with_head["model_with_softmax"]
             # Target is the model prediction
             y_test = model(x_test).argmax(-1).to(device)
 
@@ -231,7 +217,7 @@ def main(
 
     if "gradient_shap" in explainers:
         for model_name, model_with_head in models.items():
-            model = model_with_head["trained_head"]
+            model = model_with_head["model_with_softmax"]
             # Target is the model prediction
             y_test = model(x_test).argmax(-1).to(device)
 
@@ -255,7 +241,7 @@ def main(
 
         n_steps = 50
         for model_name, model_with_head in models.items():
-            model = model_with_head["trained_head"]
+            model = model_with_head["model_with_softmax"]
             # Target is the model prediction
             y_test = model(x_test).argmax(-1).to(device)
 
@@ -297,7 +283,7 @@ def main(
             return images.requires_grad_(True)
 
         for model_name, model_with_head in models.items():
-            model = model_with_head["trained_head"]
+            model = model_with_head["model_with_softmax"]
 
             def call_model_function(images, call_model_args=None, expected_keys=None):
                 images = PreprocessImages(images)
@@ -358,12 +344,12 @@ def main(
         for li in linear_interpolation:
             for em in endpoint_matching:
                 for model_name, model_with_head in models.items():
-                    model = model_with_head["trained_head"] 
+                    model = model_with_head["model_with_softmax"] 
 
                     # Ensure input data is on same device
                     x_test = x_test.to(device)
                     model = model.to(device)
-                    y_test = model_with_head["trained_head"](x_test).argmax(
+                    y_test = model(x_test).argmax(
                         -1
                     )  
 
@@ -393,7 +379,7 @@ def main(
 
     if "input_x_gradient" in explainers:
         for model_name, model_with_head in models.items():
-            model = model_with_head["trained_head"]
+            model = model_with_head["model_with_softmax"]
             x_test = x_test.to(device)
             model = model.to(device)
             # Target is the model prediction
@@ -417,7 +403,7 @@ def main(
 
     if "augmented_occlusion" in explainers:
         for model_name, model_with_head in models.items():
-            model = model_with_head["trained_head"]
+            model = model_with_head["model_with_softmax"]
             # Target is the model prediction
             x_test = x_test.to(device)
             model = model.to(device)
@@ -444,7 +430,7 @@ def main(
 
     if "occlusion" in explainers:
         for model_name, model_with_head in models.items():
-            model = model_with_head["trained_head"]
+            model = model_with_head["model_with_softmax"]
             # Target is the model prediction
             x_test = x_test.to(device)
             model = model.to(device)
@@ -471,7 +457,7 @@ def main(
            
     if "smooth_grad" in explainers:
         for model_name, model_with_head in models.items():
-            model = model_with_head["trained_head"]
+            model = model_with_head["model_with_softmax"]
             # Target is the model prediction
             x_test = x_test.to(device)
             model = model.to(device)
@@ -533,7 +519,7 @@ def main(
             for topk in get_progress_bars()(areas, desc="Topk", leave=False):
                 for k, v in get_progress_bars()(attr.items(), desc="Attr", leave=False):
                     for model_name, model_with_head in models.items():
-                        model = model_with_head["untrained_head"]
+                        model = model_with_head["model_without_softmax"]
                         device = th.device("cuda" if th.cuda.is_available() else "cpu")
                         model = model.to(device)
                         x_test = x_test.to(device)

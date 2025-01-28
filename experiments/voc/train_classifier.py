@@ -1,3 +1,5 @@
+import argparse
+
 import torch
 import torch.nn as nn
 from torchvision.models import convnext_base, ConvNeXt_Base_Weights
@@ -7,8 +9,13 @@ import os
 from tqdm import tqdm
 from torch.utils.data import Dataset
 
+def parse_args():
+    parser = argparse.ArgumentParser(description="Train a classifier")
+    parser.add_argument("--model_name", type=str, default="convnext_base", help="Name of the model to train")
+    return parser.parse_args()
 
 def setup_model(model_name="convnext_base"):
+    
     if model_name == "convnext_base":
         model = convnext_base(weights=ConvNeXt_Base_Weights.IMAGENET1K_V1)
     else:
@@ -34,7 +41,7 @@ def train_model(model, model_name, train_loader, val_loader, num_epochs=1000, pa
     model = model.to(device)
 
     criterion = nn.BCEWithLogitsLoss()
-    optimizer = torch.optim.AdamW(model.classifier.parameters(), lr=1e-4)
+    optimiser = torch.optim.AdamW(model.classifier.parameters(), lr=1e-4)
 
     best_val_loss = float("inf")
     patience_counter = 0
@@ -48,11 +55,11 @@ def train_model(model, model_name, train_loader, val_loader, num_epochs=1000, pa
         for images, labels in tqdm(train_loader):
             images, labels = images.to(device), labels.to(device)
 
-            optimizer.zero_grad()
+            optimiser.zero_grad()
             outputs = model(images)
             loss = criterion(outputs, labels.float())
             loss.backward()
-            optimizer.step()
+            optimiser.step()
             train_loss += loss.item()
 
         # Validation phase
@@ -76,7 +83,7 @@ def train_model(model, model_name, train_loader, val_loader, num_epochs=1000, pa
                 {
                     "epoch": epoch,
                     "model_state_dict": model.state_dict(),
-                    "optimizer_state_dict": optimizer.state_dict(),
+                    "optimizer_state_dict": optimiser.state_dict(),
                     "val_loss": val_loss,
                 },
                 os.path.join(checkpoint_dir, f"checkpoint_epoch_{epoch+1}.pt"),
@@ -143,7 +150,9 @@ class VOCDataset(Dataset):
 
 
 if __name__ == "__main__":
-    model_name = "convnext_base"
+    args = parse_args()
+    model_name = args.model_name
+
     # Update data loading section
     transform = transforms.Compose(
         [
