@@ -63,7 +63,8 @@ class VocClassifier(nn.Module):
 
 
 def modify_mobilenet_activations(model):
-    """Replace hardsigmoid/hardswish with differentiable alternatives in MobileNetV3"""
+    """Replace hardsigmoid/hardswish with differentiable alternatives in
+    MobileNetV3."""
 
     def _replace_activation(module):
         for name, child in module.named_children():

@@ -222,9 +222,10 @@ class GeodesicIntegratedGradients(GradientAttribution):
         ],
     ]:
         r"""
-        This method attributes the output of the model with given target index
-        (in case it is provided, otherwise it assumes that output is a
-        scalar) to the inputs of the model using the approach described above.
+        This method attributes the output of the model with given target
+        index (in case it is provided, otherwise it assumes that output
+        is a scalar) to the inputs of the model using the approach
+        described above.
 
         In addition to that it also returns, if `return_convergence_delta` is
         set to True, integral approximation delta based on the completeness
@@ -855,9 +856,11 @@ class GeodesicIntegratedGradients(GradientAttribution):
         paths_len: Tuple[List[int]],
     ) -> Tuple[Tensor, ...]:
         """
-        Compute the curvature of the input space, as the difference between
-        the euclidean distance along the path computed by the A* algorithm
-        and the euclidean distance between the inputs and baseline.
+        Compute the curvature of the input space, as the difference
+        between the euclidean distance along the path computed by the A*
+        algorithm and the euclidean distance between the inputs and
+        baseline.
+
         The curvature is always positive.
         """
         # Compute euclidean distances for each neighbors

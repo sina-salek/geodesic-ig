@@ -29,14 +29,14 @@ class FeatureAblation(PerturbationAttribution):
     r"""
     A perturbation based approach to computing attribution, involving
     replacing each input feature with a given baseline / reference, and
-    computing the difference in output. By default, each scalar value within
-    each input tensor is taken as a feature and replaced independently. Passing
-    a feature mask, allows grouping features to be ablated together. This can
-    be used in cases such as images, where an entire segment or region
-    can be ablated, measuring the importance of the segment (feature group).
-    Each input scalar in the group will be given the same attribution value
-    equal to the change in target as a result of ablating the entire feature
-    group.
+    computing the difference in output. By default, each scalar value
+    within each input tensor is taken as a feature and replaced
+    independently. Passing a feature mask, allows grouping features to
+    be ablated together. This can be used in cases such as images, where
+    an entire segment or region can be ablated, measuring the importance
+    of the segment (feature group). Each input scalar in the group will
+    be given the same attribution value equal to the change in target as
+    a result of ablating the entire feature group.
 
     The forward function can either return a scalar per example or a tensor
     of a fixed sized tensor (or scalar value) for the full batch, i.e. the
@@ -464,7 +464,8 @@ class FeatureAblation(PerturbationAttribution):
         **kwargs,
     ):
         """
-        This method returns a generator of ablation perturbations of the i-th input
+        This method returns a generator of ablation perturbations of the
+        i-th input.
 
         Returns:
             ablation_iter (Generator): yields each perturbation to be evaluated
@@ -577,8 +578,10 @@ class FeatureAblation(PerturbationAttribution):
         **kwargs,
     ):
         r"""
-        Ablates given expanded_input tensor with given feature mask, feature range,
-        and baselines. expanded_input shape is (`num_features`, `num_examples`, ...)
+        Ablates given expanded_input tensor with given feature mask,
+        feature range, and baselines. expanded_input shape is
+        (`num_features`, `num_examples`, ...)
+
         with remaining dimensions corresponding to remaining original tensor
         dimensions and `num_features` = `end_feature` - `start_feature`.
         input_mask has same number of dimensions as original input tensor (one less
@@ -615,7 +618,7 @@ class FeatureAblation(PerturbationAttribution):
         )
 
     def _get_feature_counts(self, inputs, feature_mask, **kwargs):
-        """return the numbers of input features"""
+        """Return the numbers of input features."""
         if not feature_mask:
             return tuple(inp[0].numel() if inp.numel() else 0 for inp in inputs)
 
@@ -632,9 +635,7 @@ class FeatureAblation(PerturbationAttribution):
     def _run_forward(
         forward_func: Callable, inputs: Any, **kwargs
     ) -> (Tuple[Tensor, ...], Tuple[Tuple[int]]):  # type: ignore
-        """
-        A wrapper for _run_forward.
-        """
+        """A wrapper for _run_forward."""
         forward_output = _run_forward(
             forward_func,
             inputs,

@@ -28,7 +28,8 @@ def _geodesic_batch_attribution(
     independently and sequentially, stacking each result to compute the
     total grads and grads norm.
 
-    kwargs include all argument necessary to pass to each attribute call.
+    kwargs include all argument necessary to pass to each attribute
+    call.
     """
     grads_norm = None
     total_grads = None

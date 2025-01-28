@@ -234,9 +234,10 @@ class AugmentedOcclusion(Occlusion):
         **kwargs: Any,
     ) -> Tuple[Tensor, Tensor]:
         r"""
-        Ablates given expanded_input tensor with given feature mask, feature
-        range, and baselines, and any additional arguments.
+        Ablates given expanded_input tensor with given feature mask,
+        feature range, and baselines, and any additional arguments.
         expanded_input shape is (num_features, num_examples, ...)
+
         with remaining dimensions corresponding to remaining original tensor
         dimensions and num_features = end_feature - start_feature.
 

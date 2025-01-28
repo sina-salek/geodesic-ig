@@ -26,6 +26,7 @@ def is_notebook_lab():
 def get_progress_bars():
     """
     Get which progress bar to use depending on usage.
+
     Returns:
         A tqdm pbar.
     """
