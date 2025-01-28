@@ -34,7 +34,7 @@ from pyro.infer import SVI, Trace_ELBO
 from pyro.optim import Adam
 
 
-class SVI_IG(GradientAttribution):
+class GeodesicIGSVI(GradientAttribution):
     def __init__(
         self,
         forward_func: Callable[..., Tensor],
@@ -59,7 +59,7 @@ class SVI_IG(GradientAttribution):
         for param in self.forward_func.parameters():
             param.data = param.data.to(self.device)
 
-        print(f"Initialized SVI_IG on device: {self.device}")
+        print(f"Initialized GeodesicIGSVI on device: {self.device}")
 
     def _ensure_device(self, tensor_or_tuple):
         """Move tensor or tuple of tensors to correct device"""
