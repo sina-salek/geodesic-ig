@@ -18,7 +18,7 @@ from captum.attr._utils.common import (
     _validate_input,
 )
 
-from geodesic.svi_batching import _batch_attribution
+from geodesic.utils.svi_batching import _batch_attribution
 
 from captum.attr._utils.approximation_methods import approximation_parameters
 
