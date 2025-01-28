@@ -20,7 +20,7 @@ from captum.attr import (
 )
 
 from geodesic.attr.geodesic_knn_ig import GeodesicIntegratedGradients
-from geodesic.attr.geodesic_svi_ig import SVI_IG
+from geodesic.attr.geodesic_svi_ig import GeodesicIGSVI
 
 
 import pyro
@@ -176,13 +176,13 @@ def main(
         # plt.close()
 
         if "svi_integrated_gradients" in explainers:
-            print("Running SVI-IG")
+
             linear_interpolation = [True, False]
             endpoint_matching = [True, False]
             for li in linear_interpolation:
                 for em in endpoint_matching:
                         
-                    explainer = SVI_IG(net)
+                    explainer = GeodesicIGSVI(net)
                     _attr = th.zeros_like(x_test)
                     paths = []
                     predictions = net(x_test).argmax(-1)
@@ -465,25 +465,25 @@ def parse_args():
         "--beta",
         type=float,
         default=0.1,
-        help="Beta parameter for the potential energy. Used in the SVI-IG.",
+        help="Beta parameter for the potential energy. Used in the GeodesicIGSVI.",
     )
     parser.add_argument(
         "--num-iterations",
         type=int,
         default=1000,
-        help="Number of iterations for the optimization. Used in the SVI-IG.",
+        help="Number of iterations for the optimization. Used in the GeodesicIGSVI.",
     )
     parser.add_argument(
         "--n-steps",
         type=int,
         default=100,
-        help="Number of points generated along the geodesic path. Used in the SVI-IG.",
+        help="Number of points generated along the geodesic path. Used in the GeodesicIGSVI.",
     )
     parser.add_argument(
         "--learning-rate",
         type=float,
         default=1e-3,
-        help="Learning rate for the optimization. Used in the SVI-IG.",
+        help="Learning rate for the optimization. Used in the GeodesicIGSVI.",
     )
     return parser.parse_args()
 

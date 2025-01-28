@@ -25,7 +25,7 @@ from typing import Any, List
 import matplotlib.pyplot as plt
 import numpy as np
 
-from geodesic.attr.geodesic_svi_ig import SVI_IG
+from geodesic.attr.geodesic_svi_ig import GeodesicIGSVI
 from geodesic.attr.geodesic_knn_ig import GeodesicIntegratedGradients
 from geodesic.attr.occlusion import Occlusion
 from geodesic.attr.augmented_occlusion import AugmentedOcclusion
@@ -588,11 +588,11 @@ def main(
                     y_test = model_with_head["trained_head"](x_test).argmax(-1)  # Result already on GPU
                     
                     _attr = list()
-                    explainer = SVI_IG(model)
+                    explainer = GeodesicIGSVI(model)
                     for i, (x, y, b) in get_progress_bars()(
                         enumerate(zip(x_test, y_test, baselines)),
                         total=len(x_test),
-                        desc=f"{SVI_IG.get_name()} attribution",
+                        desc="GeodesicIGSVI attribution",
                     ):
                         _attr.append(
                             explainer.attribute(
