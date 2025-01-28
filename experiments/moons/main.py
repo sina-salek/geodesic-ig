@@ -18,8 +18,8 @@ from captum.attr import (
     NoiseTunnel,
 )
 
-from tint.attr import GeodesicIntegratedGradients
-from tint.models import MLP, Net
+from geodesic.attr import GeodesicIGKNN as GeodesicIntegratedGradients
+from geodesic.models import MLP, Net
 
 
 cm_bright = ListedColormap(["#FF0000", "#0000FF"])
