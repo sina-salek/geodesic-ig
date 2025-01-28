@@ -59,7 +59,7 @@ class GeodesicIGSVI(GradientAttribution):
         for param in self.forward_func.parameters():
             param.data = param.data.to(self.device)
 
-        print(f"Initialized GeodesicIGSVI on device: {self.device}")
+        print(f"Initialised GeodesicIGSVI on device: {self.device}")
 
     def _ensure_device(self, tensor_or_tuple):
         """Move tensor or tuple of tensors to correct device."""
@@ -160,7 +160,7 @@ class GeodesicIGSVI(GradientAttribution):
             initial_paths (Tuple[Tensor, ...]): Tuple of initial path points. 
                 These points define the starting paths for optimization.
             beta (float): Weight of the curvature penalty. Higher values 
-                penalize curvature more strongly.
+                penalise curvature more strongly.
             input_additional_args (Tuple[Tensor, ...]): Additional arguments 
                 required for the forward function.
             use_endpoints_matching (bool, optional): If True, applies penalties 
@@ -259,15 +259,50 @@ class GeodesicIGSVI(GradientAttribution):
             current_beta: float = 0.3,
             num_iterations: int = 100000,
             initial_lr: float = 1e-3,
-            min_lr: float = 1e-5,  # Minimum learning rate
-            lr_decay_factor: float = 0.5,  # How much to decay lr
-            lr_patience: int = 25,  # How many steps before lr decay
+            min_lr: float = 1e-5,  
+            lr_decay_factor: float = 0.5, 
+            lr_patience: int = 25,  
             use_endpoints_matching: bool = True,
             do_linear_interp: bool = True,
             patience: int = 4000,
             rel_improvement_threshold: float = 1e-4,
         ) -> Tensor:
-                        
+        """
+        Optimises the paths using Stochastic Variational Inference (SVI).
+
+        This function performs SVI to optimise the paths by minimizing the loss 
+        function. It adjusts the learning rate dynamically and applies early 
+        stopping based on the relative improvement of the loss.
+
+        Args:
+            initial_paths (Tuple[Tensor, ...]): Tuple of initial path points.
+            input_additional_args (Tuple[Tensor, ...]): Additional arguments 
+                required for the forward function.
+            beta_decay_rate (float): Decay rate for the beta parameter.
+            current_beta (float, optional): Initial value of the beta parameter. 
+                Defaults to 0.3.
+            num_iterations (int, optional): Number of iterations for optimization. 
+                Defaults to 100000.
+            initial_lr (float, optional): Initial learning rate. Defaults to 1e-3.
+            min_lr (float, optional): Minimum learning rate. Defaults to 1e-5.
+            lr_decay_factor (float, optional): Factor by which to decay the learning 
+                rate. Defaults to 0.5.
+            lr_patience (int, optional): Number of iterations to wait before 
+                decaying the learning rate if no improvement. Defaults to 25.
+            use_endpoints_matching (bool, optional): If True, applies penalties to 
+                ensure the endpoints of the paths match the initial paths. Defaults 
+                to True.
+            do_linear_interp (bool, optional): If True, performs linear interpolation 
+                on the optimised paths. Defaults to True.
+            patience (int, optional): Number of iterations to wait before early 
+                stopping if no improvement. Defaults to 4000.
+            rel_improvement_threshold (float, optional): Relative improvement 
+                threshold for early stopping. Defaults to 1e-4.
+
+        Returns:
+            Tensor: Optimised paths.
+        """
+        with torch.no_grad():                
             initial_paths = self._ensure_device(initial_paths)
             input_additional_args = self._ensure_device(input_additional_args)
             
@@ -308,7 +343,7 @@ class GeodesicIGSVI(GradientAttribution):
                             current_lr = max(current_lr * lr_decay_factor, min_lr)
                             # Create new optimiser with updated learning rate
                             optimiser = Adam({"lr": current_lr})
-                            svi.optim = optimiser  # Update optimiser in SVI
+                            svi.optim = optimiser  
                             lr_patience_counter = 0
                             print(f"Decreasing learning rate to {current_lr:.6f}")
 
@@ -333,7 +368,7 @@ class GeodesicIGSVI(GradientAttribution):
             return optimised_paths
         
     def make_uniform_spacing(self, paths: Tensor, n_steps: int) -> Tuple[Tensor, int]:
-        device = paths.device  # Get device from input paths
+        device = paths.device  
         batch_size = paths.shape[0] // n_steps
         feature_dims = paths.shape[1:]
         
@@ -358,20 +393,17 @@ class GeodesicIGSVI(GradientAttribution):
             
             for i in range(n_steps-1):
                 n = num_points[i].item()
-                # Move linspace tensor to correct device
                 alphas = torch.linspace(0, 1, n+1, device=device).view(-1, *([1] * len(feature_dims)))
                 segment_points = starts[i:i+1] + alphas * (ends[i:i+1] - starts[i:i+1])
                 all_points.append(segment_points)
             
             dense_path = torch.cat(all_points, dim=0)
-            # Move indices to correct device
             indices = torch.linspace(0, len(dense_path)-1, n_steps, device=device).long()
             dense_paths[j] = dense_path[indices]
         
         return torch.stack(dense_paths).transpose(0, 1).reshape(n_steps * batch_size, *feature_dims)
 
     
-    # TODO: Add a parameter to control whether interpolation is done in the optimization step. Tidy up and remove unused parameters.
     @log_usage()
     def attribute(
         self,
@@ -424,7 +456,6 @@ class GeodesicIGSVI(GradientAttribution):
         paths = None
         if internal_batch_size is not None:
             num_examples = formatted_inputs[0].shape[0]
-            # TODO: Add support for linear interpolation and endpoints matching
             attributions = _batch_attribution(
                 self,
                 num_examples,
@@ -542,7 +573,6 @@ class GeodesicIGSVI(GradientAttribution):
             if additional_forward_args is not None
             else None
         )
-        # expanded_target = _expand_target(target, self.n_steps)
 
         optimised_paths = self._optimise_paths(
             initial_paths,
