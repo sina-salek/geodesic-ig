@@ -35,7 +35,7 @@ from geodesic.utils.common import unsqueeze_like
 from geodesic.utils.batching import _geodesic_batch_attribution
 
 
-class GeodesicIntegratedGradients(GradientAttribution):
+class GeodesicIGKNN(GradientAttribution):
     r"""
     Geodesic Integrated Gradients.
 
