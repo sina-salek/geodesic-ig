@@ -236,7 +236,8 @@ def _validate_input(
 
 def unsqueeze_like(tensor: torch.Tensor, like: torch.Tensor):
     """
-    Unsqueeze last dimensions of tensor to match another tensor's number of dimensions.
+    Unsqueeze last dimensions of tensor to match another tensor's number
+    of dimensions.
 
     Args:
         tensor (torch.Tensor): tensor to unsqueeze

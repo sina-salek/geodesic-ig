@@ -23,9 +23,10 @@ class Occlusion(FeatureAblation):
     r"""
     A perturbation based approach to compute attribution, involving
     replacing each contiguous rectangular region with a given baseline /
-    reference, and computing the difference in output. For features located
-    in multiple regions (hyperrectangles), the corresponding output differences
-    are averaged to compute the attribution for that feature.
+    reference, and computing the difference in output. For features
+    located in multiple regions (hyperrectangles), the corresponding
+    output differences are averaged to compute the attribution for that
+    feature.
 
     The first patch is applied with the corner aligned with all indices 0,
     and strides are applied until the entire dimension range is covered. Note
@@ -69,9 +70,7 @@ class Occlusion(FeatureAblation):
     def attribute(  # type: ignore
         self,
         inputs: TensorOrTupleOfTensorsGeneric,
-        sliding_window_shapes: Union[
-            Tuple[int, ...], Tuple[Tuple[int, ...], ...]
-        ],
+        sliding_window_shapes: Union[Tuple[int, ...], Tuple[Tuple[int, ...], ...]],
         strides: Union[
             None, int, Tuple[int, ...], Tuple[Union[int, Tuple[int, ...]], ...]
         ] = None,
@@ -261,13 +260,10 @@ class Occlusion(FeatureAblation):
         # each dimension.
         shift_counts = []
         for i, inp in enumerate(formatted_inputs):
-            current_shape = np.subtract(
-                inp.shape[1:], sliding_window_shapes[i]
-            )
+            current_shape = np.subtract(inp.shape[1:], sliding_window_shapes[i])
             # Verify sliding window doesn't exceed input dimensions.
             assert (np.array(current_shape) >= 0).all(), (
-                "Sliding window dimensions {} cannot exceed input dimensions"
-                "{}."
+                "Sliding window dimensions {} cannot exceed input dimensions" "{}."
             ).format(sliding_window_shapes[i], tuple(inp.shape[1:]))
             # Stride cannot be larger than sliding window for any dimension where
             # the sliding window doesn't cover the entire input.
@@ -283,9 +279,7 @@ class Occlusion(FeatureAblation):
             shift_counts.append(
                 tuple(
                     np.add(
-                        np.ceil(np.divide(current_shape, strides[i])).astype(
-                            int
-                        ),
+                        np.ceil(np.divide(current_shape, strides[i])).astype(int),
                         1,
                     )
                 )
@@ -317,9 +311,10 @@ class Occlusion(FeatureAblation):
         **kwargs: Any,
     ) -> Tuple[Tensor, Tensor]:
         r"""
-        Ablates given expanded_input tensor with given feature mask, feature range,
-        and baselines, and any additional arguments.
+        Ablates given expanded_input tensor with given feature mask,
+        feature range, and baselines, and any additional arguments.
         expanded_input shape is (num_features, num_examples, ...)
+
         with remaining dimensions corresponding to remaining original tensor
         dimensions and num_features = end_feature - start_feature.
 
@@ -365,29 +360,42 @@ class Occlusion(FeatureAblation):
         shift_counts: Tuple[int, ...],
     ) -> Tensor:
         """
-        This constructs the current occlusion mask, which is the appropriate
-        shift of the sliding window tensor based on the ablated feature number.
-        The feature number ranges between 0 and the product of the shift counts
-        (# of times the sliding window should be shifted in each dimension).
+        This constructs the current occlusion mask, which is the
+        appropriate shift of the sliding window tensor based on the
+        ablated feature number. The feature number ranges between 0 and
+        the product of the shift counts (# of times the sliding window
+        should be shifted in each dimension).
 
-        First, the ablated feature number is converted to the number of steps in
-        each dimension from the origin, based on shift counts. This procedure
-        is similar to a base conversion, with the position values equal to shift
-        counts. The feature number is first taken modulo shift_counts[0] to
-        get the number of shifts in the first dimension (each shift
-        by shift_count[0]), and then divided by shift_count[0].
-        The procedure is then continued for each element of shift_count. This
-        computes the total shift in each direction for the sliding window.
+        First, the ablated feature number is
+        converted to the number of steps in each
+        dimension from the origin, based on shift
+        counts. This procedure is similar to a
+        base conversion, with the position values
+        equal to shift counts. The feature number
+        is first taken modulo shift_counts[0] to
+        get the number of shifts in the first
+        dimension (each shift by shift_count[0]),
+        and then divided by shift_count[0]. The
+        procedure is then continued for each
+        element of shift_count. This computes the
+        total shift in each direction for the
+        sliding window.
 
-        We then need to compute the padding required after the window in each
-        dimension, which is equal to the total input dimension minus the sliding
-        window dimension minus the (left) shift amount. We construct the
-        array pad_values which contains the left and right pad values for each
-        dimension, in reverse order of dimensions, starting from the last one.
+        We then need to compute the padding
+        required after the window in each
+        dimension, which is equal to the total
+        input dimension minus the sliding window
+        dimension minus the (left) shift amount.
+        We construct the array pad_values which
+        contains the left and right pad values for
+        each dimension, in reverse order of
+        dimensions, starting from the last one.
 
-        Once these padding values are computed, we pad the sliding window tensor
-        of 1s with 0s appropriately, which is the corresponding mask,
-        and the result will match the input shape.
+        Once these padding values are computed, we
+        pad the sliding window tensor of 1s with
+        0s appropriately, which is the
+        corresponding mask, and the result will
+        match the input shape.
         """
         remaining_total = ablated_feature_num
         current_index = []
@@ -401,9 +409,7 @@ class Occlusion(FeatureAblation):
             np.add(current_index, sliding_window_tsr.shape),
         )
         pad_values = [
-            val
-            for pair in zip(remaining_padding, current_index)
-            for val in pair
+            val for pair in zip(remaining_padding, current_index) for val in pair
         ]
         pad_values.reverse()
         padded_tensor = torch.nn.functional.pad(
@@ -418,7 +424,5 @@ class Occlusion(FeatureAblation):
         return 0, feature_max, None
 
     def _get_feature_counts(self, inputs, feature_mask, **kwargs):
-        """return the numbers of possible input features"""
-        return tuple(
-            np.prod(counts).astype(int) for counts in kwargs["shift_counts"]
-        )
+        """Return the numbers of possible input features."""
+        return tuple(np.prod(counts).astype(int) for counts in kwargs["shift_counts"])

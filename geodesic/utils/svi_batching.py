@@ -32,18 +32,20 @@ def _batch_attribution(
     **kwargs,
 ):
     """
-    This method applies internal batching to given attribution method, dividing
-    the total steps into batches and running each independently and sequentially,
-    adding each result to compute the total attribution.
+    This method applies internal batching to given attribution method,
+    dividing the total steps into batches and running each independently
+    and sequentially, adding each result to compute the total
+    attribution.
 
-    Step sizes and alphas are spliced for each batch and passed explicitly for each
-    call to _attribute.
+    Step sizes and alphas are spliced for each batch and passed
+    explicitly for each call to _attribute.
 
-    kwargs include all argument necessary to pass to each attribute call, except
-    for n_steps, which is computed based on the number of steps for the batch.
+    kwargs include all argument necessary to pass to each attribute
+    call, except for n_steps, which is computed based on the number of
+    steps for the batch.
 
-    include_endpoint ensures that one step overlaps between each batch, which
-    is necessary for some methods, particularly LayerConductance.
+    include_endpoint ensures that one step overlaps between each batch,
+    which is necessary for some methods, particularly LayerConductance.
     """
     if internal_batch_size < num_examples:
         warnings.warn(
@@ -119,11 +121,12 @@ def _tuple_splice_range(
 ) -> Union[None, Tuple]:
     """
     Splices each tensor element of given tuple (inputs) from range start
-    (inclusive) to end (non-inclusive) on its first dimension. If element
-    is not a Tensor, it is left unchanged. It is assumed that all tensor elements
-    have the same first dimension (corresponding to number of examples).
-    The returned value is a tuple with the same length as inputs, with Tensors
-    spliced appropriately.
+    (inclusive) to end (non-inclusive) on its first dimension.
+
+    If element is not a Tensor, it is left unchanged. It is assumed that
+    all tensor elements have the same first dimension (corresponding to
+    number of examples). The returned value is a tuple with the same
+    length as inputs, with Tensors spliced appropriately.
     """
     assert start < end, "Start point must precede end point for batch splicing."
     if inputs is None:
@@ -140,9 +143,11 @@ def _batched_generator(
     internal_batch_size: Union[None, int] = None,
 ) -> Iterator[Tuple[Tuple[Tensor, ...], Any, TargetType]]:
     """
-    Returns a generator which returns corresponding chunks of size internal_batch_size
-    for both inputs and additional_forward_args. If batch size is None,
-    generator only includes original inputs and additional args.
+    Returns a generator which returns corresponding chunks of size
+    internal_batch_size for both inputs and additional_forward_args.
+
+    If batch size is None, generator only includes original inputs and
+    additional args.
     """
     assert internal_batch_size is None or (
         isinstance(internal_batch_size, int) and internal_batch_size > 0
@@ -186,11 +191,9 @@ def _batched_operator(
     internal_batch_size: Union[None, int] = None,
     **kwargs: Any,
 ) -> TupleOrTensorOrBoolGeneric:
-    """
-    Batches the operation of the given operator, applying the given batch size
-    to inputs and additional forward arguments, and returning the concatenation
-    of the results of each batch.
-    """
+    """Batches the operation of the given operator, applying the given
+    batch size to inputs and additional forward arguments, and returning
+    the concatenation of the results of each batch."""
     all_outputs = [
         operator(
             inputs=input,
@@ -221,9 +224,7 @@ def _select_example(curr_arg: Any, index: int, bsz: int) -> Any:
 
 
 def _batch_example_iterator(bsz: int, *args) -> Iterator:
-    """
-    Batches the provided argument.
-    """
+    """Batches the provided argument."""
     for i in range(bsz):
         curr_args = [_select_example(args[j], i, bsz) for j in range(len(args))]
         yield tuple(curr_args)

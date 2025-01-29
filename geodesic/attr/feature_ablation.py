@@ -29,14 +29,14 @@ class FeatureAblation(PerturbationAttribution):
     r"""
     A perturbation based approach to computing attribution, involving
     replacing each input feature with a given baseline / reference, and
-    computing the difference in output. By default, each scalar value within
-    each input tensor is taken as a feature and replaced independently. Passing
-    a feature mask, allows grouping features to be ablated together. This can
-    be used in cases such as images, where an entire segment or region
-    can be ablated, measuring the importance of the segment (feature group).
-    Each input scalar in the group will be given the same attribution value
-    equal to the change in target as a result of ablating the entire feature
-    group.
+    computing the difference in output. By default, each scalar value
+    within each input tensor is taken as a feature and replaced
+    independently. Passing a feature mask, allows grouping features to
+    be ablated together. This can be used in cases such as images, where
+    an entire segment or region can be ablated, measuring the importance
+    of the segment (feature group). Each input scalar in the group will
+    be given the same attribution value equal to the change in target as
+    a result of ablating the entire feature group.
 
     The forward function can either return a scalar per example or a tensor
     of a fixed sized tensor (or scalar value) for the full batch, i.e. the
@@ -280,8 +280,7 @@ class FeatureAblation(PerturbationAttribution):
             else None
         )
         assert (
-            isinstance(perturbations_per_eval, int)
-            and perturbations_per_eval >= 1
+            isinstance(perturbations_per_eval, int) and perturbations_per_eval >= 1
         ), "Perturbations per evaluation must be an integer and at least 1."
         if kwargs_run_forward is None:
             kwargs_run_forward = dict()
@@ -386,10 +385,7 @@ class FeatureAblation(PerturbationAttribution):
 
                     # if perturbations_per_eval > 1, the output shape must grow with
                     # input and not be aggregated
-                    if (
-                        perturbations_per_eval > 1
-                        and not self._is_output_shape_valid
-                    ):
+                    if perturbations_per_eval > 1 and not self._is_output_shape_valid:
                         current_batch_size = current_inputs[0].shape[0]
 
                         # number of perturbation, which is not the same as
@@ -468,7 +464,8 @@ class FeatureAblation(PerturbationAttribution):
         **kwargs,
     ):
         """
-        This method returns a generator of ablation perturbations of the i-th input
+        This method returns a generator of ablation perturbations of the
+        i-th input.
 
         Returns:
             ablation_iter (Generator): yields each perturbation to be evaluated
@@ -487,9 +484,7 @@ class FeatureAblation(PerturbationAttribution):
             min_feature,
             num_features,
             input_mask,
-        ) = self._get_feature_range_and_mask(
-            inputs[i], input_mask, **extra_args
-        )
+        ) = self._get_feature_range_and_mask(inputs[i], input_mask, **extra_args)
         num_examples = inputs[0].shape[0]
         perturbations_per_eval = min(perturbations_per_eval, num_features)
         baseline = baselines[i] if isinstance(baselines, tuple) else baselines
@@ -503,9 +498,7 @@ class FeatureAblation(PerturbationAttribution):
                 for j in range(len(inputs))
             ]
             additional_args_repeated = (
-                _expand_additional_forward_args(
-                    additional_args, perturbations_per_eval
-                )
+                _expand_additional_forward_args(additional_args, perturbations_per_eval)
                 if additional_args is not None
                 else None
             )
@@ -524,9 +517,7 @@ class FeatureAblation(PerturbationAttribution):
             # Store appropriate inputs and additional args based on batch size.
             if current_num_ablated_features != perturbations_per_eval:
                 current_features = [
-                    feature_repeated[
-                        0 : current_num_ablated_features * num_examples
-                    ]
+                    feature_repeated[0 : current_num_ablated_features * num_examples]
                     for feature_repeated in all_features_repeated
                 ]
                 current_additional_args = (
@@ -536,9 +527,7 @@ class FeatureAblation(PerturbationAttribution):
                     if additional_args is not None
                     else None
                 )
-                current_target = _expand_target(
-                    target, current_num_ablated_features
-                )
+                current_target = _expand_target(target, current_num_ablated_features)
             else:
                 current_features = all_features_repeated
                 current_additional_args = additional_args_repeated
@@ -554,8 +543,7 @@ class FeatureAblation(PerturbationAttribution):
             # may not necessarilly be num_examples and will match the first
             # dimension of this tensor.
             current_reshaped = current_features[i].reshape(
-                (current_num_ablated_features, -1)
-                + current_features[i].shape[1:]
+                (current_num_ablated_features, -1) + current_features[i].shape[1:]
             )
 
             ablated_features, current_mask = self._construct_ablated_input(
@@ -590,8 +578,10 @@ class FeatureAblation(PerturbationAttribution):
         **kwargs,
     ):
         r"""
-        Ablates given expanded_input tensor with given feature mask, feature range,
-        and baselines. expanded_input shape is (`num_features`, `num_examples`, ...)
+        Ablates given expanded_input tensor with given feature mask,
+        feature range, and baselines. expanded_input shape is
+        (`num_features`, `num_examples`, ...)
+
         with remaining dimensions corresponding to remaining original tensor
         dimensions and `num_features` = `end_feature` - `start_feature`.
         input_mask has same number of dimensions as original input tensor (one less
@@ -628,26 +618,24 @@ class FeatureAblation(PerturbationAttribution):
         )
 
     def _get_feature_counts(self, inputs, feature_mask, **kwargs):
-        """return the numbers of input features"""
+        """Return the numbers of input features."""
         if not feature_mask:
-            return tuple(
-                inp[0].numel() if inp.numel() else 0 for inp in inputs
-            )
+            return tuple(inp[0].numel() if inp.numel() else 0 for inp in inputs)
 
         return tuple(
-            (mask.max() - mask.min()).item() + 1
-            if mask is not None
-            else (inp[0].numel() if inp.numel() else 0)
+            (
+                (mask.max() - mask.min()).item() + 1
+                if mask is not None
+                else (inp[0].numel() if inp.numel() else 0)
+            )
             for inp, mask in zip(inputs, feature_mask)
         )
 
     @staticmethod
     def _run_forward(
         forward_func: Callable, inputs: Any, **kwargs
-    ) -> (Tuple[Tensor, ...], Tuple[Tuple[int]]): # type: ignore
-        """
-        A wrapper for _run_forward.
-        """
+    ) -> (Tuple[Tensor, ...], Tuple[Tuple[int]]):  # type: ignore
+        """A wrapper for _run_forward."""
         forward_output = _run_forward(
             forward_func,
             inputs,
@@ -666,12 +654,8 @@ class FeatureAblation(PerturbationAttribution):
             forward_output = torch.tensor(forward_output, dtype=output_type)
 
         # number of elements in the output of forward_func
-        n_outputs = (
-            forward_output.numel() if isinstance(forward_output, Tensor) else 1
-        )
-        output_shapes = tuple(
-            (n_outputs,) + input.shape[1:] for input in inputs
-        )
+        n_outputs = forward_output.numel() if isinstance(forward_output, Tensor) else 1
+        output_shapes = tuple((n_outputs,) + input.shape[1:] for input in inputs)
 
         # Copy output len(inputs) times
         forward_output = tuple(forward_output for _ in inputs)

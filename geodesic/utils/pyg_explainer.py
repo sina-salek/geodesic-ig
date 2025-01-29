@@ -107,15 +107,16 @@ def to_captum(
         # Explain predictions for node `10`:
         output_idx = 10
 
-        captum_model = to_captum(model, mask_type="edge",
-                                 output_idx=output_idx)
+        captum_model = to_captum(model, mask_type="edge", output_idx=output_idx)
         edge_mask = torch.ones(num_edges, requires_grad=True, device=device)
 
         ig = IntegratedGradients(captum_model)
-        ig_attr = ig.attribute(edge_mask.unsqueeze(0),
-                               target=int(y[output_idx]),
-                               additional_forward_args=(x, edge_index),
-                               internal_batch_size=1)
+        ig_attr = ig.attribute(
+            edge_mask.unsqueeze(0),
+            target=int(y[output_idx]),
+            additional_forward_args=(x, edge_index),
+            internal_batch_size=1,
+        )
 
     .. note::
         For an example of using a Captum attribution method within PyG, see
@@ -155,10 +156,11 @@ def to_captum(
 
 
 class Explainer(torch.nn.Module):
-    r"""An abstract class for integrating explainability into Graph Neural
+    r"""
+    An abstract class for integrating explainability into Graph Neural
     Networks, *e.g.* :class:`~torch_geometric.nn.GNNExplainer` and
-    :class:`~torch_geometric.nn.PGExplainer`.
-    It also provides general visualization methods for graph attributions.
+    :class:`~torch_geometric.nn.PGExplainer`. It also provides general
+    visualization methods for graph attributions.
 
     Args:
         model (torch.nn.Module): The GNN module to explain.
@@ -208,7 +210,8 @@ class Explainer(torch.nn.Module):
         return "source_to_target"
 
     def subgraph(self, node_idx: int, x: Tensor, edge_index: Tensor, **kwargs):
-        r"""Returns the subgraph of the given node.
+        r"""
+        Returns the subgraph of the given node.
 
         Args:
             node_idx (int): The node to explain.
@@ -281,7 +284,8 @@ class Explainer(torch.nn.Module):
         seed: int = 10,
         **kwargs
     ):
-        r"""Visualizes the subgraph given an edge mask :attr:`edge_mask`.
+        r"""
+        Visualizes the subgraph given an edge mask :attr:`edge_mask`.
 
         Args:
             node_idx (int): The node id to explain.

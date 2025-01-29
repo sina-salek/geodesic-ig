@@ -36,9 +36,7 @@ def accuracy(
     draw_baseline_from_distrib: bool = False,
     topk: float = 0.2,
     mask_largest: bool = True,
-    weight_fn: Callable[
-        [Tuple[Tensor, ...], Tuple[Tensor, ...]], Tensor
-    ] = None,
+    weight_fn: Callable[[Tuple[Tensor, ...], Tuple[Tensor, ...]], Tensor] = None,
     threshold: float = 0.5,
 ) -> float:
     """
