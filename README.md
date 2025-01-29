@@ -1,4 +1,7 @@
 # Geodesic Integrated Gradients
+
+Keywords: Explainable AI, Integrated Gradients, Stochastic Variational Inference, Geodesic Equation
+
 <p align="center"> <table> <tr> <td align="center"> <img src="images/half_moons_y.png" width="400"/> <br> <em>IG (left) vs Geodesic IG (right)</em> </td> <td align="center"> <img src="images/voc_compare.png" width="545"/> <br> <em>A comparison of IG vs Geodesic IG for image classification</em> </td> </tr> </table> </p>
 This repository accompanies our paper, “Using the Path of Least Resistance to Explain Deep Networks.”
 
@@ -12,7 +15,7 @@ The images above illustrate a qualitative comparison of the two methods for each
 
 Below, we present a quantitative evaluation of our method against several others. We observe improvements of 29% and 15% over IG, measured by Comprehensiveness and Log-Odds metrics, respectively. More details can be found in our paper.
 
-<p align="center"> <table> <tr> <td align="center"> <img src="images/voc_metrics.png" width="400"/> <br> <em>A quantitative comparison of Geodesic IG with other methods.</em> </td> </tr> </table> </p>
+<p align="center"> <table> <tr> <td align="center"> <img src="images/voc_metrics.png" width="700"/> <br> <em>A quantitative comparison of Geodesic IG with other methods.</em> </td> </tr> </table> </p>
 
 ## Installation
 
@@ -55,3 +58,4 @@ svi_attributions = explainer.attribute(
 For more detailed examples see:
 - [VOC Image Classification Experiment](./experiments/voc/)
 - [Half Moons Experiment](./experiments/moons/)
+
