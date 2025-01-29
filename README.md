@@ -1,4 +1,20 @@
 # Geodesic Integrated Gradients
+<p align="center">
+  <table>
+    <tr>
+      <td align="center">
+        <img src="images/half_moons_y.png" width="400"/>
+        <br>
+        <em>IG (left) vs Geodesic IG (right)</em>
+      </td>
+      <td align="center">
+        <img src="images/voc_compare.png" width="540"/>
+        <br>
+        <em>A comparison of IG vs Geodesic IC for image classification</em>
+      </td>
+    </tr>
+  </table>
+</p>
 
 ## Installation
 
