@@ -1,7 +1,6 @@
 from typing import Any, List
 
 import multiprocessing as mp
-import subprocess
 import os
 import logging
 import torch as th
@@ -95,7 +94,7 @@ def main(
     voc = VOCDetection(
         root=os.path.join(
             os.path.split(os.path.split(file_dir)[0])[0],
-            "geodesic-ig",
+            "geodesic",
             "data",
             "voc",
         ),
@@ -149,20 +148,17 @@ def main(
             "best_model.pt",
         )
 
-        # if file does not exist, train a new model
         if not os.path.exists(model_path):
-            print(f"Model {model_name} does not exist. Training a new model...")
-            subprocess.run(
-                ["python", "train_classifier.py", "--model_name", model_name]
+            raise FileNotFoundError(
+                f"Model checkpoint not found at {model_path}. Please train model using train_classifier.py first."
             )
-
-        else:
-            model_with_softmax = (
-                load_model(model_path, add_softmax=True).eval().to(device)
-            )
-            model_without_softmax = (
-                load_model(model_path, add_softmax=False).eval().to(device)
-            )
+        
+        model_with_softmax = (
+            load_model(model_path, add_softmax=True).eval().to(device)
+        )
+        model_without_softmax = (
+            load_model(model_path, add_softmax=False).eval().to(device)
+        )
 
         heads = {
             "model_with_softmax": model_with_softmax,
@@ -182,7 +178,7 @@ def main(
     x_test = list()
     i = 0
     for data, target in voc_loader:
-        if i == 1:
+        if i == 100:
             break
 
         x_test.append(data)
