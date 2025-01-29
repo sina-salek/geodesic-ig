@@ -124,7 +124,7 @@ def main(
 
         # Create dir to save figures
         with lock:
-            path = f"figures/{'softplus' if softplus else 'relu'}/{str(seed)}"
+            path = f"plots/{'softplus' if softplus else 'relu'}/{str(seed)}"
             os.makedirs(path, exist_ok=True)
 
             # Set ticks size
