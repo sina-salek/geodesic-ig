@@ -1,0 +1,145 @@
+\begin{thebibliography}{20}
+\providecommand{\natexlab}[1]{#1}
+\providecommand{\url}[1]{\texttt{#1}}
+\expandafter\ifx\csname urlstyle\endcsname\relax
+  \providecommand{\doi}[1]{doi: #1}\else
+  \providecommand{\doi}{doi: \begingroup \urlstyle{rm}\Url}\fi
+
+\bibitem[Chen et~al.(2019)Chen, Ferroni, Klushyn, Paraschos, Bayer, and
+  Smagt]{chen2019fast}
+Chen, N., Ferroni, F., Klushyn, A., Paraschos, A., Bayer, J., and Smagt, P.
+  v.~d.
+\newblock Fast approximate geodesics for deep generative models.
+\newblock In \emph{International Conference on Artificial Neural Networks},
+  pp.\  554--566. Springer, 2019.
+
+\bibitem[Crane et~al.(2020)Crane, Livesu, Puppo, and Qin]{crane2020survey}
+Crane, K., Livesu, M., Puppo, E., and Qin, Y.
+\newblock A survey of algorithms for geodesic paths and distances.
+\newblock \emph{arXiv preprint arXiv:2007.10430}, 2020.
+
+\bibitem[Das \& Rad(2020)Das and Rad]{das2020opportunities}
+Das, A. and Rad, P.
+\newblock Opportunities and challenges in explainable artificial intelligence
+  (xai): A survey.
+\newblock \emph{arXiv preprint arXiv:2006.11371}, 2020.
+
+\bibitem[DeYoung et~al.(2019)DeYoung, Jain, Rajani, Lehman, Xiong, Socher, and
+  Wallace]{deyoung2019eraser}
+DeYoung, J., Jain, S., Rajani, N.~F., Lehman, E., Xiong, C., Socher, R., and
+  Wallace, B.~C.
+\newblock Eraser: A benchmark to evaluate rationalized nlp models.
+\newblock \emph{arXiv preprint arXiv:1911.03429}, 2019.
+
+\bibitem[Everingham et~al.()Everingham, Van~Gool, Williams, Winn, and
+  Zisserman]{pascal-voc-2012}
+Everingham, M., Van~Gool, L., Williams, C. K.~I., Winn, J., and Zisserman, A.
+\newblock The {PASCAL} {V}isual {O}bject {C}lasses {C}hallenge 2012 {(VOC2012)}
+  {R}esults.
+\newblock
+  http://www.pascal-network.org/challenges/VOC/voc2012/workshop/index.html.
+
+\bibitem[Jha et~al.(2020)Jha, K~Aicher, R~Gazzara, Singh, and
+  Barash]{jha2020enhanced}
+Jha, A., K~Aicher, J., R~Gazzara, M., Singh, D., and Barash, Y.
+\newblock Enhanced integrated gradients: improving interpretability of deep
+  learning models using splicing codes as a case study.
+\newblock \emph{Genome biology}, 21\penalty0 (1):\penalty0 1--22, 2020.
+
+\bibitem[Kapishnikov et~al.(2021)Kapishnikov, Venugopalan, Avci, Wedin, Terry,
+  and Bolukbasi]{kapishnikov2021guided}
+Kapishnikov, A., Venugopalan, S., Avci, B., Wedin, B., Terry, M., and
+  Bolukbasi, T.
+\newblock Guided integrated gradients: An adaptive path method for removing
+  noise.
+\newblock In \emph{Proceedings of the IEEE/CVF conference on computer vision
+  and pattern recognition}, pp.\  5050--5058, 2021.
+
+\bibitem[Liu et~al.(2022)Liu, Mao, Wu, Feichtenhofer, Darrell, and
+  Xie]{liu2022convnet}
+Liu, Z., Mao, H., Wu, C.-Y., Feichtenhofer, C., Darrell, T., and Xie, S.
+\newblock A convnet for the 2020s.
+\newblock In \emph{Proceedings of the IEEE/CVF conference on computer vision
+  and pattern recognition}, pp.\  11976--11986, 2022.
+
+\bibitem[Lundberg \& Lee(2017)Lundberg and Lee]{lundberg2017unified}
+Lundberg, S.~M. and Lee, S.-I.
+\newblock A unified approach to interpreting model predictions.
+\newblock \emph{Advances in neural information processing systems}, 30, 2017.
+
+\bibitem[Marcus(2018)]{marcus2018deep}
+Marcus, G.
+\newblock Deep learning: A critical appraisal.
+\newblock \emph{arXiv preprint arXiv:1801.00631}, 2018.
+
+\bibitem[Pedregosa et~al.(2011)Pedregosa, Varoquaux, Gramfort, Michel, Thirion,
+  Grisel, Blondel, Prettenhofer, Weiss, Dubourg, Vanderplas, Passos,
+  Cournapeau, Brucher, Perrot, and Duchesnay]{scikit-learn}
+Pedregosa, F., Varoquaux, G., Gramfort, A., Michel, V., Thirion, B., Grisel,
+  O., Blondel, M., Prettenhofer, P., Weiss, R., Dubourg, V., Vanderplas, J.,
+  Passos, A., Cournapeau, D., Brucher, M., Perrot, M., and Duchesnay, E.
+\newblock Scikit-learn: Machine learning in {P}ython.
+\newblock \emph{Journal of Machine Learning Research}, 12:\penalty0 2825--2830,
+  2011.
+
+\bibitem[Sap et~al.(2019)Sap, Card, Gabriel, Choi, and Smith]{sap2019risk}
+Sap, M., Card, D., Gabriel, S., Choi, Y., and Smith, N.~A.
+\newblock The risk of racial bias in hate speech detection.
+\newblock In \emph{Proceedings of the 57th annual meeting of the association
+  for computational linguistics}, pp.\  1668--1678, 2019.
+
+\bibitem[Shrikumar et~al.(2016)Shrikumar, Greenside, Shcherbina, and
+  Kundaje]{shrikumar2016not}
+Shrikumar, A., Greenside, P., Shcherbina, A., and Kundaje, A.
+\newblock Not just a black box: Learning important features through propagating
+  activation differences.
+\newblock \emph{arXiv preprint arXiv:1605.01713}, 2016.
+
+\bibitem[Shrikumar et~al.(2017)Shrikumar, Greenside, and
+  Kundaje]{shrikumar2017learning}
+Shrikumar, A., Greenside, P., and Kundaje, A.
+\newblock Learning important features through propagating activation
+  differences.
+\newblock In \emph{International conference on machine learning}, pp.\
+  3145--3153. PMLR, 2017.
+
+\bibitem[Smilkov et~al.(2017)Smilkov, Thorat, Kim, Vi{\'e}gas, and
+  Wattenberg]{smilkov2017smoothgrad}
+Smilkov, D., Thorat, N., Kim, B., Vi{\'e}gas, F., and Wattenberg, M.
+\newblock Smoothgrad: removing noise by adding noise.
+\newblock \emph{arXiv preprint arXiv:1706.03825}, 2017.
+
+\bibitem[Sundararajan et~al.(2017)Sundararajan, Taly, and
+  Yan]{sundararajan2017axiomatic}
+Sundararajan, M., Taly, A., and Yan, Q.
+\newblock Axiomatic attribution for deep networks.
+\newblock In \emph{International conference on machine learning}, pp.\
+  3319--3328. PMLR, 2017.
+
+\bibitem[Tenenbaum et~al.(2000)Tenenbaum, Silva, and
+  Langford]{tenenbaum2000global}
+Tenenbaum, J.~B., Silva, V.~d., and Langford, J.~C.
+\newblock A global geometric framework for nonlinear dimensionality reduction.
+\newblock \emph{science}, 290\penalty0 (5500):\penalty0 2319--2323, 2000.
+
+\bibitem[Tonekaboni et~al.(2020)Tonekaboni, Joshi, Campbell, Duvenaud, and
+  Goldenberg]{tonekaboni2020went}
+Tonekaboni, S., Joshi, S., Campbell, K., Duvenaud, D.~K., and Goldenberg, A.
+\newblock What went wrong and when? instance-wise feature importance for
+  time-series black-box models.
+\newblock \emph{Advances in Neural Information Processing Systems},
+  33:\penalty0 799--809, 2020.
+
+\bibitem[Yang et~al.(2018)Yang, Arvanitidis, Fu, Li, and
+  Hauberg]{yang2018geodesic}
+Yang, T., Arvanitidis, G., Fu, D., Li, X., and Hauberg, S.
+\newblock Geodesic clustering in deep generative models.
+\newblock \emph{arXiv preprint arXiv:1809.04747}, 2018.
+
+\bibitem[Zeiler \& Fergus(2014)Zeiler and Fergus]{zeiler2014visualizing}
+Zeiler, M.~D. and Fergus, R.
+\newblock Visualizing and understanding convolutional networks.
+\newblock In \emph{European conference on computer vision}, pp.\  818--833.
+  Springer, 2014.
+
+\end{thebibliography}
