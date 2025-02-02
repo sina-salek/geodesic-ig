@@ -19,4 +19,3 @@ jobs:
           name: main
           path: main.pdf
           retention-days: 90
-          compression-level: 0
