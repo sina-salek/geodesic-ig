@@ -7,7 +7,7 @@ Some examples of the methods proposed to explain neural networks include Gradien
 
 Significant effort has been dedicated to designing explanation methods that satisfy certain desirable axioms. This is due to the lack of ground truth for evaluating them. The axioms can ensure that the explanations are principled. One of the most successful axiomatic methods is Integrated Gradients (IG) \citep{sundararajan2017axiomatic}. Consider a function $f : R^n \to R$, representing the neural network and an input vector $\textbf{x} \in R^n$. Furthermore, consider a baseline input vector $\overline{\textbf{x}} \in R^n$ (typically chosen such that the network gives baseline a near zero score). IG explains the network by quantifying how much of the difference $f(\textbf{x}) - f(\overline{\textbf{x}})$ can be attributed to the $i$th dimension of $\textbf{x}$, $\textbf{x}_i$.
 
-Integrated Gradient gives attribution $IG_i$ to the $i$th dimension of the input by solving\begin{comment}approximating\end{comment} the following path integral
+Integrated Gradient gives attribution $IG_i$ to the $i$th dimension of the input by solving\todo{approximating} the following path integral
 \begin{equation}
 IG_i(\textbf{x}) = (\textbf{x}_i - \overline{\textbf{x}}_i) \int_0^1 \frac{\partial f(\gamma(t))}{\partial \textbf{x}_i} dt, \label{eq:igi}
 \end{equation}
