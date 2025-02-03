@@ -404,7 +404,7 @@ class GeodesicIGSVI(GradientAttribution):
         step_sizes = calculate_step_sizes(
             paths, n_inputs=batch_size, n_features=feature_dims, n_steps=n_steps
         )
-        standardized_step_sizes = step_sizes / step_sizes.sum(dim=0).unsqueeze(0)
+        standardised_step_sizes = step_sizes / step_sizes.sum(dim=0).unsqueeze(0)
 
         paths = paths.view(n_steps, batch_size, *feature_dims)
         standardised_step_sizes = standardised_step_sizes.view(n_steps, batch_size, 1)
