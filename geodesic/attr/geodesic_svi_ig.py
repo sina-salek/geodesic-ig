@@ -390,7 +390,7 @@ class GeodesicIGSVI(GradientAttribution):
             if do_linear_interp:
                 print("Interpolating paths...")
                 optimised_paths = tuple(
-                    self.make_uniform_spacing(opt_paths, n_steps=self.n_steps)
+                    self.make_uniform_spacing(opt_paths, n_steps=self.n_steps).requires_grad_(True)
                     for opt_paths in optimised_paths
                 )
 
