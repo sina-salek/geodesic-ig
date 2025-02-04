@@ -35,6 +35,7 @@ def main(
     explainers: List[str],
     n_samples: int,
     noises: List[float],
+    n_steps: int,
     softplus: bool = False,
     device: str = "cpu",
     seed: int = 42,
@@ -174,6 +175,7 @@ def main(
                         baselines=baselines[pred_class == target],
                         target=target,
                         n_neighbors=n,
+                        n_steps=n_steps,
                         internal_batch_size=200,
                     ).float()
 
@@ -190,6 +192,7 @@ def main(
                         baselines=baselines[pred_class == target],
                         target=target,
                         n_neighbors=n,
+                        n_steps=n_steps,
                         internal_batch_size=200,
                         distance="euclidean",
                     ).float()
@@ -212,7 +215,7 @@ def main(
                 baselines=baselines,
                 target=pred_class,
                 internal_batch_size=200,
-                n_steps=50,
+                n_steps=n_steps,
             )
 
         if "smooth_grad" in explainers:
@@ -246,8 +249,8 @@ def main(
                 target=pred_class,
                 baselines=baselines,
                 num_iterations=1000,
-                beta=1,
-                n_steps=100,
+                beta=0.1,
+                n_steps=n_steps,
                 do_linear_interp=True,
                 use_endpoints_matching=True,
                 learning_rate=0.001,
@@ -292,7 +295,7 @@ def main(
                                 x.numpy(),  
                                 call_model_function,
                                 call_model_args,
-                                x_steps=50,
+                                x_steps=n_steps,
                                 x_baseline=b,  
                                 max_dist=1.0,
                                 fraction=0.5,
@@ -372,18 +375,18 @@ def parse_args():
         "--explainers",
         type=str,
         default=[
-            # "geodesic_integrated_gradients",
-            # "enhanced_integrated_gradients",
-            # "gradient_shap",
-            # "integrated_gradients",
-            # "smooth_grad",
-            # "input_x_gradient",
-            # "kernel_shap",
+            "geodesic_integrated_gradients",
+            "enhanced_integrated_gradients",
+            "gradient_shap",
+            "integrated_gradients",
+            "smooth_grad",
+            "input_x_gradient",
+            "kernel_shap",
             "svi_integrated_gradients",
-            # "guided_integrated_gradients",
-            # "augmented_occlusion",
-            # "occlusion",
-            # "random",
+            "guided_integrated_gradients",
+            "augmented_occlusion",
+            "occlusion",
+            "random",
         ],
         nargs="+",
         metavar="N",
@@ -392,8 +395,14 @@ def parse_args():
     parser.add_argument(
         "--n-samples",
         type=int,
-        default=1000,
+        default=10000,
         help="Number of samples in the dataset.",
+    )
+    parser.add_argument(
+        "--n-steps",
+        type=int,
+        default=50,
+        help="Number of steps for the IG family of methods.",
     )
     parser.add_argument(
         "--noises",
@@ -433,6 +442,7 @@ if __name__ == "__main__":
     main(
         explainers=args.explainers,
         n_samples=args.n_samples,
+        n_steps=args.n_steps,
         noises=args.noises,
         softplus=args.softplus,
         device=args.device,
