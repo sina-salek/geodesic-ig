@@ -435,7 +435,6 @@ class GeodesicIGSVI(GradientAttribution):
         self,
         inputs: TensorOrTupleOfTensorsGeneric,
         baselines: BaselineType = None,
-        augmentation_data: Tensor = None,
         target: TargetType = None,
         additional_forward_args: Optional[object] = None,
         n_steps: int = 50,
@@ -444,7 +443,6 @@ class GeodesicIGSVI(GradientAttribution):
         return_convergence_delta: bool = False,
         return_paths: bool = False,
         beta: float = 0.3,
-        n_neighbors: int = 20,
         num_iterations: int = 1000,
         learning_rate: float = 0.001,
         use_endpoints_matching: bool = True,
@@ -461,7 +459,6 @@ class GeodesicIGSVI(GradientAttribution):
         Args:
             inputs: Input tensor or tuple of tensors
             baselines: Reference baseline values for comparison
-            augmentation_data: Optional tensor for data augmentation
             target: Target for attribution
             additional_forward_args: Additional arguments for forward pass
             n_steps: Number of steps for integration
@@ -470,7 +467,6 @@ class GeodesicIGSVI(GradientAttribution):
             return_convergence_delta: Whether to return convergence measure
             return_paths: Whether to return computed paths
             beta: Weight parameter for optimisation
-            n_neighbours: Number of nearest neighbours for augmentation
             num_iterations: Maximum optimisation iterations
             learning_rate: Initial learning rate for optimisation
             use_endpoints_matching: Whether to constrain path endpoints
@@ -485,14 +481,7 @@ class GeodesicIGSVI(GradientAttribution):
             - Validates inputs before processing
             - Implements completeness axiom checking
         """
-        if augmentation_data is not None and n_neighbors is None:
-            raise ValueError(
-                "Augmentation data is provided, but no n_neighbors is given. Please provide a n_neighbors."
-            )
-        if augmentation_data is None and n_neighbors is not None:
-            warnings.warn(
-                "n_neighbors is provided, but no augmentation data is given. Ignoring n_neighbors."
-            )
+
         self.internal_batch_size = internal_batch_size
         self.n_steps = n_steps
         # Keeps track whether original input is a tuple or not before
@@ -514,7 +503,6 @@ class GeodesicIGSVI(GradientAttribution):
                 n_steps,
                 inputs=formatted_inputs,
                 baselines=formatted_baselines,
-                augmentation_data=augmentation_data,
                 target=target,
                 additional_forward_args=additional_forward_args,
                 method=method,
@@ -526,11 +514,9 @@ class GeodesicIGSVI(GradientAttribution):
             attributions, paths = self._attribute(
                 inputs=formatted_inputs,
                 baselines=formatted_baselines,
-                augmentation_data=augmentation_data,
                 target=target,
                 additional_forward_args=additional_forward_args,
                 n_steps=n_steps,
-                n_neighbors=n_neighbors,
                 method=method,
                 beta=beta,
                 num_iterations=num_iterations,
@@ -566,11 +552,9 @@ class GeodesicIGSVI(GradientAttribution):
         self,
         inputs: Tuple[Tensor, ...],
         baselines: Tuple[Union[Tensor, int, float], ...],
-        augmentation_data: Tensor = None,
         target: TargetType = None,
         additional_forward_args: Optional[object] = None,
         n_steps: int = 50,
-        n_neighbors: int = 20,
         method: Union[None, str] = None,
         step_sizes_and_alphas: Union[None, Tuple[List[float], List[float]]] = None,
         num_iterations: int = 1000,
@@ -582,7 +566,7 @@ class GeodesicIGSVI(GradientAttribution):
         """Computes attributions using optimised geodesic paths.
 
         Implements the core attribution logic by:
-        1. Generating initial paths (straight line or augmentation-based)
+        1. Generating initial paths (straight line)
         2. Optimising paths using SVI
         3. Computing gradients along optimised paths
         4. Aggregating gradients to produce final attributions
@@ -590,11 +574,9 @@ class GeodesicIGSVI(GradientAttribution):
         Args:
             inputs: Input tensors to attribute
             baselines: Reference values for comparison
-            augmentation_data: Optional data for path augmentation
             target: Attribution target indices
             additional_forward_args: Extra arguments for forward pass
             n_steps: Number of integration steps
-            n_neighbours: Number of neighbours for augmentation
             method: Integration method name
             step_sizes_and_alphas: Optional pre-computed integration parameters
             num_iterations: Maximum optimisation iterations
@@ -609,7 +591,6 @@ class GeodesicIGSVI(GradientAttribution):
             - Tuple[Tensor, ...]: Optimised paths
 
         Notes:
-            - Handles both standard and augmented path initialisation
             - Supports multiple input tensors
             - Implements gradient scaling and aggregation
             - Optional input multiplication for final attributions
@@ -628,23 +609,9 @@ class GeodesicIGSVI(GradientAttribution):
             for input, baseline in zip(inputs, baselines)
         )  # straight line between input and baseline. Dim of each tensor in tuple: [n_steps * batch_size, n_features]
 
-        if augmentation_data is not None:
-            initial_paths = self._get_approx_paths(
-                inputs,
-                baselines,
-                augmentation_data,
-                alphas,
-                self.n_steps,
-                n_neighbors,
-            )
-
-            beta = 1 / beta if beta > 1 else beta
-            current_beta = beta * 10
-            beta_decay_rate = (current_beta * beta) ** (1 / num_iterations)
-        else:
-            initial_paths = straight_line_tuple
-            current_beta = beta
-            beta_decay_rate = 1
+        initial_paths = straight_line_tuple
+        current_beta = beta
+        beta_decay_rate = 1
 
         additional_forward_args = _format_additional_forward_args(
             additional_forward_args
