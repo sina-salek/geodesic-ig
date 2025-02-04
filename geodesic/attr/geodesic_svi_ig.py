@@ -1,5 +1,5 @@
 import typing
-from typing import Callable, List, Optional, Tuple, Union
+from typing import Callable, List, Literal, Optional, Tuple, Union
 import warnings
 import numpy as np
 
@@ -50,23 +50,22 @@ class GeodesicIGSVI(GradientAttribution):
             torch.cuda.manual_seed_all(seed)
         np.random.seed(seed)
         pyro.set_rng_seed(seed)
-
+        
         # Enable deterministic behavior
         torch.backends.cudnn.deterministic = True
         torch.backends.cudnn.benchmark = False
-
+    
         self.forward_func = self.forward_func.to(self.device)
         for param in self.forward_func.parameters():
             param.data = param.data.to(self.device)
 
-        print(f"Initialised GeodesicIGSVI on device: {self.device}")
+        print(f"Initialised SVI_IG on device: {self.device}")
 
     def _ensure_device(self, tensor_or_tuple):
-        """Move tensor or tuple of tensors to correct device."""
+        """Move tensor or tuple of tensors to correct device"""
         if isinstance(tensor_or_tuple, tuple):
-            return tuple(
-                t.to(self.device) if t is not None else None for t in tensor_or_tuple
-            )
+            return tuple(t.to(self.device) if t is not None else None 
+                        for t in tensor_or_tuple)
         return tensor_or_tuple.to(self.device) if tensor_or_tuple is not None else None
 
     def potential_energy(
@@ -77,16 +76,28 @@ class GeodesicIGSVI(GradientAttribution):
         input_additional_args: Tuple[Tensor, ...],
         use_endpoints_matching: bool = True,
     ) -> Tensor:
-        """Computes the total potential energy of the path.
+        """
+        Calculates the potential energy of the path using distance and curvature penalties.
+
+        Computes a total penalty based on:
+        1. Distance penalty: L2 norm between current path and initial path
+        2. Curvature penalty: L2 norm of path gradients
+        3. Optional endpoint matching penalty for path endpoints (if use_endpoints_matching=True)
 
         Args:
-            path [Tuple[Tensor, ...]]: Tuple of path points. This is the path that we want to optimise.
-            initial_paths [Tuple[Tensor, ...]]: Tuple of initial path points. This is the initial straight line path.
-            beta [float]: Weight of curvature penalty
-            input_additional_args [Tuple[Tensor, ...]]: Additional arguments for forward function
-            use_endpoints_matching [bool]: Whether to use endpoint matching penalties. This penalises deviation from the initial path at the start and end.
+            path: Tuple of tensors representing the current path coordinates
+            initial_paths: Tuple of tensors representing the initial path coordinates
+            beta: Float weighting factor for curvature penalty term
+            input_additional_args: Additional arguments passed to the forward function
+            use_endpoints_matching: Whether to apply additional penalties to constrain path endpoints
+
         Returns:
-            Total potential energy (scalar)
+            Tensor: Total potential energy computed as sum of weighted penalties
+
+        Notes:
+            - When use_endpoints_matching is True, applies stronger constraints on first and last 10% 
+            of path points to ensure path endpoints match initial coordinates
+            - Endpoint matching uses a fixed weight of 100 for the constraint term
         """
         # distance penalty
         distance_penalties = tuple(
@@ -115,6 +126,7 @@ class GeodesicIGSVI(GradientAttribution):
             for i in range(len(distance_penalties))
         )
         if use_endpoints_matching:
+            # Add endpoint matching penalties
             endpoint_weight = 100
             endpoint_penalties = 0
             n_batch = int(path[0].shape[0] // self.n_steps)
@@ -127,65 +139,53 @@ class GeodesicIGSVI(GradientAttribution):
             for i in range(len(path)):
                 path_reshaped = path[i].view(view_shape)
                 initial_reshaped = initial_paths[i].view(view_shape)
-
+                
                 # Penalise first 10% deviation
-                endpoint_penalties += (
-                    endpoint_weight
-                    * torch.norm(
-                        path_reshaped[:n_edge_steps] - initial_reshaped[:n_edge_steps],
-                        p=2,
-                        dim=-1,
-                    ).sum()
-                )
-
+                endpoint_penalties += endpoint_weight * torch.norm(
+                    path_reshaped[:n_edge_steps] - initial_reshaped[:n_edge_steps], 
+                    p=2, dim=-1
+                ).sum()
+                
                 # Penalise last 10% deviation
-                endpoint_penalties += (
-                    endpoint_weight
-                    * torch.norm(
-                        path_reshaped[-n_edge_steps:]
-                        - initial_reshaped[-n_edge_steps:],
-                        p=2,
-                        dim=-1,
-                    ).sum()
-                )
-            return total_penalty + endpoint_penalties
+                endpoint_penalties += endpoint_weight * torch.norm(
+                    path_reshaped[-n_edge_steps:] - initial_reshaped[-n_edge_steps:], 
+                    p=2, dim=-1
+                ).sum()
+            return total_penalty  + endpoint_penalties
         else:
             return total_penalty
 
-    def model(
-        self,
-        initial_paths: Tuple[Tensor, ...],
-        beta: float,
-        input_additional_args: Tuple[Tensor, ...],
-        use_endpoints_matching: bool = True,
-    ) -> None:
-        """
-        Defines the model for Stochastic Variational Inference (SVI) optimization.
+    def model(self, *args, **kwargs):
+        """Defines the probabilistic model for path sampling using Pyro.
 
-        This model samples perturbations to the initial paths and computes the
-        potential energy of the resulting paths. The energy is then used to
-        define a factor in the probabilistic model.
+        Implements a stochastic model that:
+        1. Takes initial paths as input
+        2. Samples path deviations from a Normal distribution
+        3. Combines initial paths with sampled deviations
+        4. Computes potential energy of the resulting paths
+        5. Adds energy as a factor in the probabilistic model
 
         Args:
-            initial_paths (Tuple[Tensor, ...]): Tuple of initial path points.
-                These points define the starting paths for optimization.
-            beta (float): Weight of the curvature penalty. Higher values
-                penalise curvature more strongly.
-            input_additional_args (Tuple[Tensor, ...]): Additional arguments
-                required for the forward function.
-            use_endpoints_matching (bool, optional): If True, applies penalties
-                to ensure the endpoints of the paths match the initial paths.
-                Defaults to True.
-        """
-        initial_paths = self._ensure_device(initial_paths)
-        input_additional_args = self._ensure_device(input_additional_args)
+            *args: Variable length argument list, expected contents:
+                - args[0]: Tuple[Tensor, ...], initial path coordinates
+                - args[1]: float, beta parameter for potential energy calculation
+                - args[2]: Tuple[Tensor, ...], additional arguments for forward function
+            **kwargs: Arbitrary keyword arguments (unused)
 
+        Notes:
+            - Path deviations are sampled from N(0,1) with same shape as initial paths
+            - Resulting paths require gradients for energy calculation
+            - Energy is added as a negative factor to define the probability density
+        """
+        initial_paths = self._ensure_device(args[0])
+        input_additional_args = self._ensure_device(args[2])
+        
         delta_tuple = tuple(
             pyro.sample(
                 f"path_delta_{i}",
                 dist.Normal(
-                    torch.zeros_like(initial_paths[i]).to(self.device),
-                    torch.ones_like(initial_paths[i]).to(self.device),
+                    torch.zeros_like(initial_paths[i]).to(self.device), 
+                    torch.ones_like(initial_paths[i]).to(self.device)
                 ).to_event(initial_paths[i].dim()),
             )
             for i in range(len(initial_paths))
@@ -196,49 +196,40 @@ class GeodesicIGSVI(GradientAttribution):
             for i in range(len(initial_paths))
         )
 
-        energy = self.potential_energy(
-            paths,
-            initial_paths,
-            beta,
-            input_additional_args,
-            use_endpoints_matching=use_endpoints_matching,
-        )
+        energy = self.potential_energy(paths, initial_paths, args[1], 
+                                     input_additional_args)
         pyro.factor("energy", -energy)
 
-    def guide(
-        self,
-        initial_paths: Tuple[Tensor, ...],
-        beta: float,
-        input_additional_args: Tuple[Tensor, ...],
-        use_endpoints_matching: bool = True,
-    ) -> Tuple[Tensor, ...]:
-        """
-        Guide function for Stochastic Variational Inference (SVI) optimisation.
-
-        This guide function learns the optimal deviations from the initial paths
-        by parameterizing the perturbations. It uses variational parameters to
-        sample the deviations and returns the optimised paths.
-
+    def guide(self, *args, **kwargs):
+        """Variational guide function for learning optimal path deviations.
+    
+        Implements a variational distribution that:
+        1. Creates learnable location and scale parameters for each path component
+        2. Samples path deviations from Normal distributions with learnable parameters
+        3. Combines initial paths with optimised deviations
+        
         Args:
-            initial_paths (Tuple[Tensor, ...]): Tuple of initial path points.
-                These points define the starting paths for optimisation.
-            beta (float): Weight of the curvature penalty. Higher values
-                penalise curvature more strongly.
-            input_additional_args (Tuple[Tensor, ...]): Additional arguments
-                required for the forward function.
-            use_endpoints_matching (bool, optional): If True, applies penalties
-                to ensure the endpoints of the paths match the initial paths.
-                Defaults to True.
-
+            *args: Variable length argument list, expected contents:
+                - args[0]: Tuple[Tensor, ...], initial path coordinates 
+            **kwargs: Arbitrary keyword arguments (unused)
+            
         Returns:
-            Tuple[Tensor, ...]: Tuple of optimised paths.
+            Tuple[Tensor, ...]: Optimised paths created by combining initial paths 
+            with learned deviations
+            
+        Notes:
+            - Uses separate location and scale parameters for each path component
+            - Scale parameters are constrained to be positive
+            - Resulting paths require gradients for optimisation
+            - Maintains original path dimensionality without reshaping
         """
-        initial_paths = self._ensure_device(initial_paths)
-
+        initial_paths = self._ensure_device(args[0])
+        
         delta_locs = tuple(
-            pyro.param(f"delta_loc_{i}", lambda: torch.zeros_like(initial_paths[i])).to(
-                self.device
-            )
+            pyro.param(
+                f"delta_loc_{i}", 
+                lambda: torch.zeros_like(initial_paths[i])
+            ).to(self.device)
             for i in range(len(initial_paths))
         )
 
@@ -254,9 +245,10 @@ class GeodesicIGSVI(GradientAttribution):
         for i in range(len(initial_paths)):
             pyro.sample(
                 f"path_delta_{i}",
-                dist.Normal(delta_locs[i], delta_scales[i]).to_event(
-                    initial_paths[i].dim()
-                ),
+                dist.Normal(
+                    delta_locs[i], 
+                    delta_scales[i]
+                ).to_event(initial_paths[i].dim()),
             )
 
         optimised_paths = tuple(
@@ -266,88 +258,81 @@ class GeodesicIGSVI(GradientAttribution):
         return optimised_paths
 
     def _optimise_paths(
-        self,
-        initial_paths: Tuple[Tensor, ...],
-        input_additional_args: Tuple[Tensor, ...],
-        beta_decay_rate: float,
-        current_beta: float = 0.3,
-        num_iterations: int = 100000,
-        initial_lr: float = 1e-3,
-        min_lr: float = 1e-5,
-        lr_decay_factor: float = 0.5,
-        lr_patience: int = 25,
-        use_endpoints_matching: bool = True,
-        do_linear_interp: bool = True,
-        patience: int = 4000,
-        rel_improvement_threshold: float = 1e-4,
-    ) -> Tensor:
-        """
-        Optimises the paths using Stochastic Variational Inference (SVI).
+            self,
+            initial_paths: Tuple[Tensor, ...],
+            input_additional_args: Tuple[Tensor, ...],
+            beta_decay_rate: float,
+            current_beta: float = 0.3,
+            num_iterations: int = 100000,
+            initial_lr: float = 1e-3,
+            min_lr: float = 1e-5,  
+            lr_decay_factor: float = 0.5,  
+            lr_patience: int = 25, 
+            use_endpoints_matching: bool = True,
+            do_linear_interp: bool = True,
+            patience: int = 100,
+            rel_improvement_threshold: float = 1e-4,
+        ) -> Tensor:
+            """Optimises paths using stochastic variational inference.
 
-        This function performs SVI to optimise the paths by minimizing the loss
-        function. It adjusts the learning rate dynamically and applies early
-        stopping based on the relative improvement of the loss.
+            Performs iterative path optimisation by:
+            1. Setting up SVI with model and guide functions
+            2. Iteratively optimising path parameters
+            3. Implementing learning rate decay and early stopping
+            4. Optionally applying linear interpolation to final paths
 
-        Args:
-            initial_paths (Tuple[Tensor, ...]): Tuple of initial path points.
-            input_additional_args (Tuple[Tensor, ...]): Additional arguments
-                required for the forward function.
-            beta_decay_rate (float): Decay rate for the beta parameter.
-            current_beta (float, optional): Initial value of the beta parameter.
-                Defaults to 0.3.
-            num_iterations (int, optional): Number of iterations for optimization.
-                Defaults to 100000.
-            initial_lr (float, optional): Initial learning rate. Defaults to 1e-3.
-            min_lr (float, optional): Minimum learning rate. Defaults to 1e-5.
-            lr_decay_factor (float, optional): Factor by which to decay the learning
-                rate. Defaults to 0.5.
-            lr_patience (int, optional): Number of iterations to wait before
-                decaying the learning rate if no improvement. Defaults to 25.
-            use_endpoints_matching (bool, optional): If True, applies penalties to
-                ensure the endpoints of the paths match the initial paths. Defaults
-                to True.
-            do_linear_interp (bool, optional): If True, performs linear interpolation
-                on the optimised paths. Defaults to True.
-            patience (int, optional): Number of iterations to wait before early
-                stopping if no improvement. Defaults to 4000.
-            rel_improvement_threshold (float, optional): Relative improvement
-                threshold for early stopping. Defaults to 1e-4.
+            Args:
+                initial_paths: Starting path coordinates
+                input_additional_args: Additional arguments for forward function
+                beta_decay_rate: Rate at which beta parameter decays during optimisation
+                current_beta: Initial beta value for potential energy calculation
+                num_iterations: Maximum number of optimisation iterations
+                initial_lr: Initial learning rate for optimiser
+                min_lr: Minimum learning rate threshold
+                lr_decay_factor: Factor by which to reduce learning rate
+                lr_patience: Iterations to wait before decaying learning rate
+                use_endpoints_matching: Whether to constrain path endpoints
+                do_linear_interp: Whether to interpolate final paths
+                patience: Iterations to wait before early stopping
+                rel_improvement_threshold: Minimum relative improvement for convergence
 
-        Returns:
-            Tensor: Optimised paths.
-        """
-        with torch.no_grad():
+            Returns:
+                Tensor: Optimised path coordinates
+
+            Notes:
+                - Uses Adam optimiser with adaptive learning rate
+                - Implements early stopping based on relative improvement
+                - Monitors and prints progress every 100 iterations
+                - Optionally interpolates final paths for uniform spacing
+            """
+                        
             initial_paths = self._ensure_device(initial_paths)
             input_additional_args = self._ensure_device(input_additional_args)
-
+            
             current_lr = initial_lr
             optimiser = Adam({"lr": current_lr})
             svi = SVI(
-                model=self.model,
-                guide=self.guide,
+                model=lambda *args, **kwargs: self.model(*args, **kwargs),
+                guide=lambda *args, **kwargs: self.guide(*args, **kwargs),
                 optim=optimiser,
-                loss=Trace_ELBO(retain_graph=True),
+                loss=Trace_ELBO(retain_graph=True)
             )
 
-            best_loss = float("inf")
+            best_loss = float('inf')
             patience_counter = 0
             lr_patience_counter = 0
             loss_history = []
             beta = current_beta
-
+            
             for step in range(num_iterations):
-                loss = svi.step(
-                    initial_paths,
-                    beta,
-                    input_additional_args,
-                    use_endpoints_matching=use_endpoints_matching,
-                )
+                loss = svi.step(initial_paths, beta, input_additional_args, 
+                            use_endpoints_matching=use_endpoints_matching)
                 loss_history.append(loss)
                 beta *= beta_decay_rate
 
                 if len(loss_history) > 1:
                     rel_improvement = (loss_history[-2] - loss) / loss_history[-2]
-
+                    
                     if loss < best_loss:
                         best_loss = loss
                         patience_counter = 0
@@ -355,95 +340,96 @@ class GeodesicIGSVI(GradientAttribution):
                     else:
                         patience_counter += 1
                         lr_patience_counter += 1
-
+                        
                         # Decay learning rate if no improvement
                         if lr_patience_counter >= lr_patience and current_lr > min_lr:
                             current_lr = max(current_lr * lr_decay_factor, min_lr)
                             # Create new optimiser with updated learning rate
                             optimiser = Adam({"lr": current_lr})
-                            svi.optim = optimiser
+                            svi.optim = optimiser  # Update optimiser in SVI
                             lr_patience_counter = 0
                             print(f"Decreasing learning rate to {current_lr:.6f}")
 
-                    if (
-                        rel_improvement < rel_improvement_threshold
-                        and patience_counter >= patience
-                    ):
-                        print(
-                            f"Early stopping at step {step}: Loss converged with relative improvement {rel_improvement:.6f}"
-                        )
+                    if rel_improvement < rel_improvement_threshold and patience_counter >= patience:
+                        print(f"Early stopping at step {step}: Loss converged with relative improvement {rel_improvement:.6f}")
                         break
                 if step % 100 == 0:
-                    print(
-                        f"Step {step}: loss = {loss:.3f}, beta = {beta:.3f}, lr = {current_lr:.6f}"
-                    )
+                    print(f"Step {step}: loss = {loss:.3f}, beta = {beta:.3f}, lr = {current_lr:.6f}")
 
             with torch.no_grad():
-                optimised_paths = self.guide(
-                    initial_paths,
-                    beta,
-                    input_additional_args,
-                    use_endpoints_matching=use_endpoints_matching,
-                )
+                optimised_paths = self.guide(initial_paths, beta, input_additional_args, 
+                                        use_endpoints_matching=use_endpoints_matching)
                 optimised_paths = self._ensure_device(optimised_paths)
 
             if do_linear_interp:
                 print("Interpolating paths...")
                 optimised_paths = tuple(
-                    self.make_uniform_spacing(opt_paths, n_steps=self.n_steps).requires_grad_(True)
+                    self.make_uniform_spacing(opt_paths, n_steps=self.n_steps)
                     for opt_paths in optimised_paths
                 )
 
             return optimised_paths
-
+        
     def make_uniform_spacing(self, paths: Tensor, n_steps: int) -> Tuple[Tensor, int]:
+        """Creates uniformly spaced paths by interpolating between points.
+
+        Standardises the spacing between path points by:
+        1. Calculating step sizes between existing points
+        2. Standardising step sizes relative to total path length
+        3. Interpolating additional points based on standardised spacing
+        4. Resampling to achieve uniform point distribution
+
+        Args:
+            paths: Input tensor containing path coordinates
+            n_steps: Number of steps in the path
+
+        Returns:
+            Tuple containing:
+            - Tensor: Paths with uniformly spaced points
+            - int: Number of steps in output paths
+
+        Notes:
+            - Maintains original path endpoints
+            - Interpolates linearly between existing points
+            - Resamples to ensure consistent number of points
+            - Preserves batch dimension and feature dimensionality
+        """
         device = paths.device
         batch_size = paths.shape[0] // n_steps
         feature_dims = paths.shape[1:]
-
-        step_sizes = calculate_step_sizes(
-            paths, n_inputs=batch_size, n_features=feature_dims, n_steps=n_steps
-        )
+        
+        step_sizes = calculate_step_sizes(paths, n_inputs=batch_size, n_features=feature_dims, n_steps=n_steps)
         standardised_step_sizes = step_sizes / step_sizes.sum(dim=0).unsqueeze(0)
-
+        
         paths = paths.view(n_steps, batch_size, *feature_dims)
         standardised_step_sizes = standardised_step_sizes.view(n_steps, batch_size, 1)
 
         dense_paths = [[] for _ in range(batch_size)]
-
+        
         for j in range(batch_size):
             starts = paths[:-1, j]
             ends = paths[1:, j]
-
+            
             max_step = standardised_step_sizes.max().item()
             scale_factor = n_steps / max_step
             num_points = (standardised_step_sizes[:, j] * scale_factor).long()
-
+            
             all_points = []
             all_points.append(paths[0, j].unsqueeze(0))
-
-            for i in range(n_steps - 1):
+            
+            for i in range(n_steps-1):
                 n = num_points[i].item()
-                alphas = torch.linspace(0, 1, n + 1, device=device).view(
-                    -1, *([1] * len(feature_dims))
-                )
-                segment_points = starts[i : i + 1] + alphas * (
-                    ends[i : i + 1] - starts[i : i + 1]
-                )
+                alphas = torch.linspace(0, 1, n+1, device=device).view(-1, *([1] * len(feature_dims)))
+                segment_points = starts[i:i+1] + alphas * (ends[i:i+1] - starts[i:i+1])
                 all_points.append(segment_points)
-
+            
             dense_path = torch.cat(all_points, dim=0)
-            indices = torch.linspace(
-                0, len(dense_path) - 1, n_steps, device=device
-            ).long()
+            indices = torch.linspace(0, len(dense_path)-1, n_steps, device=device).long()
             dense_paths[j] = dense_path[indices]
+        
+        return torch.stack(dense_paths).transpose(0, 1).reshape(n_steps * batch_size, *feature_dims)
 
-        return (
-            torch.stack(dense_paths)
-            .transpose(0, 1)
-            .reshape(n_steps * batch_size, *feature_dims)
-        )
-
+    
     @log_usage()
     def attribute(
         self,
@@ -466,13 +452,38 @@ class GeodesicIGSVI(GradientAttribution):
     ) -> Union[
         TensorOrTupleOfTensorsGeneric, Tuple[TensorOrTupleOfTensorsGeneric, Tensor]
     ]:
-        """This is similar to IntegratedGradients, but instead of integrating
-        over a straight line, we use the SVI method to integrate over a
-        geodesic path.
+        """
+        Similar to IntegratedGradients, but integrates over a geodesic path rather than a straight line.
+        Uses the SVI method to integrate over geodesic paths, which are shortest paths between two points
+        on a manifold. These paths avoid regions of high curvature, which correspond to regions of high
+        log-likelihood gradient.
 
-        Geodesic paths are shortest paths between two points on a
-        manifold. They avoid regions of high curvature, which are
-        regions of high log-likelihood gradient.
+        Args:
+            inputs: Input tensor or tuple of tensors
+            baselines: Reference baseline values for comparison
+            augmentation_data: Optional tensor for data augmentation
+            target: Target for attribution
+            additional_forward_args: Additional arguments for forward pass
+            n_steps: Number of steps for integration
+            method: Integration method ('gausslegendre' supported)
+            internal_batch_size: Batch size for internal processing
+            return_convergence_delta: Whether to return convergence measure
+            return_paths: Whether to return computed paths
+            beta: Weight parameter for optimisation
+            n_neighbours: Number of nearest neighbours for augmentation
+            num_iterations: Maximum optimisation iterations
+            learning_rate: Initial learning rate for optimisation
+            use_endpoints_matching: Whether to constrain path endpoints
+            do_linear_interp: Whether to use linear interpolation
+
+        Returns:
+            Union of tensor/tuple of tensors and optional convergence delta/paths
+
+        Notes:
+            - Handles both single tensor and tuple inputs
+            - Supports batch processing via internal_batch_size
+            - Validates inputs before processing
+            - Implements completeness axiom checking
         """
         if augmentation_data is not None and n_neighbors is None:
             raise ValueError(
@@ -568,6 +579,41 @@ class GeodesicIGSVI(GradientAttribution):
         use_endpoints_matching: bool = True,
         do_linear_interp: bool = True,
     ) -> Tuple[Tensor, ...]:
+        """Computes attributions using optimised geodesic paths.
+
+        Implements the core attribution logic by:
+        1. Generating initial paths (straight line or augmentation-based)
+        2. Optimising paths using SVI
+        3. Computing gradients along optimised paths
+        4. Aggregating gradients to produce final attributions
+
+        Args:
+            inputs: Input tensors to attribute
+            baselines: Reference values for comparison
+            augmentation_data: Optional data for path augmentation
+            target: Attribution target indices
+            additional_forward_args: Extra arguments for forward pass
+            n_steps: Number of integration steps
+            n_neighbours: Number of neighbours for augmentation
+            method: Integration method name
+            step_sizes_and_alphas: Optional pre-computed integration parameters
+            num_iterations: Maximum optimisation iterations
+            beta: Weight parameter for optimisation
+            learning_rate: Initial optimisation learning rate
+            use_endpoints_matching: Whether to constrain path endpoints
+            do_linear_interp: Whether to use linear interpolation
+
+        Returns:
+            Tuple containing:
+            - Tuple[Tensor, ...]: Computed attributions
+            - Tuple[Tensor, ...]: Optimised paths
+
+        Notes:
+            - Handles both standard and augmented path initialisation
+            - Supports multiple input tensors
+            - Implements gradient scaling and aggregation
+            - Optional input multiplication for final attributions
+        """
 
         if step_sizes_and_alphas is None:
             step_sizes_func, alphas_func = approximation_parameters(method)
@@ -613,6 +659,7 @@ class GeodesicIGSVI(GradientAttribution):
             if additional_forward_args is not None
             else None
         )
+        # expanded_target = _expand_target(target, self.n_steps)
 
         optimised_paths = self._optimise_paths(
             initial_paths,
@@ -625,8 +672,12 @@ class GeodesicIGSVI(GradientAttribution):
             do_linear_interp=do_linear_interp,
         )
 
-        n_inputs = tuple(input.shape[0] for input in inputs)
-        n_features = tuple(input.shape[1:] for input in inputs)
+        n_inputs = tuple(
+            input.shape[0] for input in inputs
+        )
+        n_features = tuple(
+            input.shape[1:] for input in inputs
+        )
 
         step_sizes_tuple = tuple(
             calculate_step_sizes(path, n_inputs[i], self.n_steps, n_features[i])
@@ -647,9 +698,7 @@ class GeodesicIGSVI(GradientAttribution):
         # calling contiguous to avoid `memory whole` problems
         scaled_grads = [
             grad.contiguous()
-            * step_sizes.view(step_sizes.shape[0], *([1] * (grad.dim() - 1))).to(
-                grad.device
-            )
+            * step_sizes.view(step_sizes.shape[0], *([1] * (grad.dim() - 1))).to(grad.device)
             for step_sizes, grad in zip(step_sizes_tuple, grads)
         ]
 
@@ -672,24 +721,47 @@ class GeodesicIGSVI(GradientAttribution):
                 for total_grad, input, baseline in zip(total_grads, inputs, baselines)
             )
         return attributions, optimised_paths
-
-
+    
 def calculate_step_sizes(path, n_inputs, n_steps, n_features):
+    """Calculates step sizes between consecutive points along a path.
+
+    Computes L2 norm distances between adjacent path points by:
+    1. Reshaping path tensor to separate steps and batch dimensions
+    2. Computing pairwise differences between consecutive points
+    3. Calculating L2 norms across feature dimensions
+    4. Padding final step to maintain dimensions
+
+    Args:
+        path: Tensor containing path coordinates
+        n_inputs: Number of input examples in batch
+        n_steps: Number of steps along path
+        n_features: Tuple describing feature dimensions
+
+    Returns:
+        Tensor: Step sizes between consecutive path points, 
+               shaped as [n_steps * n_inputs, 1]
+
+    Notes:
+        - Handles arbitrary feature dimensionality
+        - Maintains batch structure
+        - Pads final step by repeating last difference
+        - Returns reshaped tensor matching original path dimensions
+    """
     view_shape = (n_steps, n_inputs) + n_features
     paths_reshaped = path.view(view_shape)
-
+    
     # Calculate initial step sizes
     step_sizes = torch.norm(
         paths_reshaped[1:] - paths_reshaped[:-1],
         p=2,
         dim=tuple(range(2, 2 + len(n_features))),
     )
-
+    
     # Add final step to match dimensions
     last_step = step_sizes[-1:]
     step_sizes = torch.cat([step_sizes, last_step], dim=0)
-
+    
     # Reshape to match original path dimensions
     step_sizes = step_sizes.view(n_steps * n_inputs, 1)
-
+    
     return step_sizes
