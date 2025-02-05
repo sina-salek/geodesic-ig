@@ -39,7 +39,7 @@ def main(
     softplus: bool = False,
     device: str = "cpu",
     seed: int = 42,
-    deterministic: bool = False,
+    deterministic: bool = True,
 ):
     # If deterministic, seed everything
     if deterministic:
@@ -243,18 +243,19 @@ def main(
             )
         if "svi_integrated_gradients" in explainers:
             explainer = GeodesicIGSVI(net)
-
-            attr["svi_integrated_gradients"] = explainer.attribute(
-                x_test,
-                target=pred_class,
-                baselines=baselines,
-                num_iterations=1000,
-                beta=0.1,
-                n_steps=n_steps,
-                do_linear_interp=True,
-                use_endpoints_matching=True,
-                learning_rate=0.001,
-            )
+            for li in [True, False]:
+                for em in [True, False]:
+                    attr[f"svi_integrated_gradients_li_{li}_em_{em}"] = explainer.attribute(
+                        x_test,
+                        target=pred_class,
+                        baselines=baselines,
+                        num_iterations=1000,
+                        beta=0.1,
+                        n_steps=n_steps,
+                        do_linear_interp=li,
+                        use_endpoints_matching=em,
+                        learning_rate=0.001,
+                    )
         if "guided_integrated_gradients" in explainers:
             guided_ig = saliency.GuidedIG()
             def PreprocessData(data):
@@ -379,7 +380,7 @@ def parse_args():
             "enhanced_integrated_gradients",
             "gradient_shap",
             "integrated_gradients",
-            "smooth_grad",
+            # "smooth_grad",
             "input_x_gradient",
             "kernel_shap",
             "svi_integrated_gradients",
@@ -407,7 +408,7 @@ def parse_args():
     parser.add_argument(
         "--noises",
         type=float,
-        default=[0.05, 0.1, 0.15, 0.2, 0.25, 0.3],
+        default=[0.05, 0.1, 0.15, 0.2, 0.25, 0.3, 0.35, 0.4, 0.45, 0.5, 0.55, 0.6, 0.65],
         nargs="+",
         metavar="N",
         help="List of noises to use.",
@@ -432,6 +433,7 @@ def parse_args():
     parser.add_argument(
         "--deterministic",
         action="store_true",
+        default=True,
         help="Whether to make training deterministic or not.",
     )
     return parser.parse_args()
