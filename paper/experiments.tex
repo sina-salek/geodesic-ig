@@ -8,7 +8,7 @@ To validate our method, we performed experiments on two datasets: one is the syn
 
 We use the half-moons dataset provided by Scikit learn \citep{scikit-learn} to generate 10,000 points with a Gaussian noise of $\mathcal{N}(0, 0.2)$. The dataset is split into 8,000 training points and 2,000 testing ones. The model used is an MLP.
 
-We measure two indicators of performance for each attribution method: a lack of artefacts not reflecting the model's behaviour, and a low variation of attributions between close points. To that goal, we use two metrics, \textbf{purity} and \textbf{standard deviation}, defined in the following way. We know that a well-trained model should classify about half of the data points as upper moon, class $1$, and the other half as lower moon, class $0$. Such a model should consider both features of each point important for the classification into class $1$. Therefore, for such a model, we expect in a good attribution method, the top $50\%$ points as ranked by the quantity $\widetilde{attr}(\textbf{x}; f) = \sum_{i=0}^1 |attr_i(\textbf{x}; f)|$, to be classified as $1$ (assuming the baseline is chosen as a point to which the network gives a near-zero score). With this in mind, purity is defined as
+We measure two indicators of performance for each attribution method: a lack of artefacts not reflecting the model's behaviour, and a low variation of attributions between close points. To that goal, we use \textbf{purity}, defined in the following way. We know that a well-trained model should classify about half of the data points as upper moon, class $1$, and the other half as lower moon, class $0$. Such a model should consider both features of each point important for the classification into class $1$. Therefore, for such a model, we expect in a good attribution method, the top $50\%$ points as ranked by the quantity $\widetilde{attr}(\textbf{x}; f) = \sum_{i=0}^1 |attr_i(\textbf{x}; f)|$, to be classified as $1$ (assuming the baseline is chosen as a point to which the network gives a near-zero score). With this in mind, purity is defined as
 \begin{equation}
 \begin{split}
     \textrm{Purity} &= \frac{1}{N/2}\sum_{\textbf{x}, \, \widetilde{attr}(\textbf{x}; f) \in \textrm{Top 50\% of all attr}} \textrm{argmax}(f(\textbf{x})),
@@ -17,40 +17,35 @@ We measure two indicators of performance for each attribution method: a lack of 
 \end{equation}
 where $N$ is the number of data points. We see that this is the average value of the predicted class labels for half of the points. From the above, we infer that, for a well-trained model, we prefer an attribution method that results in the purity close to $1$. In contrast, a random attribution method in this case would result in the purity score of $0.5$. 
 
-For the second metric, standard deviation, points that belong to the same moon to have similar $\widetilde{attr}(\textbf{x}; f)$. Therefore, define
-\begin{equation}
-\begin{split}
-    \textrm{Std}_i &= \textrm{std}\{\widetilde{attr}(\textbf{x}; f), \, \textrm{argmax}(f(\textbf{x})) \in \textrm{Moon }_i\}.
-\end{split}
-\label{eq:moons-std}
-\end{equation}
-We expect this standard deviation metric to be low for the points belonging to either class. 
-
 In this experiment, we compare the results of attributions from Geodesic IG with the original IG, as well as more recent comparable methods including Enhanced IG \citep{jha2020enhanced}, GradientShap \citep{lundberg2017unified}, SmoothGrad \citep{smilkov2017smoothgrad}.
 
 For all of the methods, we use $(-0.5, -0.5)$ as a baseline. Enhanced IG is an improvement over IG where the $k$NN algorithm is used to avoid computing gradients on paths on out of sample distributions. The chosen number of neighbours for the $k$NN part of both Enhanced IG and Geodesic IG is $5$. We perform an ablation study of this parameter in Appendix \ref{app:half-moons}. 
 
 \begin{table}[t]
 	\centering
-	\resizebox{0.48\textwidth}{!}{%
+	\resizebox{0.3\textwidth}{!}{%
 	\begin{tabular}{lccc}
 		\toprule
-		\textbf{Method} & Purity $\uparrow$ & $\textrm{STD}_0$ $\downarrow$ & $\textrm{STD}_1$ $\downarrow$ \\
+		\textbf{Method} & AUC-Purity $\uparrow$  \\
 		\midrule
-        GradientShap    & 0.761  & 1.90   & 5.01 \\
-		IG              & 0.802  & 1.44 & 4.915  \\
-        SmoothGrad      & 0.800   &  1.42  & 4.720  \\
-        Enhanced IG     & 0.738   &  1.23  & 1.876 \\
+		Input X Gradients   & 0.336 &  \\
+		GradientShap        & 0.472  & \\
+		IG                  &0.476 &   \\
+		Random                & 0.301 &   \\
+		Kernel Shap         & 0.472 &   \\
+		Occlusion           & 0.535 &   \\
+		Guided IG          & 0.343 & \\
 		\midrule
-		Geodesic IG     & \textbf{0.978} & \textbf{0.237} & \textbf{0.267} \\
+		Geodesic IG  ($k$NN)       & \textbf{0.543}   \\
+		Geodesic IG  (SVI)       & 0.509    \\
 		\bottomrule
 	\end{tabular}%
 	}
-	\caption{Evaluation of different attribution methods on a half-moons dataset with Gaussian noise $\mathcal{N}(0, 0.2)$. The results over 5 different seeds are averaged, with the corresponding standard deviation in brackets. We present in Appendix \ref{app:half-moons} more results with different amounts of Gaussian noise.}
+	\caption{Evaluation of different attribution methods on a half-moons dataset with Gaussian noise $\mathcal{N}(0, 0.2)$. We present in Appendix \ref{app:half-moons} more results with different amounts of Gaussian noise.}
 	\label{tab:results_moons_2}
 \end{table}
 
-The quantitative analysis of the results are given in Table \ref{tab:results_moons_2}, where we see that Geodesic IG significantly outperforms all other methods on all metrics. In particular, notice that all other methods perform relatively poorly on STD$_1$. This is because for this metric, the integration path has to cross the decision boundary. However, the other methods might cross the decision boundary differently and regardless of the function's gradient, resulting in spuriously different attributions for different points belonging to class $1$. In Appendix \ref{app:half-moons} we see that the gap between the performance of geodesic IG and the other methods increases as the Gaussian noise of the half-moons increases. To provide better understanding of these results we present more analysis on this dataset in Section \ref{sec:related_work}.
+The quantitative analysis of the results are given in Table \ref{tab:results_moons_2}, where we see that Geodesic IG significantly outperforms all other methods on all metrics. To provide better understanding of these results we present more analysis on this dataset in Section \ref{sec:related_work}.
 
 \subsection{Experiments on the Pascal VOC 2012 dataset}
 \label{subsec:voc}
@@ -70,10 +65,10 @@ To measure the performance of an attribution method, we use 2 different metrics:
 
 \begin{table}[t]
 	\centering
-	\resizebox{0.48\textwidth}{!}{%
+	\resizebox{0.4\textwidth}{!}{%
 	\begin{tabular}{lccc}
 		\toprule
-		\textbf{Method} & AUC-Comp $\uparrow$  & AUC-LO $\uparrow$ \\
+		\textbf{Method} & AUC-Comp $\uparrow$  & AOC-LO $\uparrow$ \\
 		\midrule
         Input X Gradients   & 0.21 & 1.28  \\
         GradientShap        & 0.18  & 1.15  \\
@@ -81,10 +76,9 @@ To measure the performance of an attribution method, we use 2 different metrics:
         Random                & 0.16 & 0.86  \\
         Kernel Shap         & 0.16 & 0.94 \\
         Occlusion           & 0.19 &  1.16 \\
-        Aug Occlusion       &0.19 & 1.15\\
         Guided IG         & 0.20 & 1.18 \\
 		\midrule
-		Geodesic IG         & \textbf{0.27}  & \textbf{1.44}  \\
+		Geodesic IG (SVI)         & \textbf{0.27}  & \textbf{1.44}  \\
 		\bottomrule
 	\end{tabular}%
 	}
@@ -92,8 +86,8 @@ To measure the performance of an attribution method, we use 2 different metrics:
 	\label{tab:results_voc}
 \end{table}
 
-We evaluated these metrics for a range of top-$k\%$, from 1\% to 65\%, as shown in Fig. \ref{fig:voc_metrics}. To summarise performance across different $k\%$ values, we calculated the area under the curve (AUC) between the metric curves and the horizontal line at $y=0$. These results are presented in Table \ref{tab:results_voc}.
+We evaluated these metrics for a range of top-$k\%$, from 1\% to 65\%, as shown in Fig. \ref{fig:voc_metrics}. To summarise performance across different $k\%$ values, we calculated the area under the curve (AUC) for Comprehensiveness. We similarly calculated the area over the curve (AOC) for Log-odds, since the values of this metric are negative. In both cases these are the area between the metric curves and the horizontal line at $y=0$. These results are presented in Table \ref{tab:results_voc}.
 
 Additionally, Fig. \ref{fig:duck} provides a qualitative comparison between Geodesic IG and Integrated Gradients. The results demonstrate that Geodesic IG outperforms other methods in explaining the model's behaviour on the dataset, with a particularly notable improvement in comprehensiveness. Further qualitative comparisons can be found in Appendix \ref{app:voc}.
 
-Using Geodesic IG to explain complex deep learning models comes with several challenges. One major issue is the high computational cost of sampling methods like SVI or HMC. For instance, running the aforementioned experiment on 100 images required 23 hours on an L4 GPU. While computationally expensive, this could be justified in scenarios where accurate explanations are crucial. Another challenge is that the performance of the energy-based geodesic method heavily depends on selecting the right value for $\beta$ in Eq. \ref{eq:energy} and tuning SVI hyperparameters, such as the learning rate. In principle, hyperparameter tuning using metrics like Comprehensiveness or Log-odds could help optimize these parameters. However, due to limited computational resources, we were unable to perform such tuning in this study, though it has the potential to significantly improve results. Lastly, the optimization nature of these sampling methods can cause the endpoints of the paths to deviate slightly from the baseline and input points, favoring nearby points in lower gradient regions. To address this, we we added a term to the potential energy to correct for these deviations and ensure more accurate alignment with the intended points.  Formally, the extra term is $w \sum_{t \in \text{endpoints}} |\gamma(t) - \gamma_{\text{init}}(t)|_2$, where $w$ is endpoint weight and the first/ last 10\% of the paths are counted as endpoints .
+Using Geodesic IG to explain complex deep learning models comes with several challenges. One major issue is the high computational cost of sampling methods like SVI or HMC. For instance, running the aforementioned experiment on 100 images required 23 hours on an L4 GPU. While computationally expensive, this could be justified in scenarios where accurate explanations are crucial. Another challenge is that the performance of the energy-based geodesic method heavily depends on selecting the right value for $\beta$ in Eq. \ref{eq:energy} and tuning SVI hyperparameters, such as the learning rate. In principle, hyperparameter tuning using metrics like Comprehensiveness or Log-odds could help optimise these parameters. However, due to limited computational resources, we were unable to perform such tuning in this study, though it has the potential to significantly improve results. Lastly, the optimisation nature of these sampling methods can cause the endpoints of the paths to deviate slightly from the baseline and input points, favoring nearby points in lower gradient regions. To address this, we we added a term to the potential energy to correct for these deviations and ensure more accurate alignment with the intended points.  Formally, the extra term is $w \sum_{t \in \text{endpoints}} |\gamma(t) - \gamma_{\text{init}}(t)|_2$, where $w$ is endpoint weight and the first/ last 10\% of the paths are counted as endpoints .
