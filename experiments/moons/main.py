@@ -402,7 +402,7 @@ def parse_args():
     parser.add_argument(
         "--n-steps",
         type=int,
-        default=50,
+        default=15,
         help="Number of steps for the IG family of methods.",
     )
     parser.add_argument(
