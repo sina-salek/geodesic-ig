@@ -1,4 +1,4 @@
-This is pdfTeX, Version 3.141592653-2.6-1.40.26 (TeX Live 2024) (preloaded format=pdflatex 2025.1.23)  27 JAN 2025 07:53
+This is pdfTeX, Version 3.141592653-2.6-1.40.26 (TeX Live 2024) (preloaded format=pdflatex 2025.1.23)  7 FEB 2025 08:28
 entering extended mode
  restricted \write18 enabled.
  %&-line parsing enabled.
@@ -924,7 +924,7 @@ s been already used, duplicate ignored
                                                   \__shipout_drop_firstpage_...
 l.26 
       <./figures/voc_compare.png>]
-<figures/half_moons_y.png, id=60, 531.9072pt x 232.7094pt>
+<figures/half_moons_y.png, id=59, 531.9072pt x 232.7094pt>
 File: figures/half_moons_y.png Graphic file (type png)
 <use figures/half_moons_y.png>
 Package pdftex.def Info: figures/half_moons_y.png  used on input line 36.
@@ -935,20 +935,16 @@ Underfull \hbox (badness 1895) in paragraph at lines 39--39
 s.
  []
 
-<figures/voc_metrics_vertical.png, id=61, 284.0211pt x 451.6875pt>
+<figures/voc_metrics_vertical.png, id=60, 214.1601pt x 286.671pt>
 File: figures/voc_metrics_vertical.png Graphic file (type png)
 <use figures/voc_metrics_vertical.png>
 Package pdftex.def Info: figures/voc_metrics_vertical.png  used on input line 4
 8.
-(pdftex.def)             Requested size: 199.64731pt x 317.50928pt.
+(pdftex.def)             Requested size: 199.64731pt x 267.24428pt.
 
 Underfull \vbox (badness 10000) has occurred while \output is active []
 
-
-
-LaTeX Warning: Text page 2 contains only floats.
-
-[2
+ [2
 pdfTeX warning (ext4): destination with the same identifier (name{figure.2}) ha
 s been already used, duplicate ignored
 <argument> ...shipout:D \box_use:N \l_shipout_box 
@@ -961,7 +957,10 @@ s been already used, duplicate ignored
                                                   \__shipout_drop_firstpage_...
 l.56 
       <./figures/half_moons_y.png> <./figures/voc_metrics_vertical.png>])
-(./method.tex [3]
+(./method.tex
+Underfull \vbox (badness 2790) has occurred while \output is active []
+
+ [3]
 <figures/method.png, id=119, 855.195pt x 157.58875pt>
 File: figures/method.png Graphic file (type png)
 <use figures/method.png>
@@ -972,7 +971,8 @@ File: figures/bridge.png Graphic file (type png)
 <use figures/bridge.png>
 Package pdftex.def Info: figures/bridge.png  used on input line 106.
 (pdftex.def)             Requested size: 187.90271pt x 79.9607pt.
- [4
+
+[4
 pdfTeX warning (ext4): destination with the same identifier (name{figure.4}) ha
 s been already used, duplicate ignored
 <argument> ...shipout:D \box_use:N \l_shipout_box 
@@ -1000,9 +1000,14 @@ s been already used, duplicate ignored
                                                   \__shipout_drop_firstpage_...
 l.150 
        <./figures/bridge.png> <./figures/svi_ig_moons.png>]) (./experiments.tex
+<figures/purity.png, id=178, 286.4301pt x 190.311pt>
+File: figures/purity.png Graphic file (type png)
+<use figures/purity.png>
+Package pdftex.def Info: figures/purity.png  used on input line 55.
+(pdftex.def)             Requested size: 223.1329pt x 148.25612pt.
 [6]
-LaTeX Font Info:    Trying to load font information for TS1+ptm on input line 6
-6.
+LaTeX Font Info:    Trying to load font information for TS1+ptm on input line 7
+3.
  (/usr/local/texlive/2024/texmf-dist/tex/latex/psnfss/ts1ptm.fd
 File: ts1ptm.fd 2001/06/04 font definitions for TS1/ptm.
 ))
@@ -1013,13 +1018,19 @@ pdfTeX warning (ext4): destination with the same identifier (name{table.1}) has
                                                   \__shipout_drop_firstpage_...
 l.1 \section
             {Related Work}
+pdfTeX warning (ext4): destination with the same identifier (name{figure.7}) ha
+s been already used, duplicate ignored
+<argument> ...shipout:D \box_use:N \l_shipout_box 
+                                                  \__shipout_drop_firstpage_...
+l.1 \section
+            {Related Work}
 pdfTeX warning (ext4): destination with the same identifier (name{table.2}) has
  been already used, duplicate ignored
 <argument> ...shipout:D \box_use:N \l_shipout_box 
                                                   \__shipout_drop_firstpage_...
 l.1 \section
-            {Related Work}]
-<figures/enhanced_ig_y.pdf, id=243, 722.7pt x 578.16pt>
+            {Related Work} <./figures/purity.png>]
+<figures/enhanced_ig_y.pdf, id=228, 722.7pt x 578.16pt>
 File: figures/enhanced_ig_y.pdf Graphic file (type pdf)
 <use figures/enhanced_ig_y.pdf>
 Package pdftex.def Info: figures/enhanced_ig_y.pdf  used on input line 11.
@@ -1027,17 +1038,16 @@ Package pdftex.def Info: figures/enhanced_ig_y.pdf  used on input line 11.
 ) (./discussion.tex
 Underfull \vbox (badness 10000) has occurred while \output is active []
 
-
-Underfull \vbox (badness 1005) has occurred while \output is active []
+)
+Underfull \vbox (badness 10000) has occurred while \output is active []
 
  [8
-pdfTeX warning (ext4): destination with the same identifier (name{figure.7}) ha
+pdfTeX warning (ext4): destination with the same identifier (name{figure.8}) ha
 s been already used, duplicate ignored
 <argument> ...shipout:D \box_use:N \l_shipout_box 
                                                   \__shipout_drop_firstpage_...
-l.7 T
-     o approximate geodesic paths, we proposed two methods: one based on $k$...
- <./figures/enhanced_ig_y.pdf>])
+l.120 
+       <./figures/enhanced_ig_y.pdf>]
 
 Package natbib Warning: Citation `langley00' undefined on input line 123.
 
@@ -1047,43 +1057,20 @@ Overfull \hbox (12.59517pt too wide) in paragraph at lines 36--41
  []
 
 ) [9] (./appendix.tex
-<figures/noises.png, id=287, 824.07875pt x 206.7725pt>
-File: figures/noises.png Graphic file (type png)
-<use figures/noises.png>
-Package pdftex.def Info: figures/noises.png  used on input line 9.
-(pdftex.def)             Requested size: 439.03726pt x 110.15996pt.
-<figures/knn.png, id=289, 870.25125pt x 204.765pt>
-File: figures/knn.png Graphic file (type png)
-<use figures/knn.png>
-Package pdftex.def Info: figures/knn.png  used on input line 21.
-(pdftex.def)             Requested size: 439.03726pt x 103.30396pt.
- [10
-
-
-pdfTeX warning (ext4): destination with the same identifier (name{figure.8}) ha
-s been already used, duplicate ignored
-<argument> ...shipout:D \box_use:N \l_shipout_box 
-                                                  \__shipout_drop_firstpage_...
-l.28 \newpage
-             
-pdfTeX warning (ext4): destination with the same identifier (name{figure.9}) ha
-s been already used, duplicate ignored
-<argument> ...shipout:D \box_use:N \l_shipout_box 
-                                                  \__shipout_drop_firstpage_...
-l.28 \newpage
-              <./figures/noises.png> <./figures/knn.png>]
-<figures/more_images.png, id=299, 375.804pt x 704.3916pt>
+<figures/more_images.png, id=274, 375.804pt x 704.3916pt>
 File: figures/more_images.png Graphic file (type png)
 <use figures/more_images.png>
-Package pdftex.def Info: figures/more_images.png  used on input line 38.
+Package pdftex.def Info: figures/more_images.png  used on input line 10.
 (pdftex.def)             Requested size: 243.91124pt x 457.18274pt.
 )
 
 Package natbib Warning: There were undefined citations.
 
-[11
-pdfTeX warning (ext4): destination with the same identifier (name{figure.10}) h
-as been already used, duplicate ignored
+[10
+
+
+pdfTeX warning (ext4): destination with the same identifier (name{figure.9}) ha
+s been already used, duplicate ignored
 <argument> ...shipout:D \box_use:N \l_shipout_box 
                                                   \__shipout_drop_firstpage_...
 l.142 \end{document}
@@ -1096,10 +1083,10 @@ Package rerunfilecheck Info: File `main.out' has not changed.
 (rerunfilecheck)             Checksum: D41D8CD98F00B204E9800998ECF8427E;0.
  ) 
 Here is how much of TeX's memory you used:
- 26896 strings out of 474116
- 497880 string characters out of 5743682
- 1960187 words of memory out of 5000000
- 48372 multiletter control sequences out of 15000+600000
+ 26879 strings out of 474116
+ 497595 string characters out of 5743682
+ 1959187 words of memory out of 5000000
+ 48359 multiletter control sequences out of 15000+600000
  601475 words of font info for 299 fonts, out of 8000000 for 9000
  1141 hyphenation exceptions out of 8191
  99i,18n,101p,1823b,583s stack positions out of 10000i,1000n,20000p,200000b,200000s
@@ -1107,28 +1094,27 @@ Here is how much of TeX's memory you used:
 7.pfb></usr/local/texlive/2024/texmf-dist/fonts/type1/public/amsfonts/cm/cmex10
 .pfb></usr/local/texlive/2024/texmf-dist/fonts/type1/public/amsfonts/cmextra/cm
 ex7.pfb></usr/local/texlive/2024/texmf-dist/fonts/type1/public/amsfonts/cm/cmmi
-10.pfb></usr/local/texlive/2024/texmf-dist/fonts/type1/public/amsfonts/cm/cmmi5
-.pfb></usr/local/texlive/2024/texmf-dist/fonts/type1/public/amsfonts/cm/cmmi6.p
-fb></usr/local/texlive/2024/texmf-dist/fonts/type1/public/amsfonts/cm/cmmi7.pfb
-></usr/local/texlive/2024/texmf-dist/fonts/type1/public/amsfonts/cm/cmmi9.pfb><
-/usr/local/texlive/2024/texmf-dist/fonts/type1/public/amsfonts/cm/cmmib10.pfb><
-/usr/local/texlive/2024/texmf-dist/fonts/type1/public/amsfonts/cm/cmr10.pfb></u
-sr/local/texlive/2024/texmf-dist/fonts/type1/public/amsfonts/cm/cmr6.pfb></usr/
-local/texlive/2024/texmf-dist/fonts/type1/public/amsfonts/cm/cmr7.pfb></usr/loc
-al/texlive/2024/texmf-dist/fonts/type1/public/amsfonts/cm/cmr9.pfb></usr/local/
-texlive/2024/texmf-dist/fonts/type1/public/amsfonts/cm/cmsy10.pfb></usr/local/t
-exlive/2024/texmf-dist/fonts/type1/public/amsfonts/cm/cmsy6.pfb></usr/local/tex
-live/2024/texmf-dist/fonts/type1/public/amsfonts/cm/cmsy7.pfb></usr/local/texli
-ve/2024/texmf-dist/fonts/type1/public/amsfonts/cm/cmsy9.pfb></usr/local/texlive
-/2024/texmf-dist/fonts/type1/public/amsfonts/symbols/msbm10.pfb></usr/local/tex
-live/2024/texmf-dist/fonts/type1/urw/times/utmb8a.pfb></usr/local/texlive/2024/
-texmf-dist/fonts/type1/urw/times/utmr8a.pfb></usr/local/texlive/2024/texmf-dist
-/fonts/type1/urw/times/utmr8a.pfb></usr/local/texlive/2024/texmf-dist/fonts/typ
-e1/urw/times/utmri8a.pfb>
-Output written on main.pdf (11 pages, 4023604 bytes).
+10.pfb></usr/local/texlive/2024/texmf-dist/fonts/type1/public/amsfonts/cm/cmmi6
+.pfb></usr/local/texlive/2024/texmf-dist/fonts/type1/public/amsfonts/cm/cmmi7.p
+fb></usr/local/texlive/2024/texmf-dist/fonts/type1/public/amsfonts/cm/cmmi9.pfb
+></usr/local/texlive/2024/texmf-dist/fonts/type1/public/amsfonts/cm/cmmib10.pfb
+></usr/local/texlive/2024/texmf-dist/fonts/type1/public/amsfonts/cm/cmr10.pfb><
+/usr/local/texlive/2024/texmf-dist/fonts/type1/public/amsfonts/cm/cmr6.pfb></us
+r/local/texlive/2024/texmf-dist/fonts/type1/public/amsfonts/cm/cmr7.pfb></usr/l
+ocal/texlive/2024/texmf-dist/fonts/type1/public/amsfonts/cm/cmr9.pfb></usr/loca
+l/texlive/2024/texmf-dist/fonts/type1/public/amsfonts/cm/cmsy10.pfb></usr/local
+/texlive/2024/texmf-dist/fonts/type1/public/amsfonts/cm/cmsy6.pfb></usr/local/t
+exlive/2024/texmf-dist/fonts/type1/public/amsfonts/cm/cmsy7.pfb></usr/local/tex
+live/2024/texmf-dist/fonts/type1/public/amsfonts/cm/cmsy9.pfb></usr/local/texli
+ve/2024/texmf-dist/fonts/type1/public/amsfonts/symbols/msbm10.pfb></usr/local/t
+exlive/2024/texmf-dist/fonts/type1/urw/times/utmb8a.pfb></usr/local/texlive/202
+4/texmf-dist/fonts/type1/urw/times/utmr8a.pfb></usr/local/texlive/2024/texmf-di
+st/fonts/type1/urw/times/utmr8a.pfb></usr/local/texlive/2024/texmf-dist/fonts/t
+ype1/urw/times/utmri8a.pfb>
+Output written on main.pdf (10 pages, 3515279 bytes).
 PDF statistics:
- 417 PDF objects out of 1000 (max. 8388607)
- 318 compressed objects within 4 object streams
- 75 named destinations out of 1000 (max. 500000)
- 65599 words of extra memory for PDF output out of 74296 (max. 10000000)
+ 386 PDF objects out of 1000 (max. 8388607)
+ 293 compressed objects within 3 object streams
+ 71 named destinations out of 1000 (max. 500000)
+ 65594 words of extra memory for PDF output out of 74296 (max. 10000000)
 
