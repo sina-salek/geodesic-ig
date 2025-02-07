@@ -6,9 +6,11 @@ To validate our method, we performed experiments on two datasets: one is the syn
 \subsection{Experiments on the half-moons dataset}
 \label{subsec:half-moons}
 
-We use the half-moons dataset provided by Scikit learn \citep{scikit-learn} to generate 10,000 points with a Gaussian noise of $\mathcal{N}(0, 0.2)$. The dataset is split into 8,000 training points and 2,000 testing ones. The model used is an MLP.
+We use the half-moons dataset provided by Scikit learn \citep{scikit-learn} to generate 10,000 points with a Gaussian noise of $\mathcal{N}(0, x)$, where $x$ ranges between 0.05 and 0.65. The dataset is split into 8,000 training points and 2,000 testing ones. The model used is an MLP.
 
-We measure two indicators of performance for each attribution method: a lack of artefacts not reflecting the model's behaviour, and a low variation of attributions between close points. To that goal, we use \textbf{purity}, defined in the following way. We know that a well-trained model should classify about half of the data points as upper moon, class $1$, and the other half as lower moon, class $0$. Such a model should consider both features of each point important for the classification into class $1$. Therefore, for such a model, we expect in a good attribution method, the top $50\%$ points as ranked by the quantity $\widetilde{attr}(\textbf{x}; f) = \sum_{i=0}^1 |attr_i(\textbf{x}; f)|$, to be classified as $1$ (assuming the baseline is chosen as a point to which the network gives a near-zero score). With this in mind, purity is defined as
+We evaluate each attribution method using an indicator of performance: the absence of artefacts that do not reflect the model's behaviour. To this end, we use purity, defined as follows.
+
+A well-trained model should classify approximately half of the data points as ``upper moon'' (class 1) and the other half as ``lower moon'' (class 0). Such a model should consider both features of each point important for classification into class 1. Therefore, for a good attribution method, we expect the top 50\% of points—ranked by the quantity $\widetilde{attr}(\textbf{x}; f) = \sum_{i=0}^1 |attr_i(\textbf{x}; f)|$, to be classified as 1, assuming the baseline is chosen as a point to which the network assigns a near-zero score. With this in mind, we define purity as
 \begin{equation}
 \begin{split}
     \textrm{Purity} &= \frac{1}{N/2}\sum_{\textbf{x}, \, \widetilde{attr}(\textbf{x}; f) \in \textrm{Top 50\% of all attr}} \textrm{argmax}(f(\textbf{x})),
@@ -17,9 +19,9 @@ We measure two indicators of performance for each attribution method: a lack of 
 \end{equation}
 where $N$ is the number of data points. We see that this is the average value of the predicted class labels for half of the points. From the above, we infer that, for a well-trained model, we prefer an attribution method that results in the purity close to $1$. In contrast, a random attribution method in this case would result in the purity score of $0.5$. 
 
-In this experiment, we compare the results of attributions from Geodesic IG with the original IG, as well as more recent comparable methods including Enhanced IG \citep{jha2020enhanced}, GradientShap \citep{lundberg2017unified}, SmoothGrad \citep{smilkov2017smoothgrad}.
+In this experiment, we compare the results of attributions from Geodesic IG with methods including Integrated Gradients, GradientShap, InputXGradients \citep{shrikumar2016not}, KernelShap \citep{lundberg2017unified}, Occlusion \citep{zeiler2014visualizing}, and Guided IG \citep{kapishnikov2021guided}.
 
-For all of the methods, we use $(-0.5, -0.5)$ as a baseline. Enhanced IG is an improvement over IG where the $k$NN algorithm is used to avoid computing gradients on paths on out of sample distributions. The chosen number of neighbours for the $k$NN part of both Enhanced IG and Geodesic IG is $5$. We perform an ablation study of this parameter in Appendix \ref{app:half-moons}. 
+For all of the methods, we use $(-0.5, -0.5)$ as a baseline. The chosen number of neighbours for the $k$NN part of both Enhanced IG and Geodesic IG is $5$.
 
 \begin{table}[t]
 	\centering
@@ -28,32 +30,42 @@ For all of the methods, we use $(-0.5, -0.5)$ as a baseline. Enhanced IG is an i
 		\toprule
 		\textbf{Method} & AUC-Purity $\uparrow$  \\
 		\midrule
-		Input X Gradients   & 0.336 &  \\
-		GradientShap        & 0.472  & \\
-		IG                  &0.476 &   \\
-		Random                & 0.301 &   \\
-		Kernel Shap         & 0.472 &   \\
-		Occlusion           & 0.535 &   \\
-		Guided IG          & 0.343 & \\
+		Input X Gradients   & 0.328 &  \\
+		GradientShap        & 0.483  & \\
+		IG                  &0.487 &   \\
+		Random                & 0.299 &   \\
+		Kernel Shap         & 0.480 &   \\
+		Occlusion           & 0.520 &   \\
+		Guided IG          & 0.361 & \\
+		Enhanced IG       &470& \\
 		\midrule
-		Geodesic IG  ($k$NN)       & \textbf{0.543}   \\
-		Geodesic IG  (SVI)       & 0.509    \\
+		Geodesic IG  ($k$NN)       & \textbf{0.531}  & \\
+		Geodesic IG  (SVI)       & 0.504    &\\
 		\bottomrule
 	\end{tabular}%
 	}
-	\caption{Evaluation of different attribution methods on a half-moons dataset with Gaussian noise $\mathcal{N}(0, 0.2)$. We present in Appendix \ref{app:half-moons} more results with different amounts of Gaussian noise.}
+	\caption{Evaluation of different attribution methods on a half-moons dataset with Gaussian noises with standard deviation ranging from 0.05 to 0.65. While our $k$NN-based method outperforms all other methods, we see that unlike larger examples, such as the one summarised in Table \ref{tab:results_voc}, our SVI example struggles to compete due to complexity of tuning hyperparameters.}
 	\label{tab:results_moons_2}
 \end{table}
 
-The quantitative analysis of the results are given in Table \ref{tab:results_moons_2}, where we see that Geodesic IG significantly outperforms all other methods on all metrics. To provide better understanding of these results we present more analysis on this dataset in Section \ref{sec:related_work}.
+We have run our experiment with 5 different seeds and ploted the mean and standard error of the results for different noise levels in Fig. \ref{fig:purity}. We have summarised these results by reporting their area under the curve (AUC) in Table \ref{tab:results_moons_2}. We see that our $k$NN-based Geodesic IG outperforms all other methods, with the gap increaseing with noise. While Occlusion comes close second, we see in Table \ref{tab:results_voc} that the method does not perform well in larger examples with more complex embeddings. To provide better understanding of the comparison of our results with Enhanced IG we present more analysis on this dataset in Section \ref{sec:related_work}.
+
+\begin{figure}[b!]
+	\begin{center}
+		\centerline{\includegraphics[width=0.95\columnwidth]{figures/purity.png}}
+		\caption{A comparison of different attribution methods on half-moons dataset with noise levels ranging from 0.05 to 0.65. Our $k$NN-based method outperforms all, with the gap increase with noise.}
+		\label{fig:purity}
+	\end{center}
+	\vskip -0.3in
+\end{figure}
+
 
 \subsection{Experiments on the Pascal VOC 2012 dataset}
 \label{subsec:voc}
 
 To evaluate our method on a real-world dataset, we used the Pascal VOC 2012 dataset \citep{pascal-voc-2012}, which consists of labeled images. We trained a classification head on this dataset and integrated it with the pre-trained ConvNext model \citep{liu2022convnet} from TorchVision to generate predictions for explanation.
 
-We applied the following attribution methods to explain the classifications for 100 randomly selected images: Integrated Gradients, GradientShap, InputXGradients \citep{shrikumar2016not}, KernelShap \citep{lundberg2017unified}, Occlusion \citep{zeiler2014visualizing}, Augmented Occlusion \citep{tonekaboni2020went}, and Guided IG \citep{kapishnikov2021guided}.
-For explainers that require a baseline, such as IG and our proposed method, a uniformly black image was used as the baseline.
+For this experiment, we used the same attribution methods as our half-moons experiment, except for the $k$NN-based methods (Enhanced IG and Geodesic IG ($k$NN)) since densely sampling and searching the gradient space of a large model was not practiacal. We applied these attribution methods to classification of 100 randomly selected images. For explainers that require a baseline, such as IG and our proposed method, a uniformly black image was used as the baseline.
 
 To measure the performance of an attribution method, we use 2 different metrics:
 
