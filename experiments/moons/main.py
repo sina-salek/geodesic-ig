@@ -2,6 +2,7 @@ import matplotlib.pyplot as plt
 import multiprocessing as mp
 import os
 import torch as th
+import numpy as np
 import warnings
 
 from argparse import ArgumentParser
@@ -13,13 +14,17 @@ from torch.utils.data import DataLoader, TensorDataset
 from typing import List
 
 from captum.attr import (
-    GradientShap,
     IntegratedGradients,
+    KernelShap,
+    GradientShap,
+    InputXGradient,
     NoiseTunnel,
 )
+import saliency.core as saliency
 
-from geodesic.attr import GeodesicIGKNN as GeodesicIntegratedGradients
+from geodesic.attr import GeodesicIGKNN, GeodesicIGSVI, Occlusion, AugmentedOcclusion
 from geodesic.models import MLP, Net
+from geodesic.utils.tqdm import get_progress_bars
 
 
 cm_bright = ListedColormap(["#FF0000", "#0000FF"])
@@ -30,10 +35,11 @@ def main(
     explainers: List[str],
     n_samples: int,
     noises: List[float],
+    n_steps: int,
     softplus: bool = False,
     device: str = "cpu",
     seed: int = 42,
-    deterministic: bool = False,
+    deterministic: bool = True,
 ):
     # If deterministic, seed everything
     if deterministic:
@@ -112,15 +118,11 @@ def main(
 
         # Get predictions
         pred = trainer.predict(net, test_loader)
+        pred_class = th.cat(pred).argmax(-1)
 
         # Print accuracy
         acc = (th.cat(pred).argmax(-1) == y_test).float().mean()
         print("acc: ", acc)
-
-        # If acc lower than .9, continue
-        if acc < 0.91:
-            print("Accuracy too low, skipping...")
-            continue
 
         # Create dir to save figures
         with lock:
@@ -164,15 +166,16 @@ def main(
 
         if "geodesic_integrated_gradients" in explainers:
             for n in range(5, 20, 5):
-                explainer = GeodesicIntegratedGradients(net)
+                explainer = GeodesicIGKNN(net)
                 _attr = th.zeros_like(x_test)
 
                 for target in range(2):
-                    _attr[y_test == target] = explainer.attribute(
-                        x_test[y_test == target],
-                        baselines=baselines[y_test == target],
+                    _attr[pred_class == target] = explainer.attribute(
+                        x_test[pred_class == target],
+                        baselines=baselines[pred_class == target],
                         target=target,
                         n_neighbors=n,
+                        n_steps=n_steps,
                         internal_batch_size=200,
                     ).float()
 
@@ -180,15 +183,16 @@ def main(
 
         if "enhanced_integrated_gradients" in explainers:
             for n in range(5, 20, 5):
-                explainer = GeodesicIntegratedGradients(net)
+                explainer = GeodesicIGKNN(net)
                 _attr = th.zeros_like(x_test)
 
                 for target in range(2):
-                    _attr[y_test == target] = explainer.attribute(
-                        x_test[y_test == target],
-                        baselines=baselines[y_test == target],
+                    _attr[pred_class == target] = explainer.attribute(
+                        x_test[pred_class == target],
+                        baselines=baselines[pred_class == target],
                         target=target,
                         n_neighbors=n,
+                        n_steps=n_steps,
                         internal_batch_size=200,
                         distance="euclidean",
                     ).float()
@@ -199,7 +203,7 @@ def main(
             explainer = GradientShap(net)
             attr["gradient_shap"] = explainer.attribute(
                 x_test,
-                target=y_test,
+                target=pred_class,
                 baselines=baselines,
                 n_samples=50,
             )
@@ -209,8 +213,9 @@ def main(
             attr["integrated_gradients"] = explainer.attribute(
                 x_test,
                 baselines=baselines,
-                target=y_test,
+                target=pred_class,
                 internal_batch_size=200,
+                n_steps=n_steps,
             )
 
         if "smooth_grad" in explainers:
@@ -218,11 +223,111 @@ def main(
             attr["smooth_grad"] = explainer.attribute(
                 x_test,
                 baselines=baselines,
-                target=y_test,
+                target=pred_class,
                 internal_batch_size=200,
                 nt_samples=10,
                 stdevs=0.1,
             )
+        if "input_x_gradient" in explainers:
+            explainer = InputXGradient(net)
+            attr["input_x_gradient"] = explainer.attribute(
+                x_test,
+                target=pred_class,
+            )
+        if "kernel_shap" in explainers:
+            explainer = KernelShap(net)
+            attr["kernel_shap"] = explainer.attribute(
+                x_test,
+                target=pred_class,
+                baselines=baselines,
+            )
+        if "svi_integrated_gradients" in explainers:
+            explainer = GeodesicIGSVI(net)
+            for li in [True, False]:
+                for em in [True, False]:
+                    attr[f"svi_integrated_gradients_li_{li}_em_{em}"] = explainer.attribute(
+                        x_test,
+                        target=pred_class,
+                        baselines=baselines,
+                        num_iterations=1000,
+                        beta=0.1,
+                        n_steps=n_steps,
+                        do_linear_interp=li,
+                        use_endpoints_matching=em,
+                        learning_rate=0.001,
+                    )
+        if "guided_integrated_gradients" in explainers:
+            guided_ig = saliency.GuidedIG()
+            def PreprocessData(data):
+                data = np.array(data)
+                data = th.tensor(data, dtype=th.float32)
+                return data.requires_grad_(True)
+
+
+            def call_model_function(data, call_model_args=None, expected_keys=None):
+                data = PreprocessData(data)
+                target_class_idx = call_model_args[class_idx_str]
+                output = net(data)
+                m = th.nn.Softmax(dim=1)
+                output = m(output)
+                if saliency.base.INPUT_OUTPUT_GRADIENTS in expected_keys:
+                    outputs = output[:, target_class_idx]
+                    grads = th.autograd.grad(
+                        outputs, data, grad_outputs=th.ones_like(outputs)
+                    )[0]
+                    gradients = grads.detach().numpy()
+                    return {saliency.base.INPUT_OUTPUT_GRADIENTS: gradients}
+
+            _attr = list()
+            for i, (x, c, b) in get_progress_bars()(
+                enumerate(zip(x_test, pred_class, baselines)),
+                total=len(x_test),
+                desc="Guided Integrated Gradients",
+            ):
+                predictions = net(x.unsqueeze(0))
+                predictions = predictions.detach().numpy()
+                prediction_class = np.argmax(predictions[0])
+                class_idx_str = "class_idx_str"
+                call_model_args = {class_idx_str: prediction_class}
+
+                _attr.append(
+                    th.from_numpy(
+                        guided_ig.GetMask(
+                                x.numpy(),  
+                                call_model_function,
+                                call_model_args,
+                                x_steps=n_steps,
+                                x_baseline=b,  
+                                max_dist=1.0,
+                                fraction=0.5,
+                            )
+                    )
+                )
+            attr["guided_integrated_gradients"] = th.stack(_attr)
+
+        if "occlusion" in explainers:
+            explainer = Occlusion(net)
+            attr["occlusion"] = explainer.attribute(
+                x_test,
+                target=pred_class,
+                baselines=baselines,
+                sliding_window_shapes=(2,),
+                strides=(1,),
+                attributions_fn=abs,
+            )
+
+        if "augmented_occlusion" in explainers:
+            explainer = AugmentedOcclusion(net, data=x_test)
+            attr["augmented_occlusion"] = explainer.attribute(
+                x_test,
+                target=pred_class,
+                sliding_window_shapes=(2,),
+                strides=(1,),
+                attributions_fn=abs,
+            )
+
+        if "random" in explainers:
+            attr["random"] = th.randn_like(x_test)
 
         # Eval
         with lock:
@@ -275,7 +380,14 @@ def parse_args():
             "enhanced_integrated_gradients",
             "gradient_shap",
             "integrated_gradients",
-            "smooth_grad",
+            # "smooth_grad",
+            "input_x_gradient",
+            "kernel_shap",
+            "svi_integrated_gradients",
+            "guided_integrated_gradients",
+            "augmented_occlusion",
+            "occlusion",
+            "random",
         ],
         nargs="+",
         metavar="N",
@@ -288,9 +400,15 @@ def parse_args():
         help="Number of samples in the dataset.",
     )
     parser.add_argument(
+        "--n-steps",
+        type=int,
+        default=15,
+        help="Number of steps for the IG family of methods.",
+    )
+    parser.add_argument(
         "--noises",
         type=float,
-        default=[0.05, 0.1, 0.15, 0.2, 0.25, 0.3],
+        default=[0.05, 0.1, 0.15, 0.2, 0.25, 0.3, 0.35, 0.4, 0.45, 0.5, 0.55, 0.6, 0.65],
         nargs="+",
         metavar="N",
         help="List of noises to use.",
@@ -315,6 +433,7 @@ def parse_args():
     parser.add_argument(
         "--deterministic",
         action="store_true",
+        default=True,
         help="Whether to make training deterministic or not.",
     )
     return parser.parse_args()
@@ -325,6 +444,7 @@ if __name__ == "__main__":
     main(
         explainers=args.explainers,
         n_samples=args.n_samples,
+        n_steps=args.n_steps,
         noises=args.noises,
         softplus=args.softplus,
         device=args.device,
