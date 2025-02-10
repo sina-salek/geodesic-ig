@@ -8,7 +8,7 @@ As mentioned in Section \ref{sec:experiments}, the idea of using a $k$NN algorit
 \begin{figure}[ht]
 \vskip -0.2in
 \begin{center}
-\centerline{\includegraphics[width=\columnwidth]{figures/enhanced_ig_y.pdf}}
+\centerline{\includegraphics[width=0.5\columnwidth]{figures/enhanced_ig_y.pdf}}
 \caption{\textbf{Enhanced IG attributions.} Enhanced IG computes a $k$NN algorithm, uses Dijsktra to find the shortest path between an input and a reference baseline, and computes gradients along this path. However, this method is model agnostic and can as a result cross a high gradients region, which is the case in this example, between the input A and the baseline B. Input A therefore has a high attribution which does not reflect the model's true behavior. In this example, the noise is $\mathcal{N}(0, 0.15)$.}
 \label{fig:enhanced_ig}
 \end{center}

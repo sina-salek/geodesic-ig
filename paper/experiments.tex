@@ -25,7 +25,7 @@ For all of the methods, we use $(-0.5, -0.5)$ as a baseline. The chosen number o
 
 \begin{table}[t]
 	\centering
-	\resizebox{0.3\textwidth}{!}{%
+	\resizebox{0.4\textwidth}{!}{
 	\begin{tabular}{lccc}
 		\toprule
 		\textbf{Method} & AUC-Purity $\uparrow$  \\
@@ -50,9 +50,9 @@ For all of the methods, we use $(-0.5, -0.5)$ as a baseline. The chosen number o
 
 We have run our experiment with 5 different seeds and ploted the mean and standard error of the results for different noise levels in Fig. \ref{fig:purity}. We have summarised these results by reporting their area under the curve (AUC) in Table \ref{tab:results_moons_2}. We see that our $k$NN-based Geodesic IG outperforms all other methods, with the gap increaseing with noise. While Occlusion comes close second, we see in Table \ref{tab:results_voc} that the method does not perform well in larger examples with more complex embeddings. To provide better understanding of the comparison of our results with Enhanced IG we present more analysis on this dataset in Section \ref{sec:related_work}.
 
-\begin{figure}[b!]
+\begin{figure}[h]
 	\begin{center}
-		\centerline{\includegraphics[width=0.95\columnwidth]{figures/purity.png}}
+		\centerline{\includegraphics[width=0.65\columnwidth]{figures/purity.png}}
 		\caption{A comparison of different attribution methods on half-moons dataset with noise levels ranging from 0.05 to 0.65. Our $k$NN-based method outperforms all, with the gap increase with noise.}
 		\label{fig:purity}
 	\end{center}
@@ -77,7 +77,7 @@ To measure the performance of an attribution method, we use 2 different metrics:
 
 \begin{table}[t]
 	\centering
-	\resizebox{0.4\textwidth}{!}{%
+	\resizebox{0.45\textwidth}{!}{%
 	\begin{tabular}{lccc}
 		\toprule
 		\textbf{Method} & AUC-Comp $\uparrow$  & AOC-LO $\uparrow$ \\
