@@ -98,6 +98,7 @@ To measure the performance of an attribution method, we use 2 different metrics:
 	\label{tab:results_voc}
 \end{table}
 
+
 We evaluated these metrics for a range of top-$k\%$, from 1\% to 65\%, as shown in Fig. \ref{fig:voc_metrics}. To summarise performance across different $k\%$ values, we calculated the area under the curve (AUC) for Comprehensiveness. We similarly calculated the area over the curve (AOC) for Log-odds, since the values of this metric are negative. In both cases these are the area between the metric curves and the horizontal line at $y=0$. These results are presented in Table \ref{tab:results_voc}.
 
 Additionally, Fig. \ref{fig:duck} provides a qualitative comparison between Geodesic IG and Integrated Gradients. The results demonstrate that Geodesic IG outperforms other methods in explaining the model's behaviour on the dataset, with a particularly notable improvement in comprehensiveness. Further qualitative comparisons can be found in Appendix \ref{app:voc}.
