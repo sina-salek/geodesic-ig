@@ -1,90 +1,77 @@
 \section{Proof of Theorem \ref{theo:strong}}
 \label{app:proof}
-\begin{proof}
-	We present the proof in two parts.
-	
-	\medskip
-	
-	\textbf{(1) Necessity:} Assume that
-	\begin{equation}
-		\sum_{i=1}^n \Bigl| A_i^{\gamma}(\mathbf{x}) \Bigr| = \Bigl| f(\mathbf{x})-f(\overline{\mathbf{x}}) \Bigr|.
-		\label{eq:assumption}
-	\end{equation}
-	By the chain rule,
-	\begin{equation}
-		f(\mathbf{x})-f(\overline{\mathbf{x}})=\int_0^1 \frac{d}{dt}f(\gamma(t))\,dt = \int_0^1 \sum_{i=1}^n \frac{\partial f}{\partial x_i}(\gamma(t))\,\dot{\gamma}_i(t)\,dt.
-		\label{eq:chainrule}
-	\end{equation}
-	Taking the absolute value of \eqref{eq:chainrule} gives
-	\begin{equation}
-		\Bigl| f(\mathbf{x})-f(\overline{\mathbf{x}}) \Bigr| = \left|\int_0^1 \sum_{i=1}^n \frac{\partial f}{\partial x_i}(\gamma(t))\,\dot{\gamma}_i(t)\, dt\right|.
-		\label{eq:abs_chain}
-	\end{equation}
-	Applying the triangle inequality for integrals, we obtain
-	\begin{equation}
-		\Bigl| f(\mathbf{x})-f(\overline{\mathbf{x}}) \Bigr| \le \int_0^1 \left|\sum_{i=1}^n \frac{\partial f}{\partial x_i}(\gamma(t))\,\dot{\gamma}_i(t)\right| dt.
-		\label{eq:triangle_int}
-	\end{equation}
-	Then, by the triangle inequality for the finite sum inside the integral,
-	\begin{equation}
-		\Bigl| f(\mathbf{x})-f(\overline{\mathbf{x}}) \Bigr| \le \int_0^1 \sum_{i=1}^n \left|\frac{\partial f}{\partial x_i}(\gamma(t))\,\dot{\gamma}_i(t)\right| dt.
-		\label{eq:triangle_sum}
-	\end{equation}
-	On the other hand, by the definition of the attributions in \eqref{eq:attribution} and applying the triangle inequality, we have
-	\begin{equation}
-		\left| A_i^{\gamma}(\mathbf{x}) \right| \le \int_0^1 \left|\frac{\partial f}{\partial x_i}(\gamma(t))\,\dot{\gamma}_i(t)\right| dt.
-		\label{eq:attrib_triangle}
-	\end{equation}
-	Summing over \(i\) yields
-	\begin{equation}
-		\sum_{i=1}^n \left| A_i^{\gamma}(\mathbf{x}) \right| \le \int_0^1 \sum_{i=1}^n \left|\frac{\partial f}{\partial x_i}(\gamma(t))\,\dot{\gamma}_i(t)\right| dt.
-		\label{eq:attrib_sum}
-	\end{equation}
-	Comparing \eqref{eq:triangle_sum} and \eqref{eq:attrib_sum} with the assumption in \eqref{eq:assumption}, the inequalities must be equalities. For the finite sum and the integral to achieve equality in the triangle inequality, it is necessary that for almost every \(t\in[0,1]\) the terms
-	\[
-	\frac{\partial f}{\partial x_i}(\gamma(t))\,\dot{\gamma}_i(t)
-	\]
-	either vanish or have the same sign. Hence, for almost every \(t\),
-	\begin{equation}
-		\sqrt{\sum_{i=1}^n \Bigl(\frac{\partial f}{\partial x_i}(\gamma(t))\,\dot{\gamma}_i(t)\Bigr)^2} = \sum_{i=1}^n \left|\frac{\partial f}{\partial x_i}(\gamma(t))\,\dot{\gamma}_i(t)\right|.
-		\label{eq:sign_alignment}
-	\end{equation}
-	Integrating \eqref{eq:sign_alignment} over \(t\) and using the definition of the length in \eqref{eq:length} gives
-	\begin{equation}
-		L(\gamma) = \int_0^1 \sqrt{\sum_{i=1}^n \Bigl(\frac{\partial f}{\partial x_i}(\gamma(t)) \,\dot{\gamma}_i(t)\Bigr)^2}\, dt = \int_0^1 \sum_{i=1}^n \left|\frac{\partial f}{\partial x_i}(\gamma(t))\,\dot{\gamma}_i(t)\right| dt.
-		\label{eq:length_equal}
-	\end{equation}
-	Thus, \(\gamma\) attains the minimal length between \(\overline{\mathbf{x}}\) and \(\mathbf{x}\) and, by the uniqueness of the geodesic, \(\gamma\) must be it.
-	
-	\medskip
-	
-	\textbf{(2) Sufficiency:} Conversely, assume that \(\gamma\) is the unique geodesic connecting \(\overline{\mathbf{x}}\) and \(\mathbf{x}\). Being the minimising path, \(\gamma\) satisfies
-	\[
-	L(\gamma) = \int_0^1 \sqrt{\sum_{i=1}^n \Bigl(\frac{\partial f}{\partial x_i}(\gamma(t)) \,\dot{\gamma}_i(t)\Bigr)^2}\, dt.
-	\]
-	The minimality implies that any cancellation in the integrand is absent. In other words, for almost every \(t\) the individual terms \(\frac{\partial f}{\partial x_i}(\gamma(t))\,\dot{\gamma}_i(t)\) must be sign-aligned so that
-	\begin{equation}
-		\sqrt{\sum_{i=1}^n \Bigl(\frac{\partial f}{\partial x_i}(\gamma(t)) \,\dot{\gamma}_i(t)\Bigr)^2} = \sum_{i=1}^n \left|\frac{\partial f}{\partial x_i}(\gamma(t))\,\dot{\gamma}_i(t)\right|.
-		\label{eq:sign_alignment_2}
-	\end{equation}
-	Integrating \eqref{eq:sign_alignment_2} yields
-	\begin{equation}
-		L(\gamma) = \int_0^1 \sum_{i=1}^n \left|\frac{\partial f}{\partial x_i}(\gamma(t)) \,\dot{\gamma}_i(t)\right| dt.
-		\label{eq:length_sign}
-	\end{equation}
-	Reversing the arguments from the necessity part, we deduce that the following equality holds:
-	\begin{equation}
-		\Bigl| f(\mathbf{x}) - f(\overline{\mathbf{x}}) \Bigr| = \sum_{i=1}^n \left| A_i^{\gamma}(\mathbf{x}) \right|.
-		\label{eq:final_equal}
-	\end{equation}
-	
-	\medskip
-	
-This completes the proof.
-	
-\end{proof}
 
+\begin{proof}
+	\label{proof:strong}
+	We proceed in two parts: first, we show that if \( \gamma \) is the unique geodesic path, then the equality holds; second, we show that if the equality holds, then \( \gamma \) must be the unique geodesic path.
+	
+	\noindent
+	
+	\textbf{Sufficiency: If \( \gamma \) is the unique geodesic, then the equality holds.}
+	
+	Let \( \gamma \) be the unique geodesic path connecting \( \overline{\mathbf{x}} \) and \( \mathbf{x} \). By definition of a geodesic in the given Riemannian metric, \( \gamma \) satisfies the geodesic equation:
+	\[
+	\nabla_{\dot{\gamma}} \dot{\gamma} = 0,
+	\]
+	where \( \nabla \) is the Levi-Civita connection associated with the metric \( \mathbf{G}_{\mathbf{x}} \). Under the given metric \( \mathbf{G}_{\mathbf{x}} = \nabla f(\mathbf{x}) \nabla f(\mathbf{x})^T \), the geodesic equation implies that \( \dot{\gamma}(t) \) is parallel to \( \nabla f(\gamma(t)) \) for all \( t \in [0,1] \). That is,
+	\[
+	\dot{\gamma}(t) = \lambda(t) \nabla f(\gamma(t)),
+	\]
+	for some scalar function \( \lambda(t) \).
+	
+	Substituting this into the definition of \( A_i^{\gamma}(\mathbf{x}) \), we obtain:
+	\[
+	A_i^{\gamma}(\mathbf{x}) = \int_0^1 \frac{\partial f}{\partial x_i}(\gamma(t)) \dot{\gamma}_i(t) \, dt = \int_0^1 \frac{\partial f}{\partial x_i}(\gamma(t)) \lambda(t) \frac{\partial f}{\partial x_i}(\gamma(t)) \, dt.
+	\]
+	Since \( \lambda(t) \) does not change sign (as \( \gamma \) is a geodesic\footnote{Since $\gamma$ is a geodesic, its velocity is always parallel to the gradient of $f$, so there exists a scalar function $\lambda(t)$ such that
+		\[
+		\gamma'(t) = \lambda(t)\nabla f(\gamma(t)).
+		\]
+		Then, by the chain rule,
+		\[
+		\frac{d}{dt} f(\gamma(t)) = \nabla f(\gamma(t))\cdot\gamma'(t)= \lambda(t)\|\nabla f(\gamma(t))\|^2.
+		\]
+		Assuming $\|\nabla f(\gamma(t))\|^2>0$, the sign of $\frac{d}{dt} f(\gamma(t))$ is completely determined by the sign of $\lambda(t)$. Since $f(\gamma(t))$ changes monotonically (i.e., without backtracking) from $f(\gamma(0))$ to $f(\gamma(1))$, $\lambda(t)$ must maintain a constant sign along $\gamma$. 
+		
+		Intuitively, $\gamma'(t)=\lambda(t)\nabla f(\gamma(t))$ means that $\gamma$ is always moving in the direction of steepest ascent (or descent) of $f$, with $\lambda(t)$ scaling its speed. Any reversal in the sign of $\lambda(t)$ would indicate a change in the direction of motion relative to $\nabla f$, corresponding to backtracking—a behaviour that contradicts the optimality of a geodesic. Thus, the monotonic variation of $f(\gamma(t))$ ensures that $\lambda(t)$ does not change sign.
+		}), the integrand \( \frac{\partial f}{\partial x_i}(\gamma(t)) \dot{\gamma}_i(t) \) maintains a consistent sign across all \( i \) and \( t \). Therefore,
+	\[
+	\sum_{i=1}^n \left| A_i^{\gamma}(\mathbf{x}) \right| = \left| \sum_{i=1}^n A_i^{\gamma}(\mathbf{x}) \right|.
+	\]
+	By the Fundamental Theorem of Calculus,
+	\[
+	\sum_{i=1}^n A_i^{\gamma}(\mathbf{x}) = \int_0^1 \frac{d}{dt} f(\gamma(t)) \, dt = f(\mathbf{x}) - f(\overline{\mathbf{x}}).
+	\]
+	Thus,
+	\[
+	\sum_{i=1}^n \left| A_i^{\gamma}(\mathbf{x}) \right| = \left| f(\mathbf{x}) - f(\overline{\mathbf{x}}) \right|.
+	\]
+
+	\noindent
+	\textbf{Necessity: If the equality holds, then \( \gamma \) is the unique geodesic.}
+	
+	Suppose \( \gamma \) is a smooth path such that
+	\[
+	\sum_{i=1}^n \left| A_i^{\gamma}(\mathbf{x}) \right| = \left| f(\mathbf{x}) - f(\overline{\mathbf{x}}) \right|.
+	\]
+	By the triangle inequality,
+	\[
+	\sum_{i=1}^n \left| A_i^{\gamma}(\mathbf{x}) \right| \geq \left| \sum_{i=1}^n A_i^{\gamma}(\mathbf{x}) \right| = \left| f(\mathbf{x}) - f(\overline{\mathbf{x}}) \right|.
+	\]
+	Equality holds if and only if all \( A_i^{\gamma}(\mathbf{x}) \) share the same sign. This implies that the integrand \( \frac{\partial f}{\partial x_i}(\gamma(t)) \dot{\gamma}_i(t) \) does not change sign for any \( i \) or \( t \). Consequently, \( \nabla f(\gamma(t)) \cdot \dot{\gamma}(t) \) does not change sign, and \( \dot{\gamma}(t) \) is everywhere parallel to \( \nabla f(\gamma(t)) \). That is,
+	\[
+	\dot{\gamma}(t) = \lambda(t) \nabla f(\gamma(t)),
+	\]
+	for some scalar function \( \lambda(t) \).
+	
+	Under the given Riemannian metric \( \mathbf{G}_{\mathbf{x}} = \nabla f(\mathbf{x}) \nabla f(\mathbf{x})^T \), such paths are precisely the geodesics. By the assumption of uniqueness, \( \gamma \) must coincide with the unique geodesic connecting \( \overline{\mathbf{x}} \) and \( \mathbf{x} \).
+	
+	\noindent
+	\textbf{Conclusion:} Combining the Necessity and Sufficiency parts above, we can conclude that 
+	the equality \( \sum_{i=1}^n \left| A_i^{\gamma}(\mathbf{x}) \right| = \left| f(\mathbf{x}) - f(\overline{\mathbf{x}}) \right| \) holds if and only if \( \gamma \) is the unique geodesic path connecting \( \overline{\mathbf{x}} \) and \( \mathbf{x} \).
+\end{proof}
 \newpage
+
 
 \section{Additional heatmaps and results on Pascal VOC 2012}
 \label{app:voc}

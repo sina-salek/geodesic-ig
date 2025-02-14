@@ -1,4 +1,4 @@
-This is pdfTeX, Version 3.141592653-2.6-1.40.26 (TeX Live 2024) (preloaded format=pdflatex 2025.1.23)  14 FEB 2025 08:09
+This is pdfTeX, Version 3.141592653-2.6-1.40.26 (TeX Live 2024) (preloaded format=pdflatex 2025.1.23)  14 FEB 2025 18:24
 entering extended mode
  restricted \write18 enabled.
  %&-line parsing enabled.
@@ -611,10 +611,10 @@ ts.  http://www.pascal-
 [14]) [15] (./appendix.tex [16
 
 ] [17]
-<figures/more_images_2.png, id=411, 374.8404pt x 586.8324pt>
+<figures/more_images_2.png, id=399, 374.8404pt x 586.8324pt>
 File: figures/more_images_2.png Graphic file (type png)
 <use figures/more_images_2.png>
-Package pdftex.def Info: figures/more_images_2.png  used on input line 96.
+Package pdftex.def Info: figures/more_images_2.png  used on input line 83.
 (pdftex.def)             Requested size: 319.42995pt x 500.11722pt.
 ) [18 <./figures/more_images_2.png>]
 (./main.aux)
@@ -626,10 +626,10 @@ Package rerunfilecheck Info: File `main.out' has not changed.
 (rerunfilecheck)             Checksum: C22D182093223A2A56DC2B9765DA1546;2981.
  ) 
 Here is how much of TeX's memory you used:
- 11741 strings out of 474116
- 175067 string characters out of 5743682
+ 11719 strings out of 474116
+ 174735 string characters out of 5743682
  1948187 words of memory out of 5000000
- 33774 multiletter control sequences out of 15000+600000
+ 33763 multiletter control sequences out of 15000+600000
  677556 words of font info for 103 fonts, out of 8000000 for 9000
  1141 hyphenation exceptions out of 8191
  75i,20n,79p,1823b,581s stack positions out of 10000i,1000n,20000p,200000b,200000s
@@ -639,21 +639,25 @@ e/2024/texmf-dist/fonts/type1/public/lm/lmbx7.pfb></usr/local/texlive/2024/texm
 f-dist/fonts/type1/public/lm/lmbxi10.pfb></usr/local/texlive/2024/texmf-dist/fo
 nts/type1/public/lm/lmex10.pfb></usr/local/texlive/2024/texmf-dist/fonts/type1/
 public/lm/lmmi10.pfb></usr/local/texlive/2024/texmf-dist/fonts/type1/public/lm/
-lmmi5.pfb></usr/local/texlive/2024/texmf-dist/fonts/type1/public/lm/lmmi7.pfb><
-/usr/local/texlive/2024/texmf-dist/fonts/type1/public/lm/lmmib10.pfb></usr/loca
-l/texlive/2024/texmf-dist/fonts/type1/public/lm/lmr10.pfb></usr/local/texlive/2
-024/texmf-dist/fonts/type1/public/lm/lmr6.pfb></usr/local/texlive/2024/texmf-di
-st/fonts/type1/public/lm/lmr7.pfb></usr/local/texlive/2024/texmf-dist/fonts/typ
-e1/public/lm/lmr8.pfb></usr/local/texlive/2024/texmf-dist/fonts/type1/public/lm
-/lmri10.pfb></usr/local/texlive/2024/texmf-dist/fonts/type1/public/lm/lmri9.pfb
-></usr/local/texlive/2024/texmf-dist/fonts/type1/public/lm/lmssbx10.pfb></usr/l
-ocal/texlive/2024/texmf-dist/fonts/type1/public/lm/lmsy10.pfb></usr/local/texli
-ve/2024/texmf-dist/fonts/type1/public/lm/lmsy7.pfb></usr/local/texlive/2024/tex
-mf-dist/fonts/type1/public/amsfonts/symbols/msbm10.pfb>
-Output written on main.pdf (18 pages, 3712670 bytes).
+lmmi5.pfb></usr/local/texlive/2024/texmf-dist/fonts/type1/public/lm/lmmi6.pfb><
+/usr/local/texlive/2024/texmf-dist/fonts/type1/public/lm/lmmi7.pfb></usr/local/
+texlive/2024/texmf-dist/fonts/type1/public/lm/lmmi8.pfb></usr/local/texlive/202
+4/texmf-dist/fonts/type1/public/lm/lmmib10.pfb></usr/local/texlive/2024/texmf-d
+ist/fonts/type1/public/lm/lmr10.pfb></usr/local/texlive/2024/texmf-dist/fonts/t
+ype1/public/lm/lmr6.pfb></usr/local/texlive/2024/texmf-dist/fonts/type1/public/
+lm/lmr7.pfb></usr/local/texlive/2024/texmf-dist/fonts/type1/public/lm/lmr8.pfb>
+</usr/local/texlive/2024/texmf-dist/fonts/type1/public/lm/lmri10.pfb></usr/loca
+l/texlive/2024/texmf-dist/fonts/type1/public/lm/lmri9.pfb></usr/local/texlive/2
+024/texmf-dist/fonts/type1/public/lm/lmssbx10.pfb></usr/local/texlive/2024/texm
+f-dist/fonts/type1/public/lm/lmsy10.pfb></usr/local/texlive/2024/texmf-dist/fon
+ts/type1/public/lm/lmsy6.pfb></usr/local/texlive/2024/texmf-dist/fonts/type1/pu
+blic/lm/lmsy7.pfb></usr/local/texlive/2024/texmf-dist/fonts/type1/public/lm/lms
+y8.pfb></usr/local/texlive/2024/texmf-dist/fonts/type1/public/amsfonts/symbols/
+msbm10.pfb>
+Output written on main.pdf (18 pages, 3737565 bytes).
 PDF statistics:
- 536 PDF objects out of 1000 (max. 8388607)
- 431 compressed objects within 5 object streams
- 103 named destinations out of 1000 (max. 500000)
+ 545 PDF objects out of 1000 (max. 8388607)
+ 429 compressed objects within 5 object streams
+ 92 named destinations out of 1000 (max. 500000)
  171 words of extra memory for PDF output out of 10000 (max. 10000000)
 
