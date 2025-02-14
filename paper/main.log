@@ -1,4 +1,4 @@
-This is pdfTeX, Version 3.141592653-2.6-1.40.26 (TeX Live 2024) (preloaded format=pdflatex 2025.1.23)  14 FEB 2025 07:59
+This is pdfTeX, Version 3.141592653-2.6-1.40.26 (TeX Live 2024) (preloaded format=pdflatex 2025.1.23)  14 FEB 2025 08:09
 entering extended mode
  restricted \write18 enabled.
  %&-line parsing enabled.
@@ -526,7 +526,7 @@ pdfTeX warning: /Library/TeX/texbin/pdflatex (file ./figures/moons_compare.pdf)
 File: figures/moons_compare.pdf Graphic file (type pdf)
 <use figures/moons_compare.pdf>
 Package pdftex.def Info: figures/moons_compare.pdf  used on input line 52.
-(pdftex.def)             Requested size: 446.2658pt x 222.69318pt.
+(pdftex.def)             Requested size: 399.2946pt x 199.25598pt.
 [3]
 
 pdfTeX warning: /Library/TeX/texbin/pdflatex (file ./figures/complete_strong.pd
@@ -536,20 +536,21 @@ File: figures/complete_strong.pdf Graphic file (type pdf)
 <use figures/complete_strong.pdf>
 Package pdftex.def Info: figures/complete_strong.pdf  used on input line 89.
 (pdftex.def)             Requested size: 234.87749pt x 116.611pt.
-) (./method.tex
-Underfull \vbox (badness 10000) has occurred while \output is active []
+[4 <./figures/moons_compare.pdf> <./figures/complete_strong.pdf
 
- [4 <./figures/moons_compare.pdf>]
-
-Package hyperref Warning: Token not allowed in a PDF string (Unicode):
-(hyperref)                removing `math shift' on input line 42.
-
+pdfTeX warning: /Library/TeX/texbin/pdflatex (file ./figures/complete_strong.pd
+f): PDF inclusion: multiple pdfs with page group included in a single page
+>]) (./method.tex
 
 Package hyperref Warning: Token not allowed in a PDF string (Unicode):
 (hyperref)                removing `math shift' on input line 42.
 
-[5 <./figures/complete_strong.pdf>]
-<figures/method.png, id=219, 855.195pt x 157.58875pt>
+
+Package hyperref Warning: Token not allowed in a PDF string (Unicode):
+(hyperref)                removing `math shift' on input line 42.
+
+[5]
+<figures/method.png, id=220, 855.195pt x 157.58875pt>
 File: figures/method.png Graphic file (type png)
 <use figures/method.png>
 Package pdftex.def Info: figures/method.png  used on input line 79.
@@ -560,26 +561,23 @@ File: figures/bridge.png Graphic file (type png)
 <use figures/bridge.png>
 Package pdftex.def Info: figures/bridge.png  used on input line 106.
 (pdftex.def)             Requested size: 211.3883pt x 89.95497pt.
-
-Underfull \vbox (badness 2707) has occurred while \output is active []
-
  [7 <./figures/method.png> <./figures/bridge.png>]
-<figures/svi_ig_moons.png, id=250, 462.528pt x 346.896pt>
+<figures/svi_ig_moons.png, id=249, 462.528pt x 346.896pt>
 File: figures/svi_ig_moons.png Graphic file (type png)
 <use figures/svi_ig_moons.png>
 Package pdftex.def Info: figures/svi_ig_moons.png  used on input line 139.
 (pdftex.def)             Requested size: 234.87749pt x 176.15768pt.
 
-Underfull \vbox (badness 1152) has occurred while \output is active []
+Underfull \vbox (badness 1052) has occurred while \output is active []
 
  [8]
-[9 <./figures/svi_ig_moons.png>]) (./experiments.tex [10]
-<figures/purity.png, id=309, 286.4301pt x 190.311pt>
+[9 <./figures/svi_ig_moons.png>]) (./experiments.tex
+<figures/purity.png, id=298, 286.4301pt x 190.311pt>
 File: figures/purity.png Graphic file (type png)
 <use figures/purity.png>
 Package pdftex.def Info: figures/purity.png  used on input line 55.
 (pdftex.def)             Requested size: 305.33788pt x 202.88733pt.
- [11 <./figures/purity.png>]
+ [10] [11 <./figures/purity.png>]
 LaTeX Font Info:    Trying to load font information for TS1+lmr on input line 7
 3.
  (/usr/local/texlive/2024/texmf-dist/tex/latex/lm/ts1lmr.fd
@@ -587,12 +585,18 @@ File: ts1lmr.fd 2015/05/01 v1.6.1 Font defs for Latin Modern
 ))
 (./related_work.tex [12{/usr/local/texlive/2024/texmf-dist/fonts/enc/dvips/lm/l
 m-ts1.enc}]
-<figures/enhanced_ig_y.pdf, id=346, 722.7pt x 578.16pt>
-File: figures/enhanced_ig_y.pdf Graphic file (type pdf)
-<use figures/enhanced_ig_y.pdf>
-Package pdftex.def Info: figures/enhanced_ig_y.pdf  used on input line 11.
-(pdftex.def)             Requested size: 234.87749pt x 187.89977pt.
-) (./discussion.tex [13 <./figures/enhanced_ig_y.pdf>]) (./main.bbl
+
+pdfTeX warning: /Library/TeX/texbin/pdflatex (file ./figures/enhanced_ig.pdf): 
+PDF inclusion: found PDF version <1.7>, but at most version <1.5> allowed
+<figures/enhanced_ig.pdf, id=346, 711.13678pt x 357.0138pt>
+File: figures/enhanced_ig.pdf Graphic file (type pdf)
+<use figures/enhanced_ig.pdf>
+Package pdftex.def Info: figures/enhanced_ig.pdf  used on input line 11.
+(pdftex.def)             Requested size: 305.33788pt x 153.28958pt.
+) (./discussion.tex
+Underfull \vbox (badness 4927) has occurred while \output is active []
+
+ [13 <./figures/enhanced_ig.pdf>]) (./main.bbl
 Underfull \hbox (badness 3579) in paragraph at lines 36--41
 []\T1/lmr/m/n/10 Everingham, M., Van Gool, L., Williams, C. K. I., Winn, J., an
 d Zis-ser-man, A.  The
@@ -607,7 +611,7 @@ ts.  http://www.pascal-
 [14]) [15] (./appendix.tex [16
 
 ] [17]
-<figures/more_images_2.png, id=428, 374.8404pt x 586.8324pt>
+<figures/more_images_2.png, id=411, 374.8404pt x 586.8324pt>
 File: figures/more_images_2.png Graphic file (type png)
 <use figures/more_images_2.png>
 Package pdftex.def Info: figures/more_images_2.png  used on input line 96.
@@ -623,12 +627,12 @@ Package rerunfilecheck Info: File `main.out' has not changed.
  ) 
 Here is how much of TeX's memory you used:
  11741 strings out of 474116
- 175081 string characters out of 5743682
+ 175067 string characters out of 5743682
  1948187 words of memory out of 5000000
  33774 multiletter control sequences out of 15000+600000
  677556 words of font info for 103 fonts, out of 8000000 for 9000
  1141 hyphenation exceptions out of 8191
- 75i,20n,79p,1823b,577s stack positions out of 10000i,1000n,20000p,200000b,200000s
+ 75i,20n,79p,1823b,581s stack positions out of 10000i,1000n,20000p,200000b,200000s
 </usr/local/texlive/2024/texmf-dist/fonts/type1/public/lm/lmbsy7.pfb></usr/lo
 cal/texlive/2024/texmf-dist/fonts/type1/public/lm/lmbx10.pfb></usr/local/texliv
 e/2024/texmf-dist/fonts/type1/public/lm/lmbx7.pfb></usr/local/texlive/2024/texm
@@ -646,10 +650,10 @@ e1/public/lm/lmr8.pfb></usr/local/texlive/2024/texmf-dist/fonts/type1/public/lm
 ocal/texlive/2024/texmf-dist/fonts/type1/public/lm/lmsy10.pfb></usr/local/texli
 ve/2024/texmf-dist/fonts/type1/public/lm/lmsy7.pfb></usr/local/texlive/2024/tex
 mf-dist/fonts/type1/public/amsfonts/symbols/msbm10.pfb>
-Output written on main.pdf (18 pages, 3534555 bytes).
+Output written on main.pdf (18 pages, 3712670 bytes).
 PDF statistics:
- 553 PDF objects out of 1000 (max. 8388607)
- 434 compressed objects within 5 object streams
+ 536 PDF objects out of 1000 (max. 8388607)
+ 431 compressed objects within 5 object streams
  103 named destinations out of 1000 (max. 500000)
  171 words of extra memory for PDF output out of 10000 (max. 10000000)
 
