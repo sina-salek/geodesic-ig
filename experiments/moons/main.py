@@ -182,7 +182,7 @@ def main(
                 attr[f"geodesic_integrated_gradients_{str(n)}"] = _attr
 
         if "enhanced_integrated_gradients" in explainers:
-            for n in range(5, 20, 5):
+            for n in [5]:#range(5, 20, 5):
                 explainer = GeodesicIGKNN(net)
                 _attr = th.zeros_like(x_test)
 
@@ -332,14 +332,98 @@ def main(
         # Eval
         with lock:
             for k, v in attr.items():
-                scatter = plt.scatter(
+                # Create meshgrid for contour plot
+                x_min, x_max = x_test[:, 0].cpu().min() - 0.5, x_test[:, 0].cpu().max() + 0.5
+                y_min, y_max = x_test[:, 1].cpu().min() - 0.5, x_test[:, 1].cpu().max() + 0.5
+                xx, yy = np.meshgrid(
+                    np.linspace(x_min, x_max, 100),
+                    np.linspace(y_min, y_max, 100)
+                )
+                grid_points = th.tensor(np.c_[xx.ravel(), yy.ravel()], dtype=th.float32).to(device)
+                
+                # Get model predictions for contour and probabilities
+                with th.no_grad():
+                    logits = net(grid_points)
+                    probs = th.exp(logits)  # Convert from log probabilities to probabilities
+                    z = (probs[:, 1] - probs[:, 0]).cpu().numpy().reshape(xx.shape)  # Probability difference between classes
+                    input_probs = net(x_test)
+                    baseline_probs = net(baselines)
+
+                # Create a single figure with all plots
+                fig, axes = plt.subplots(1, 6, figsize=(30, 5))
+                fig.suptitle(k, fontsize=16)
+
+                # Plot for x dimension
+                axes[0].contour(xx, yy, z, levels=10, alpha=0.5, cmap='viridis')
+                scatter = axes[0].scatter(
+                    x_test[:, 0].cpu(),
+                    x_test[:, 1].cpu(),
+                    c=v[:, 0].detach().cpu(),
+                    cmap='seismic',
+                )
+                plt.colorbar(scatter, ax=axes[0])
+                axes[0].set_title('X Attribution')
+
+                # Plot for y dimension
+                axes[1].contour(xx, yy, z, levels=10, alpha=0.5, cmap='viridis')
+                scatter = axes[1].scatter(
+                    x_test[:, 0].cpu(),
+                    x_test[:, 1].cpu(),
+                    c=v[:, 1].detach().cpu(),
+                    cmap='seismic',
+                )
+                plt.colorbar(scatter, ax=axes[1])
+                axes[1].set_title('Y Attribution')
+
+                # Plot absolute sum of attributions
+                axes[2].contour(xx, yy, z, levels=10, alpha=0.5, cmap='viridis')
+                scatter = axes[2].scatter(
                     x_test[:, 0].cpu(),
                     x_test[:, 1].cpu(),
                     c=v.abs().sum(-1).detach().cpu(),
+                    cmap='seismic'
                 )
-                cbar = plt.colorbar(scatter)
-                cbar.ax.tick_params(labelsize=20)
-                plt.savefig(f"{path}/{k}_{str(noise)}.pdf")
+                plt.colorbar(scatter, ax=axes[2])
+                axes[2].set_title('Absolute Sum of Attributions')
+
+                # Plot sum of attributions
+                axes[3].contour(xx, yy, z, levels=10, alpha=0.5, cmap='viridis')
+                scatter = axes[3].scatter(
+                    x_test[:, 0].cpu(),
+                    x_test[:, 1].cpu(),
+                    c=v.sum(-1).detach().cpu(),
+                    cmap='seismic'
+                )
+                plt.colorbar(scatter, ax=axes[3])
+                axes[3].set_title('Sum of Attributions')
+
+                # Plot |f(x) - f(x')|
+                axes[4].contour(xx, yy, z, levels=10, alpha=0.5, cmap='viridis')
+                scatter = axes[4].scatter(
+                    x_test[:, 0].cpu(),
+                    x_test[:, 1].cpu(),
+                    c=th.exp(input_probs[:, 0] - baseline_probs[:, 0]).abs().detach().cpu(),
+                    cmap='seismic'
+                )
+                plt.colorbar(scatter, ax=axes[4])
+                plt.rc('text', usetex=True)
+                axes[4].set_title('Absolute difference in model outcome, $|f(x) - f(\\overline{x})|$')
+
+                # Plot f(x) - f(x')
+                axes[5].contour(xx, yy, z, levels=10, alpha=0.5, cmap='viridis')
+                scatter = axes[5].scatter(
+                    x_test[:, 0].cpu(),
+                    x_test[:, 1].cpu(),
+                    c=th.exp(input_probs[:, 0] - baseline_probs[:, 0]).detach().cpu(),
+                    cmap='seismic'
+                )
+                plt.colorbar(scatter, ax=axes[5])
+                plt.rc('text', usetex=True)
+                axes[5].set_title('Difference in model outcome, $f(x) - f(\\overline{x})$')
+
+                # Adjust layout and save
+                plt.tight_layout()
+                plt.savefig(f"{path}/{k}_{str(noise)}.pdf", bbox_inches='tight', dpi=300)
                 plt.close()
 
         with open("results.csv", "a") as fp, lock:
@@ -380,7 +464,7 @@ def parse_args():
             "enhanced_integrated_gradients",
             "gradient_shap",
             "integrated_gradients",
-            # "smooth_grad",
+            "smooth_grad",
             "input_x_gradient",
             "kernel_shap",
             "svi_integrated_gradients",
@@ -402,7 +486,7 @@ def parse_args():
     parser.add_argument(
         "--n-steps",
         type=int,
-        default=15,
+        default=50,
         help="Number of steps for the IG family of methods.",
     )
     parser.add_argument(
