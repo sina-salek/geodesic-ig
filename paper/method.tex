@@ -115,15 +115,15 @@ However, we stress that this solution is not optimal, and argue that a better wa
 \subsection{Approximation of the geodesic with energy-based sampling.}
 While our $k$NN-based method is effective for explaining simpler models, its applicability diminishes as model complexity increases. In such cases, a prohibitively large number of samples is required between the baseline and the input to provide accurate estimates of the geodesic path. Even with relatively large number of samples, it is not trivial where on the manifold to sample the points to adequately capture the gradient landscape. Furthermore, once the points are sampled, searching the graph for the shortest path will be computationally too intensive. For such use-cases, in this subsection, we devise an energy-base sampling method as another approximation procedure.
 
-As noted in Remark \ref{rem:shortest}, we aim to sample from the shortest paths between two points in the input space while avoiding regions of high gradients. To achieve this, we deviate from the straight line to minimise the influence of high-gradient areas. This process can be approximated as follows: we begin with a straight-line path between the two points and define a potential energy function composed of two terms—a distance term to maintain proximity to the straight line and a curvature penalty term to account for high gradients. Minimising this energy function approximates the geodesic path.
+As noted in Remark \ref{rem:shortest}, we aim to sample from the shortest paths between two points in the input space while avoiding regions of high gradients. To achieve this, we deviate from the straight line to minimise the influence of high-gradient areas. This process can be approximated as follows: we begin with a straight-line path between the two points and define a potential energy function composed of two terms: a distance term to maintain proximity to the straight line and a curvature penalty term to push away from high gradient regions. Minimising this energy function approximates the geodesic path.
 
 Formally, the distance term is defined as $d(\textbf{x},\textbf{y}) := \|\textbf{x}-\textbf{y}\|_2$, and the curvature term as $c(\textbf{x}):=\|\nabla f(\textbf{x})\|_2$ where $f$ represents the neural network. The total energy being minimised is
 
 \begin{equation}
-E(\gamma) = \sum_{i=1}^{n} d(\gamma_i, \gamma^0_i) - \beta c(\gamma_i), 
-\label{eq:energy}
+	E(\gamma) = \sum_{i=1}^{n} d(\gamma_i, \gamma^0_i) - \beta c(\gamma_i), 
+	\label{eq:energy}
 \end{equation}
-where $\gamma$ is the path $\gamma^0$ is the initial path $\beta$ controls trade-off between distance and curvature.
+where $\gamma$ is the path, $\gamma^0$ is the initial path, and $\beta$ controls the trade-off between distance and curvature. 
 
 With this energy function, one can use a suitable sampling method, such as Stochastic Variational Inference (SVI) or Hamiltonian Monte Carlo to sample points on the geodesic paths. Here we briefly describe the SVI optimisation, as this has a suitable balance of computational efficiency and accuracy.
 
@@ -158,68 +158,38 @@ Additionally, as discussed in Section \ref{sec:introduction}, beyond IG's axioms
 
 Here we prove that Geodesic IG satisfies Axiom \ref{ax:strong}, Strong Completeness, and is the only path-based method that does so. 
 
+
+
+
 \begin{theorem}[Strong Completeness and Uniqueness of the Geodesic Path]
+	\label{theo:strong}
 	Let \(f:\mathbb{R}^n\to\mathbb{R}\) be continuously differentiable, and let \(\overline{\mathbf{x}},\, \mathbf{x}\in\mathbb{R}^n\). Given a smooth path 
-	\begin{equation*}
-		\gamma:[0,1]\to\mathbb{R}^n,\quad \gamma(0)=\overline{\mathbf{x}},\quad \gamma(1)=\mathbf{x},
-	\end{equation*}
+	\[
+	\gamma:[0,1]\to\mathbb{R}^n,\quad \gamma(0)=\overline{\mathbf{x}},\quad \gamma(1)=\mathbf{x},
+	\]
 	define its attributions as
-	\begin{equation*}
-		A_i^{\gamma}(\mathbf{x}) = \int_0^1 \frac{\partial f}{\partial x_i}(\gamma(t))\,\dot{\gamma}_i(t)\,dt.
-	\end{equation*}
-	Assume the Riemannian metric is given in \eqref{eq:inner_product} and the length of a path is defined in \eqref{eq:length}. Suppose that the unique geodesic path connecting \(\overline{\mathbf{x}}\) and \(\mathbf{x}\) exists. Then,
+	\begin{equation}
+		A_i^{\gamma}(\mathbf{x}) = \int_0^1 \frac{\partial f}{\partial x_i}(\gamma(t))\,\dot{\gamma}_i(t)\,dt,
+		\label{eq:attribution}
+	\end{equation}
+	and assume the Riemannian metric is given by Eq. \ref{eq:inner_product}. 
+	The length of a path is given by Eq. \ref{eq:length}. 
+	Suppose that the unique geodesic path connecting \(\overline{\mathbf{x}}\) and \(\mathbf{x}\) exists. Then,
 	\begin{equation*}
 		\sum_{i=1}^n \Bigl| A_i^{\gamma}(\mathbf{x}) \Bigr| = \Bigl| f(\mathbf{x})-f(\overline{\mathbf{x}}) \Bigr|
 	\end{equation*}
 	if and only if \(\gamma\) is this unique geodesic path.
 \end{theorem}
 
-\begin{proof}
-	We sketch the proof in two parts.
-	
-	\paragraph{Necessity:} Assume
-\begin{equation*}
-	\sum_{i=1}^n \Bigl| A_i^{\gamma}(\mathbf{x}) \Bigr| = \Bigl| f(\mathbf{x})-f(\overline{\mathbf{x}}) \Bigr|.
-\end{equation*}
-	By the chain rule,
-\begin{equation*}
-	f(\mathbf{x})-f(\overline{\mathbf{x}})=\int_0^1 \frac{d}{dt}f(\gamma(t))\,dt = \int_0^1 \sum_{i=1}^n \frac{\partial f}{\partial x_i}(\gamma(t))\,\dot{\gamma}_i(t)\,dt.
-\end{equation*}
-	Taking absolute values and using the triangle inequality (both for the sum and the integral) yields
-\begin{equation*}
-	\Bigl| f(\mathbf{x})-f(\overline{\mathbf{x}}) \Bigr| \le\int_0^1 \sum_{i=1}^n \left|\frac{\partial f}{\partial x_i}(\gamma(t))\,\dot{\gamma}_i(t)\right| dt.
-\end{equation*}
-	Since the attributions also satisfy
-\begin{equation*}
-	\sum_{i=1}^n \Bigl| A_i^{\gamma}(\mathbf{x}) \Bigr|\le \int_0^1 \sum_{i=1}^n \left|\frac{\partial f}{\partial x_i}(\gamma(t))\,\dot{\gamma}_i(t)\right| dt,
-\end{equation*}
-	the assumed equality forces equality in each triangle inequality. In particular, for almost every \(t\) all terms \(\frac{\partial f}{\partial x_i}(\gamma(t))\,\dot{\gamma}_i(t)\) share the same sign so that
-\begin{equation*}
-	\sqrt{\sum_{i=1}^n \Bigl(\frac{\partial f}{\partial x_i}(\gamma(t))\,\dot{\gamma}_i(t)\Bigr)^2} = \sum_{i=1}^n \left|\frac{\partial f}{\partial x_i}(\gamma(t))\,\dot{\gamma}_i(t)\right|.
-\end{equation*}
-	Integrating yields
-\begin{equation*}
-	L(\gamma) = \int_0^1 \sqrt{\sum_{i=1}^n \Bigl(\frac{\partial f}{\partial x_i}(\gamma(t))\,\dot{\gamma}_i(t)\Bigr)^2}\,dt = \int_0^1 \sum_{i=1}^n \left|\frac{\partial f}{\partial x_i}(\gamma(t))\,\dot{\gamma}_i(t)\right| dt.
-\end{equation*}
-	Thus, \(\gamma\) minimises \(L(\gamma)\); by uniqueness of the geodesic, \(\gamma\) must be the geodesic.
-	
-	\paragraph{Sufficiency:} Conversely, if \(\gamma\) is the unique geodesic connecting \(\overline{\mathbf{x}}\) and \(\mathbf{x}\), its minimising nature ensures that the instantaneous contributions are sign-aligned, so that for almost every \(t\)
-\begin{equation*}
-	\sqrt{\sum_{i=1}^n \Bigl(\frac{\partial f}{\partial x_i}(\gamma(t))\,\dot{\gamma}_i(t)\Bigr)^2} = \sum_{i=1}^n \left|\frac{\partial f}{\partial x_i}(\gamma(t))\,\dot{\gamma}_i(t)\right|.
-\end{equation*}
-	Reversing the above arguments then gives
-\begin{equation*}
-	\sum_{i=1}^n \Bigl| A_i^{\gamma}(\mathbf{x}) \Bigr| = \Bigl| f(\mathbf{x})-f(\overline{\mathbf{x}}) \Bigr|.
-\end{equation*}
 
-	Thus, the strong completeness condition holds if and only if \(\gamma\) is the unique geodesic.
-\end{proof}
+See Appendix \ref{app:proof} for the proof.
+
 
 \subsubsection{Symmetry preserving of Geodesic IG}
 
 The symmetry axiom is defined in the following way. 
 \begin{axiom}[{\textbf{Symmetry}}]
-	Consider an input-baseline pair $\textbf{x}$ and $\overline{\textbf{x}}$, and a function $f$ that is symmetric in dimensions $i$ and $j$. If $\textbf{x}_i = \textbf{x}_j$ and $\overline{\textbf{x}}_i = \overline{\textbf{x}}_j$, then an attribution method is Symmetry-Preserving if $attr_i(\textbf{x}; f) = attr_j(\textbf{x}; f)$, where $attr_n(\textbf{x}; f)$ is the attribution of $\textbf{x}_n$.
+	Consider an input-baseline pair $\textbf{x}$ and $\overline{\textbf{x}}$, and a function $f$ that is symmetric in dimensions $i$ and $j$. If $\textbf{x}_i = \textbf{x}_j$ and $\overline{\textbf{x}}_i = \overline{\textbf{x}}_j$, then an attribution method is Symmetry-Preserving if $\text{A}_i(\textbf{x}) = \text{A}_j(\textbf{x})$, where $\text{A}_n(\textbf{x})$ is the attribution of $\textbf{x}_n$.
 \end{axiom}
 
 \citep[Theorem 1]{sundararajan2017axiomatic} shows that IG is the only path-based attribution method that satisfies symmetry for any function. However, as noted in \cite{kapishnikov2021guided}, while the straight path is the only one satisfying symmetry for \emph{any} function, for a specific function, it may be possible to find other paths that also satisfy symmetry. Below, we demonstrate that Geodesic IG satisfies symmetry for Riemannian manifolds, and thus for the neural network functions we use when sampling the paths.

@@ -10,10 +10,10 @@ We use the half-moons dataset provided by Scikit learn \citep{scikit-learn} to g
 
 We evaluate each attribution method using an indicator of performance: the absence of artefacts that do not reflect the model's behaviour. To this end, we use purity, defined as follows.
 
-A well-trained model should classify approximately half of the data points as ``upper moon'' (class 1) and the other half as ``lower moon'' (class 0). Such a model should consider both features of each point important for classification into class 1. Therefore, for a good attribution method, we expect the top 50\% of points—ranked by the quantity $\widetilde{attr}(\textbf{x}; f) = \sum_{i=0}^1 |attr_i(\textbf{x}; f)|$, to be classified as 1, assuming the baseline is chosen as a point to which the network assigns a near-zero score. With this in mind, we define purity as
+A well-trained model should classify approximately half of the data points as ``upper moon'' (class 1) and the other half as ``lower moon'' (class 0). Such a model should consider both features of each point important for classification into class 1. Therefore, for a good attribution method, $\text{A}$, we expect the top 50\% of points—ranked by the quantity $\widetilde{\text{A}}(\textbf{x}) = \sum_{i=0}^1 |\text{A}_i(\textbf{x})|$, to be classified as 1, assuming the baseline is chosen as a point to which the network assigns a near-zero score. With this in mind, we define purity as
 \begin{equation}
 \begin{split}
-    \textrm{Purity} &= \frac{1}{N/2}\sum_{\textbf{x}, \, \widetilde{attr}(\textbf{x}; f) \in \textrm{Top 50\% of all attr}} \textrm{argmax}(f(\textbf{x})),
+    \textrm{Purity} &= \frac{1}{N/2}\sum_{\textbf{x}, \, \widetilde{\text{A}}(\textbf{x}) \in \textrm{Top 50\% of all A}} \textrm{argmax}(f(\textbf{x})),
 \end{split}
 \label{eq:moons-purity}
 \end{equation}

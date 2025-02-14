@@ -16,74 +16,79 @@
 \newlabel{eq:igi}{{1}{2}{Introduction}{equation.1.1}{}}
 \@writefile{lof}{\contentsline {figure}{\numberline {2}{\ignorespaces  \textbf  {Metrics Comparison.} We use a ConvNext model to classify images from the VOC dataset. The horizontal axis represents the top k\% (in absolute value) of selected features. The left plot, Comprehensiveness, shows the average change in the predicted class probability compared to the original image (higher is better). The right plot displays the log-odds (lower is better). In both cases, results are summarised using AUC, where higher values indicate better performance. Geodesic IG significantly outperforms other methods in both metrics. See Section \ref {sec:experiments} for details of the experiments.}}{2}{figure.2}\protected@file@percent }
 \newlabel{fig:voc_metrics}{{2}{2}{\textbf {Metrics Comparison.} We use a ConvNext model to classify images from the VOC dataset. The horizontal axis represents the top k\% (in absolute value) of selected features. The left plot, Comprehensiveness, shows the average change in the predicted class probability compared to the original image (higher is better). The right plot displays the log-odds (lower is better). In both cases, results are summarised using AUC, where higher values indicate better performance. Geodesic IG significantly outperforms other methods in both metrics. See Section \ref {sec:experiments} for details of the experiments}{figure.2}{}}
+\newlabel{ax:complete}{{1}{3}{\textbf {Completeness}}{axiom.1}{}}
 \newlabel{eq:completeness}{{2}{3}{\textbf {Completeness}}{equation.1.2}{}}
 \newlabel{ax:strong}{{2}{3}{\textbf {Strong Completeness}}{axiom.2}{}}
 \citation{pascal-voc-2012}
-\@writefile{lof}{\contentsline {figure}{\numberline {3}{\ignorespaces \textbf  {Integrated Gradients (IG) attributions (left) vs. Geodesic IG (right).} The colour map shows feature attributions on the vertical axis, with $(-0.5, -0.5)$ (point B) as the baseline. In IG, points near $A$ are over-attributed due to the straight path crossing high-gradient regions near the decision boundary (gray arrows). Geodesic IG avoids this issue by following geodesic paths, providing more accurate attributions.{\color  {red} add something about sensitivity to the baseline}}}{4}{figure.3}\protected@file@percent }
-\newlabel{fig:ig}{{3}{4}{\textbf {Integrated Gradients (IG) attributions (left) vs. Geodesic IG (right).} The colour map shows feature attributions on the vertical axis, with $(-0.5, -0.5)$ (point B) as the baseline. In IG, points near $A$ are over-attributed due to the straight path crossing high-gradient regions near the decision boundary (gray arrows). Geodesic IG avoids this issue by following geodesic paths, providing more accurate attributions.{\color {red} add something about sensitivity to the baseline}}{figure.3}{}}
-\@writefile{toc}{\contentsline {section}{\numberline {2}Method}{4}{section.2}\protected@file@percent }
-\newlabel{sec:method}{{2}{4}{Method}{section.2}{}}
+\@writefile{lof}{\contentsline {figure}{\numberline {3}{\ignorespaces \textbf  {Integrated Gradients (IG) attributions (top) vs. Geodesic IG (bottom).} We have plotted scatter plots of 10,000 samples from the half-moons datasets with noise parameter set to $\mathcal  {N}(0, 0.15)$. We trained an MLP model for classification and plotted the model gradients as contour maps. We see that the model is flat everywhere, except for the decision boundary. For the baseline chosen at the coordinates $(0.5, 0.5)$ we compute IG and Geodesic IG attributions. From left to right, the colour maps show (1) feature attributions along the horizontal axis, (2) feature attributions along the vertical axis, (3) the absolute sum of attributions, $\DOTSB \sum@ \slimits@ _i |A_i(\textbf  {x})|$, and (4) the total sum of attributions, $\DOTSB \sum@ \slimits@ _i A_i(\textbf  {x})$. According to Axioms \ref {ax:complete} and \ref {ax:strong}, the heatmaps in the last two columns should resemble those in Fig. \ref {fig:outcome_diff}. As seen above, IG satisfies Axiom \ref {ax:complete} (last column) but not Axiom \ref {ax:strong} (penultimate column). Geodesic IG, on the other hand, satisfies both. Additionally, similar to what we have observed in Fig. \ref {fig:duck}, IG is highly sensitive to the choice of baseline due to its reliance on a straight-line path, whereas Geodesic IG mitigates this sensitivity.}}{4}{figure.3}\protected@file@percent }
+\newlabel{fig:ig}{{3}{4}{\textbf {Integrated Gradients (IG) attributions (top) vs. Geodesic IG (bottom).} We have plotted scatter plots of 10,000 samples from the half-moons datasets with noise parameter set to $\mathcal {N}(0, 0.15)$. We trained an MLP model for classification and plotted the model gradients as contour maps. We see that the model is flat everywhere, except for the decision boundary. For the baseline chosen at the coordinates $(0.5, 0.5)$ we compute IG and Geodesic IG attributions. From left to right, the colour maps show (1) feature attributions along the horizontal axis, (2) feature attributions along the vertical axis, (3) the absolute sum of attributions, $\sum _i |A_i(\textbf {x})|$, and (4) the total sum of attributions, $\sum _i A_i(\textbf {x})$. According to Axioms \ref {ax:complete} and \ref {ax:strong}, the heatmaps in the last two columns should resemble those in Fig. \ref {fig:outcome_diff}. As seen above, IG satisfies Axiom \ref {ax:complete} (last column) but not Axiom \ref {ax:strong} (penultimate column). Geodesic IG, on the other hand, satisfies both. Additionally, similar to what we have observed in Fig. \ref {fig:duck}, IG is highly sensitive to the choice of baseline due to its reliance on a straight-line path, whereas Geodesic IG mitigates this sensitivity}{figure.3}{}}
 \citation{yang2018geodesic,chen2019fast}
-\citation{sundararajan2017axiomatic}
+\@writefile{toc}{\contentsline {section}{\numberline {2}Method}{5}{section.2}\protected@file@percent }
+\newlabel{sec:method}{{2}{5}{Method}{section.2}{}}
 \@writefile{toc}{\contentsline {subsection}{\numberline {2.1}Geodesic distance formulation.}{5}{subsection.2.1}\protected@file@percent }
 \newlabel{eq:taylor}{{4}{5}{Geodesic distance formulation}{equation.2.4}{}}
 \newlabel{eq:inner_product}{{5}{5}{Geodesic distance formulation}{equation.2.5}{}}
 \newlabel{eq:length}{{6}{5}{Geodesic distance formulation}{equation.2.6}{}}
 \newlabel{rem:shortest}{{1}{5}{Geodesic distance formulation}{remark.1}{}}
-\@writefile{toc}{\contentsline {subsection}{\numberline {2.2}Approximation of the geodesic with $K$ Nearest Neighbours.}{5}{subsection.2.2}\protected@file@percent }
-\newlabel{eq:loc_geo}{{7}{5}{Approximation of the geodesic with $K$ Nearest Neighbours}{equation.2.7}{}}
-\@writefile{lof}{\contentsline {figure}{\numberline {4}{\ignorespaces \textbf  {Method overview.} For an input $\textbf  {x}$, a baseline $\overline  {\textbf  {x}}$, and a set of points $\textbf  {x}_i$, we compute the $k$NN graph using the euclidean distance (dashed lines). For each couple $(\textbf  {x}_i, \textbf  {x}_j)$, we then compute the integrated gradients $\textrm  {L}^*_{ij}$ using Equation \ref {eq:log_geo_approx}. For clarity, not all $\textrm  {L}^*_{ij}$ are present on the figure. 0 and 7 represent $\overline  {\textbf  {x}}$ and $\textbf  {x}$ respectively. Using the resulting undirected weighted graph, we use the Dijkstra algorithm to find the shortest path between $\textbf  {x}$ and $\overline  {\textbf  {x}}$ (blue continuous lines). On the left, the points $\textbf  {x}_i$ are provided while, on the right, the points are generated along the straight line between $\textbf  {x}$ and $\overline  {\textbf  {x}}$ (dotted line).}}{6}{figure.4}\protected@file@percent }
-\newlabel{fig:method}{{4}{6}{\textbf {Method overview.} For an input $\textbf {x}$, a baseline $\overline {\textbf {x}}$, and a set of points $\textbf {x}_i$, we compute the $k$NN graph using the euclidean distance (dashed lines). For each couple $(\textbf {x}_i, \textbf {x}_j)$, we then compute the integrated gradients $\textrm {L}^*_{ij}$ using Equation \ref {eq:log_geo_approx}. For clarity, not all $\textrm {L}^*_{ij}$ are present on the figure. 0 and 7 represent $\overline {\textbf {x}}$ and $\textbf {x}$ respectively. Using the resulting undirected weighted graph, we use the Dijkstra algorithm to find the shortest path between $\textbf {x}$ and $\overline {\textbf {x}}$ (blue continuous lines). On the left, the points $\textbf {x}_i$ are provided while, on the right, the points are generated along the straight line between $\textbf {x}$ and $\overline {\textbf {x}}$ (dotted line)}{figure.4}{}}
+\@writefile{lof}{\contentsline {figure}{\numberline {4}{\ignorespaces \textbf  {Model output at the baseline vs. input points.} To assess whether our attribution methods satisfy Axioms \ref {ax:complete} and \ref {ax:strong} in the half-moons example, we plot the model output at the input points, subtracting the model output at the baseline. The left plot shows this difference, $f(\textbf  {x}) - f(\overline  {\textbf  {x}})$, while the right plot shows the absolute difference, $|f(\textbf  {x}) - f(\overline  {\textbf  {x}})|$. Comparing these plots with those in Fig. \ref {fig:ig}, we observe that Geodesic IG satisfies both axioms, whereas IG satisfies Completeness, only.}}{5}{figure.4}\protected@file@percent }
+\newlabel{fig:outcome_diff}{{4}{5}{\textbf {Model output at the baseline vs. input points.} To assess whether our attribution methods satisfy Axioms \ref {ax:complete} and \ref {ax:strong} in the half-moons example, we plot the model output at the input points, subtracting the model output at the baseline. The left plot shows this difference, $f(\textbf {x}) - f(\overline {\textbf {x}})$, while the right plot shows the absolute difference, $|f(\textbf {x}) - f(\overline {\textbf {x}})|$. Comparing these plots with those in Fig. \ref {fig:ig}, we observe that Geodesic IG satisfies both axioms, whereas IG satisfies Completeness, only}{figure.4}{}}
+\citation{sundararajan2017axiomatic}
+\@writefile{toc}{\contentsline {subsection}{\numberline {2.2}Approximation of the geodesic with $K$ Nearest Neighbours.}{6}{subsection.2.2}\protected@file@percent }
+\newlabel{eq:loc_geo}{{7}{6}{Approximation of the geodesic with $K$ Nearest Neighbours}{equation.2.7}{}}
 \newlabel{eq:log_geo_approx}{{8}{6}{Approximation of the geodesic with $K$ Nearest Neighbours}{equation.2.8}{}}
 \newlabel{eq:geodesic_ig}{{9}{6}{Approximation of the geodesic with $K$ Nearest Neighbours}{equation.2.9}{}}
 \@writefile{toc}{\contentsline {paragraph}{Assumption of the approximation.}{6}{section*.1}\protected@file@percent }
-\newlabel{eq:deriv_lip}{{10}{6}{Assumption of the approximation}{equation.2.10}{}}
+\@writefile{lof}{\contentsline {figure}{\numberline {5}{\ignorespaces \textbf  {Method overview.} For an input $\textbf  {x}$, a baseline $\overline  {\textbf  {x}}$, and a set of points $\textbf  {x}_i$, we compute the $k$NN graph using the euclidean distance (dashed lines). For each couple $(\textbf  {x}_i, \textbf  {x}_j)$, we then compute the integrated gradients $\textrm  {L}^*_{ij}$ using Equation \ref {eq:log_geo_approx}. For clarity, not all $\textrm  {L}^*_{ij}$ are present on the figure. 0 and 7 represent $\overline  {\textbf  {x}}$ and $\textbf  {x}$ respectively. Using the resulting undirected weighted graph, we use the Dijkstra algorithm to find the shortest path between $\textbf  {x}$ and $\overline  {\textbf  {x}}$ (blue continuous lines). On the left, the points $\textbf  {x}_i$ are provided while, on the right, the points are generated along the straight line between $\textbf  {x}$ and $\overline  {\textbf  {x}}$ (dotted line).}}{7}{figure.5}\protected@file@percent }
+\newlabel{fig:method}{{5}{7}{\textbf {Method overview.} For an input $\textbf {x}$, a baseline $\overline {\textbf {x}}$, and a set of points $\textbf {x}_i$, we compute the $k$NN graph using the euclidean distance (dashed lines). For each couple $(\textbf {x}_i, \textbf {x}_j)$, we then compute the integrated gradients $\textrm {L}^*_{ij}$ using Equation \ref {eq:log_geo_approx}. For clarity, not all $\textrm {L}^*_{ij}$ are present on the figure. 0 and 7 represent $\overline {\textbf {x}}$ and $\textbf {x}$ respectively. Using the resulting undirected weighted graph, we use the Dijkstra algorithm to find the shortest path between $\textbf {x}$ and $\overline {\textbf {x}}$ (blue continuous lines). On the left, the points $\textbf {x}_i$ are provided while, on the right, the points are generated along the straight line between $\textbf {x}$ and $\overline {\textbf {x}}$ (dotted line)}{figure.5}{}}
+\newlabel{eq:deriv_lip}{{10}{7}{Assumption of the approximation}{equation.2.10}{}}
 \@writefile{toc}{\contentsline {paragraph}{Handling disconnected graphs}{7}{section*.2}\protected@file@percent }
-\@writefile{lof}{\contentsline {figure}{\numberline {5}{\ignorespaces When the $k$NN graph is disconnected, as illustrated here, it would be impossible to compute Geodesic IG between certain points, for instance $\textbf  {x}_1$ and $\textbf  {x}_5$ here. To solve this, we add a single link between disconnected graphs, here between $\textbf  {x}_3$ and $\textbf  {x}_7$.}}{7}{figure.5}\protected@file@percent }
-\newlabel{fig:bridge}{{5}{7}{When the $k$NN graph is disconnected, as illustrated here, it would be impossible to compute Geodesic IG between certain points, for instance $\textbf {x}_1$ and $\textbf {x}_5$ here. To solve this, we add a single link between disconnected graphs, here between $\textbf {x}_3$ and $\textbf {x}_7$}{figure.5}{}}
-\@writefile{toc}{\contentsline {subsection}{\numberline {2.3}Approximation of the geodesic with energy-based sampling.}{7}{subsection.2.3}\protected@file@percent }
-\newlabel{eq:energy}{{11}{7}{Approximation of the geodesic with energy-based sampling}{equation.2.11}{}}
+\@writefile{lof}{\contentsline {figure}{\numberline {6}{\ignorespaces When the $k$NN graph is disconnected, as illustrated here, it would be impossible to compute Geodesic IG between certain points, for instance $\textbf  {x}_1$ and $\textbf  {x}_5$ here. To solve this, we add a single link between disconnected graphs, here between $\textbf  {x}_3$ and $\textbf  {x}_7$.}}{7}{figure.6}\protected@file@percent }
+\newlabel{fig:bridge}{{6}{7}{When the $k$NN graph is disconnected, as illustrated here, it would be impossible to compute Geodesic IG between certain points, for instance $\textbf {x}_1$ and $\textbf {x}_5$ here. To solve this, we add a single link between disconnected graphs, here between $\textbf {x}_3$ and $\textbf {x}_7$}{figure.6}{}}
 \citation{sundararajan2017axiomatic}
-\@writefile{lof}{\contentsline {figure}{\numberline {6}{\ignorespaces \textbf  {Visualisation of 10 random paths.} For the simple case of half-moons with 1,000 samples, we display the sampled paths between 10 pairs of points. In low-gradient regions, the sampler favours straight lines, whereas in high-gradient regions, the paths adjust to become nearly perpendicular to the large gradient vectors, crossing these regions as quickly as possible.}}{8}{figure.6}\protected@file@percent }
-\newlabel{fig:svi_moons}{{6}{8}{\textbf {Visualisation of 10 random paths.} For the simple case of half-moons with 1,000 samples, we display the sampled paths between 10 pairs of points. In low-gradient regions, the sampler favours straight lines, whereas in high-gradient regions, the paths adjust to become nearly perpendicular to the large gradient vectors, crossing these regions as quickly as possible}{figure.6}{}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {2.3}Approximation of the geodesic with energy-based sampling.}{8}{subsection.2.3}\protected@file@percent }
+\newlabel{eq:energy}{{11}{8}{Approximation of the geodesic with energy-based sampling}{equation.2.11}{}}
 \@writefile{toc}{\contentsline {subsection}{\numberline {2.4}Axiomatic properties}{8}{subsection.2.4}\protected@file@percent }
+\@writefile{lof}{\contentsline {figure}{\numberline {7}{\ignorespaces \textbf  {Visualisation of 10 random paths.} For the simple case of half-moons with 1,000 samples, we display the sampled paths between 10 pairs of points. In low-gradient regions, the sampler favours straight lines, whereas in high-gradient regions, the paths adjust to become nearly perpendicular to the large gradient vectors, crossing these regions as quickly as possible.}}{9}{figure.7}\protected@file@percent }
+\newlabel{fig:svi_moons}{{7}{9}{\textbf {Visualisation of 10 random paths.} For the simple case of half-moons with 1,000 samples, we display the sampled paths between 10 pairs of points. In low-gradient regions, the sampler favours straight lines, whereas in high-gradient regions, the paths adjust to become nearly perpendicular to the large gradient vectors, crossing these regions as quickly as possible}{figure.7}{}}
 \@writefile{toc}{\contentsline {subsubsection}{\numberline {2.4.1}Strong Completeness}{9}{subsubsection.2.4.1}\protected@file@percent }
 \newlabel{sec:strong_comp}{{2.4.1}{9}{Strong Completeness}{subsubsection.2.4.1}{}}
-\@writefile{toc}{\contentsline {paragraph}{Necessity:}{9}{section*.3}\protected@file@percent }
+\newlabel{theo:strong}{{1}{9}{Strong Completeness and Uniqueness of the Geodesic Path}{theorem.1}{}}
+\newlabel{eq:attribution}{{12}{9}{Strong Completeness and Uniqueness of the Geodesic Path}{equation.2.12}{}}
+\@writefile{toc}{\contentsline {subsubsection}{\numberline {2.4.2}Symmetry preserving of Geodesic IG}{9}{subsubsection.2.4.2}\protected@file@percent }
 \citation{sundararajan2017axiomatic}
 \citation{kapishnikov2021guided}
 \citation{scikit-learn}
-\@writefile{toc}{\contentsline {paragraph}{Sufficiency:}{10}{section*.4}\protected@file@percent }
-\@writefile{toc}{\contentsline {subsubsection}{\numberline {2.4.2}Symmetry preserving of Geodesic IG}{10}{subsubsection.2.4.2}\protected@file@percent }
-\newlabel{eq:norms}{{12}{10}{Symmetry preserving of Geodesic IG}{equation.2.12}{}}
-\@writefile{toc}{\contentsline {section}{\numberline {3}Experiments}{10}{section.3}\protected@file@percent }
-\newlabel{sec:experiments}{{3}{10}{Experiments}{section.3}{}}
-\@writefile{toc}{\contentsline {subsection}{\numberline {3.1}Experiments on the half-moons dataset}{10}{subsection.3.1}\protected@file@percent }
-\newlabel{subsec:half-moons}{{3.1}{10}{Experiments on the half-moons dataset}{subsection.3.1}{}}
 \citation{shrikumar2016not}
 \citation{lundberg2017unified}
 \citation{zeiler2014visualizing}
 \citation{kapishnikov2021guided}
+\newlabel{eq:norms}{{13}{10}{Symmetry preserving of Geodesic IG}{equation.2.13}{}}
+\@writefile{toc}{\contentsline {section}{\numberline {3}Experiments}{10}{section.3}\protected@file@percent }
+\newlabel{sec:experiments}{{3}{10}{Experiments}{section.3}{}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {3.1}Experiments on the half-moons dataset}{10}{subsection.3.1}\protected@file@percent }
+\newlabel{subsec:half-moons}{{3.1}{10}{Experiments on the half-moons dataset}{subsection.3.1}{}}
+\newlabel{eq:moons-purity}{{14}{10}{Experiments on the half-moons dataset}{equation.3.14}{}}
 \citation{pascal-voc-2012}
 \citation{liu2022convnet}
 \@writefile{lot}{\contentsline {table}{\numberline {1}{\ignorespaces Evaluation of different attribution methods on a half-moons dataset with Gaussian noises with standard deviation ranging from 0.05 to 0.65. While our $k$NN-based method outperforms all other methods, we see that unlike larger examples, such as the one summarised in Table \ref {tab:results_voc}, our SVI example struggles to compete due to complexity of tuning hyperparameters.}}{11}{table.1}\protected@file@percent }
 \newlabel{tab:results_moons_2}{{1}{11}{Evaluation of different attribution methods on a half-moons dataset with Gaussian noises with standard deviation ranging from 0.05 to 0.65. While our $k$NN-based method outperforms all other methods, we see that unlike larger examples, such as the one summarised in Table \ref {tab:results_voc}, our SVI example struggles to compete due to complexity of tuning hyperparameters}{table.1}{}}
-\newlabel{eq:moons-purity}{{13}{11}{Experiments on the half-moons dataset}{equation.3.13}{}}
+\@writefile{lof}{\contentsline {figure}{\numberline {8}{\ignorespaces A comparison of different attribution methods on half-moons dataset with noise levels ranging from 0.05 to 0.65. Our $k$NN-based method outperforms all, with the gap increase with noise.}}{11}{figure.8}\protected@file@percent }
+\newlabel{fig:purity}{{8}{11}{A comparison of different attribution methods on half-moons dataset with noise levels ranging from 0.05 to 0.65. Our $k$NN-based method outperforms all, with the gap increase with noise}{figure.8}{}}
 \@writefile{toc}{\contentsline {subsection}{\numberline {3.2}Experiments on the Pascal VOC 2012 dataset}{11}{subsection.3.2}\protected@file@percent }
 \newlabel{subsec:voc}{{3.2}{11}{Experiments on the Pascal VOC 2012 dataset}{subsection.3.2}{}}
 \citation{deyoung2019eraser}
 \citation{shrikumar2017learning}
-\@writefile{lof}{\contentsline {figure}{\numberline {7}{\ignorespaces A comparison of different attribution methods on half-moons dataset with noise levels ranging from 0.05 to 0.65. Our $k$NN-based method outperforms all, with the gap increase with noise.}}{12}{figure.7}\protected@file@percent }
-\newlabel{fig:purity}{{7}{12}{A comparison of different attribution methods on half-moons dataset with noise levels ranging from 0.05 to 0.65. Our $k$NN-based method outperforms all, with the gap increase with noise}{figure.7}{}}
+\citation{crane2020survey}
 \@writefile{lot}{\contentsline {table}{\numberline {2}{\ignorespaces Evaluation of different attribution methods on 100 randomly sampled images from the Pascal VOC test set. Fig. \ref {fig:voc_metrics} shows the curves where these metrics are extracted from.}}{12}{table.2}\protected@file@percent }
 \newlabel{tab:results_voc}{{2}{12}{Evaluation of different attribution methods on 100 randomly sampled images from the Pascal VOC test set. Fig. \ref {fig:voc_metrics} shows the curves where these metrics are extracted from}{table.2}{}}
-\citation{crane2020survey}
 \citation{jha2020enhanced}
 \citation{kapishnikov2021guided}
 \@writefile{toc}{\contentsline {section}{\numberline {4}Related Work}{13}{section.4}\protected@file@percent }
 \newlabel{sec:related_work}{{4}{13}{Related Work}{section.4}{}}
-\@writefile{lof}{\contentsline {figure}{\numberline {8}{\ignorespaces \textbf  {Enhanced IG attributions.} Enhanced IG computes a $k$NN algorithm, uses Dijsktra to find the shortest path between an input and a reference baseline, and computes gradients along this path. However, this method is model agnostic and can as a result cross a high gradients region, which is the case in this example, between the input A and the baseline B. Input A therefore has a high attribution which does not reflect the model's true behaviour. In this example, the noise is $\mathcal  {N}(0, 0.15)$.}}{13}{figure.8}\protected@file@percent }
-\newlabel{fig:enhanced_ig}{{8}{13}{\textbf {Enhanced IG attributions.} Enhanced IG computes a $k$NN algorithm, uses Dijsktra to find the shortest path between an input and a reference baseline, and computes gradients along this path. However, this method is model agnostic and can as a result cross a high gradients region, which is the case in this example, between the input A and the baseline B. Input A therefore has a high attribution which does not reflect the model's true behaviour. In this example, the noise is $\mathcal {N}(0, 0.15)$}{figure.8}{}}
+\@writefile{lof}{\contentsline {figure}{\numberline {9}{\ignorespaces \textbf  {Enhanced IG attributions.} Enhanced IG computes a $k$NN algorithm, uses Dijsktra to find the shortest path between an input and a reference baseline, and computes gradients along this path. However, this method is model agnostic and can as a result cross a high gradients region, which is the case in this example, between the input A and the baseline B. Input A therefore has a high attribution which does not reflect the model's true behaviour. In this example, the noise is $\mathcal  {N}(0, 0.15)$.}}{13}{figure.9}\protected@file@percent }
+\newlabel{fig:enhanced_ig}{{9}{13}{\textbf {Enhanced IG attributions.} Enhanced IG computes a $k$NN algorithm, uses Dijsktra to find the shortest path between an input and a reference baseline, and computes gradients along this path. However, this method is model agnostic and can as a result cross a high gradients region, which is the case in this example, between the input A and the baseline B. Input A therefore has a high attribution which does not reflect the model's true behaviour. In this example, the noise is $\mathcal {N}(0, 0.15)$}{figure.9}{}}
+\@writefile{toc}{\contentsline {section}{\numberline {5}Discussion}{13}{section.5}\protected@file@percent }
+\newlabel{sec:discussion}{{5}{13}{Discussion}{section.5}{}}
 \citation{sundararajan2017axiomatic}
 \bibdata{bib}
 \bibcite{chen2019fast}{{1}{2019}{{Chen et~al.}}{{Chen, Ferroni, Klushyn, Paraschos, Bayer, and Smagt}}}
@@ -94,8 +99,6 @@
 \bibcite{jha2020enhanced}{{6}{2020}{{Jha et~al.}}{{Jha, K~Aicher, R~Gazzara, Singh, and Barash}}}
 \bibcite{kapishnikov2021guided}{{7}{2021}{{Kapishnikov et~al.}}{{Kapishnikov, Venugopalan, Avci, Wedin, Terry, and Bolukbasi}}}
 \bibcite{liu2022convnet}{{8}{2022}{{Liu et~al.}}{{Liu, Mao, Wu, Feichtenhofer, Darrell, and Xie}}}
-\@writefile{toc}{\contentsline {section}{\numberline {5}Discussion}{14}{section.5}\protected@file@percent }
-\newlabel{sec:discussion}{{5}{14}{Discussion}{section.5}{}}
 \bibcite{lundberg2017unified}{{9}{2017}{{Lundberg \& Lee}}{{Lundberg and Lee}}}
 \bibcite{marcus2018deep}{{10}{2018}{{Marcus}}{{}}}
 \bibcite{scikit-learn}{{11}{2011}{{Pedregosa et~al.}}{{Pedregosa, Varoquaux, Gramfort, Michel, Thirion, Grisel, Blondel, Prettenhofer, Weiss, Dubourg, Vanderplas, Passos, Cournapeau, Brucher, Perrot, and Duchesnay}}}
@@ -109,8 +112,22 @@
 \bibcite{yang2018geodesic}{{19}{2018}{{Yang et~al.}}{{Yang, Arvanitidis, Fu, Li, and Hauberg}}}
 \bibcite{zeiler2014visualizing}{{20}{2014}{{Zeiler \& Fergus}}{{Zeiler and Fergus}}}
 \bibstyle{plainnat}
-\@writefile{toc}{\contentsline {section}{\numberline {A}Additional heatmaps and results on Pascal VOC 2012}{16}{appendix.A}\protected@file@percent }
-\newlabel{app:voc}{{A}{16}{Additional heatmaps and results on Pascal VOC 2012}{appendix.A}{}}
-\@writefile{lof}{\contentsline {figure}{\numberline {9}{\ignorespaces Heatmaps of Integrated Gradients (middle) and Geodesic IG (right) on 5 images from the test set of Pascal VOC 2012.}}{16}{figure.9}\protected@file@percent }
-\newlabel{fig:more_images}{{9}{16}{Heatmaps of Integrated Gradients (middle) and Geodesic IG (right) on 5 images from the test set of Pascal VOC 2012}{figure.9}{}}
-\gdef \@abspage@last{16}
+\@writefile{toc}{\contentsline {section}{\numberline {A}Proof of Theorem \ref {theo:strong}}{16}{appendix.A}\protected@file@percent }
+\newlabel{app:proof}{{A}{16}{Proof of Theorem \ref {theo:strong}}{appendix.A}{}}
+\newlabel{eq:assumption}{{15}{16}{Proof of Theorem \ref {theo:strong}}{equation.A.15}{}}
+\newlabel{eq:chainrule}{{16}{16}{Proof of Theorem \ref {theo:strong}}{equation.A.16}{}}
+\newlabel{eq:abs_chain}{{17}{16}{Proof of Theorem \ref {theo:strong}}{equation.A.17}{}}
+\newlabel{eq:triangle_int}{{18}{16}{Proof of Theorem \ref {theo:strong}}{equation.A.18}{}}
+\newlabel{eq:triangle_sum}{{19}{16}{Proof of Theorem \ref {theo:strong}}{equation.A.19}{}}
+\newlabel{eq:attrib_triangle}{{20}{16}{Proof of Theorem \ref {theo:strong}}{equation.A.20}{}}
+\newlabel{eq:attrib_sum}{{21}{16}{Proof of Theorem \ref {theo:strong}}{equation.A.21}{}}
+\newlabel{eq:sign_alignment}{{22}{16}{Proof of Theorem \ref {theo:strong}}{equation.A.22}{}}
+\newlabel{eq:length_equal}{{23}{16}{Proof of Theorem \ref {theo:strong}}{equation.A.23}{}}
+\newlabel{eq:sign_alignment_2}{{24}{17}{Proof of Theorem \ref {theo:strong}}{equation.A.24}{}}
+\newlabel{eq:length_sign}{{25}{17}{Proof of Theorem \ref {theo:strong}}{equation.A.25}{}}
+\newlabel{eq:final_equal}{{26}{17}{Proof of Theorem \ref {theo:strong}}{equation.A.26}{}}
+\@writefile{toc}{\contentsline {section}{\numberline {B}Additional heatmaps and results on Pascal VOC 2012}{18}{appendix.B}\protected@file@percent }
+\newlabel{app:voc}{{B}{18}{Additional heatmaps and results on Pascal VOC 2012}{appendix.B}{}}
+\@writefile{lof}{\contentsline {figure}{\numberline {10}{\ignorespaces Heatmaps of Integrated Gradients (middle) and Geodesic IG (right) on 5 images from the test set of Pascal VOC 2012.}}{18}{figure.10}\protected@file@percent }
+\newlabel{fig:more_images}{{10}{18}{Heatmaps of Integrated Gradients (middle) and Geodesic IG (right) on 5 images from the test set of Pascal VOC 2012}{figure.10}{}}
+\gdef \@abspage@last{18}

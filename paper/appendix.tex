@@ -1,12 +1,99 @@
+\section{Proof of Theorem \ref{theo:strong}}
+\label{app:proof}
+\begin{proof}
+	We present the proof in two parts.
+	
+	\medskip
+	
+	\textbf{(1) Necessity:} Assume that
+	\begin{equation}
+		\sum_{i=1}^n \Bigl| A_i^{\gamma}(\mathbf{x}) \Bigr| = \Bigl| f(\mathbf{x})-f(\overline{\mathbf{x}}) \Bigr|.
+		\label{eq:assumption}
+	\end{equation}
+	By the chain rule,
+	\begin{equation}
+		f(\mathbf{x})-f(\overline{\mathbf{x}})=\int_0^1 \frac{d}{dt}f(\gamma(t))\,dt = \int_0^1 \sum_{i=1}^n \frac{\partial f}{\partial x_i}(\gamma(t))\,\dot{\gamma}_i(t)\,dt.
+		\label{eq:chainrule}
+	\end{equation}
+	Taking the absolute value of \eqref{eq:chainrule} gives
+	\begin{equation}
+		\Bigl| f(\mathbf{x})-f(\overline{\mathbf{x}}) \Bigr| = \left|\int_0^1 \sum_{i=1}^n \frac{\partial f}{\partial x_i}(\gamma(t))\,\dot{\gamma}_i(t)\, dt\right|.
+		\label{eq:abs_chain}
+	\end{equation}
+	Applying the triangle inequality for integrals, we obtain
+	\begin{equation}
+		\Bigl| f(\mathbf{x})-f(\overline{\mathbf{x}}) \Bigr| \le \int_0^1 \left|\sum_{i=1}^n \frac{\partial f}{\partial x_i}(\gamma(t))\,\dot{\gamma}_i(t)\right| dt.
+		\label{eq:triangle_int}
+	\end{equation}
+	Then, by the triangle inequality for the finite sum inside the integral,
+	\begin{equation}
+		\Bigl| f(\mathbf{x})-f(\overline{\mathbf{x}}) \Bigr| \le \int_0^1 \sum_{i=1}^n \left|\frac{\partial f}{\partial x_i}(\gamma(t))\,\dot{\gamma}_i(t)\right| dt.
+		\label{eq:triangle_sum}
+	\end{equation}
+	On the other hand, by the definition of the attributions in \eqref{eq:attribution} and applying the triangle inequality, we have
+	\begin{equation}
+		\left| A_i^{\gamma}(\mathbf{x}) \right| \le \int_0^1 \left|\frac{\partial f}{\partial x_i}(\gamma(t))\,\dot{\gamma}_i(t)\right| dt.
+		\label{eq:attrib_triangle}
+	\end{equation}
+	Summing over \(i\) yields
+	\begin{equation}
+		\sum_{i=1}^n \left| A_i^{\gamma}(\mathbf{x}) \right| \le \int_0^1 \sum_{i=1}^n \left|\frac{\partial f}{\partial x_i}(\gamma(t))\,\dot{\gamma}_i(t)\right| dt.
+		\label{eq:attrib_sum}
+	\end{equation}
+	Comparing \eqref{eq:triangle_sum} and \eqref{eq:attrib_sum} with the assumption in \eqref{eq:assumption}, the inequalities must be equalities. For the finite sum and the integral to achieve equality in the triangle inequality, it is necessary that for almost every \(t\in[0,1]\) the terms
+	\[
+	\frac{\partial f}{\partial x_i}(\gamma(t))\,\dot{\gamma}_i(t)
+	\]
+	either vanish or have the same sign. Hence, for almost every \(t\),
+	\begin{equation}
+		\sqrt{\sum_{i=1}^n \Bigl(\frac{\partial f}{\partial x_i}(\gamma(t))\,\dot{\gamma}_i(t)\Bigr)^2} = \sum_{i=1}^n \left|\frac{\partial f}{\partial x_i}(\gamma(t))\,\dot{\gamma}_i(t)\right|.
+		\label{eq:sign_alignment}
+	\end{equation}
+	Integrating \eqref{eq:sign_alignment} over \(t\) and using the definition of the length in \eqref{eq:length} gives
+	\begin{equation}
+		L(\gamma) = \int_0^1 \sqrt{\sum_{i=1}^n \Bigl(\frac{\partial f}{\partial x_i}(\gamma(t)) \,\dot{\gamma}_i(t)\Bigr)^2}\, dt = \int_0^1 \sum_{i=1}^n \left|\frac{\partial f}{\partial x_i}(\gamma(t))\,\dot{\gamma}_i(t)\right| dt.
+		\label{eq:length_equal}
+	\end{equation}
+	Thus, \(\gamma\) attains the minimal length between \(\overline{\mathbf{x}}\) and \(\mathbf{x}\) and, by the uniqueness of the geodesic, \(\gamma\) must be it.
+	
+	\medskip
+	
+	\textbf{(2) Sufficiency:} Conversely, assume that \(\gamma\) is the unique geodesic connecting \(\overline{\mathbf{x}}\) and \(\mathbf{x}\). Being the minimising path, \(\gamma\) satisfies
+	\[
+	L(\gamma) = \int_0^1 \sqrt{\sum_{i=1}^n \Bigl(\frac{\partial f}{\partial x_i}(\gamma(t)) \,\dot{\gamma}_i(t)\Bigr)^2}\, dt.
+	\]
+	The minimality implies that any cancellation in the integrand is absent. In other words, for almost every \(t\) the individual terms \(\frac{\partial f}{\partial x_i}(\gamma(t))\,\dot{\gamma}_i(t)\) must be sign-aligned so that
+	\begin{equation}
+		\sqrt{\sum_{i=1}^n \Bigl(\frac{\partial f}{\partial x_i}(\gamma(t)) \,\dot{\gamma}_i(t)\Bigr)^2} = \sum_{i=1}^n \left|\frac{\partial f}{\partial x_i}(\gamma(t))\,\dot{\gamma}_i(t)\right|.
+		\label{eq:sign_alignment_2}
+	\end{equation}
+	Integrating \eqref{eq:sign_alignment_2} yields
+	\begin{equation}
+		L(\gamma) = \int_0^1 \sum_{i=1}^n \left|\frac{\partial f}{\partial x_i}(\gamma(t)) \,\dot{\gamma}_i(t)\right| dt.
+		\label{eq:length_sign}
+	\end{equation}
+	Reversing the arguments from the necessity part, we deduce that the following equality holds:
+	\begin{equation}
+		\Bigl| f(\mathbf{x}) - f(\overline{\mathbf{x}}) \Bigr| = \sum_{i=1}^n \left| A_i^{\gamma}(\mathbf{x}) \right|.
+		\label{eq:final_equal}
+	\end{equation}
+	
+	\medskip
+	
+This completes the proof.
+	
+\end{proof}
+
+\newpage
 
 \section{Additional heatmaps and results on Pascal VOC 2012}
 \label{app:voc}
 
-We also qualitatively compare on Figure \ref{fig:more_images} Geodesic IG with the original IG on 5 different images of the Pascal VOC 2012 dataset. In these images Geodesic IG heatmaps appears to to have fewer artefacts.
+We also qualitatively compare on Figure \ref{fig:more_images} Geodesic IG with the original IG on 5 different images of the Pascal VOC 2012 dataset. In these images Geodesic IG heatmaps appears to to have fewer artefacts and is not sensitive to the choice of baseline being a black image. This is contrary to IG, which assigns no importance to the segments of the image that are black, since they have no difference to the chosen baseline.
 
 \begin{figure}[b!]
 \begin{center}
-\centerline{\includegraphics[width=0.7\textwidth]{figures/more_images_2.png}}
+\centerline{\includegraphics[width=0.68\textwidth]{figures/more_images_2.png}}
 \caption{Heatmaps of Integrated Gradients (middle) and Geodesic IG (right) on 5 images from the test set of Pascal VOC 2012.}
 \label{fig:more_images}
 \end{center}
