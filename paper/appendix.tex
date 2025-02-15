@@ -19,21 +19,21 @@
 	\]
 	for some scalar function \( \lambda(t) \).
 	
-	Substituting this into the definition of \( A_i^{\gamma}(\mathbf{x}) \), we obtain:
+	Substituting this into the definition of \( A_i^{\gamma}(\mathbf{x}) \), Eq. \ref{eq:attribution}, we obtain:
 	\[
 	A_i^{\gamma}(\mathbf{x}) = \int_0^1 \frac{\partial f}{\partial x_i}(\gamma(t)) \dot{\gamma}_i(t) \, dt = \int_0^1 \frac{\partial f}{\partial x_i}(\gamma(t)) \lambda(t) \frac{\partial f}{\partial x_i}(\gamma(t)) \, dt.
 	\]
 	Since \( \lambda(t) \) does not change sign (as \( \gamma \) is a geodesic\footnote{Since $\gamma$ is a geodesic, its velocity is always parallel to the gradient of $f$, so there exists a scalar function $\lambda(t)$ such that
 		\[
-		\gamma'(t) = \lambda(t)\nabla f(\gamma(t)).
+		\dot{\gamma}(t) = \lambda(t)\nabla f(\gamma(t)).
 		\]
 		Then, by the chain rule,
 		\[
-		\frac{d}{dt} f(\gamma(t)) = \nabla f(\gamma(t))\cdot\gamma'(t)= \lambda(t)\|\nabla f(\gamma(t))\|^2.
+		\frac{d}{dt} f(\gamma(t)) = \nabla f(\gamma(t))\cdot\dot{\gamma}(t)= \lambda(t)\|\nabla f(\gamma(t))\|^2.
 		\]
 		Assuming $\|\nabla f(\gamma(t))\|^2>0$, the sign of $\frac{d}{dt} f(\gamma(t))$ is completely determined by the sign of $\lambda(t)$. Since $f(\gamma(t))$ changes monotonically (i.e., without backtracking) from $f(\gamma(0))$ to $f(\gamma(1))$, $\lambda(t)$ must maintain a constant sign along $\gamma$. 
 		
-		Intuitively, $\gamma'(t)=\lambda(t)\nabla f(\gamma(t))$ means that $\gamma$ is always moving in the direction of steepest ascent (or descent) of $f$, with $\lambda(t)$ scaling its speed. Any reversal in the sign of $\lambda(t)$ would indicate a change in the direction of motion relative to $\nabla f$, corresponding to backtracking—a behaviour that contradicts the optimality of a geodesic. Thus, the monotonic variation of $f(\gamma(t))$ ensures that $\lambda(t)$ does not change sign.
+		Intuitively, $\dot{\gamma}(t)=\lambda(t)\nabla f(\gamma(t))$ means that $\gamma$ is always moving in the direction of steepest ascent (or descent) of $f$, with $\lambda(t)$ scaling its speed. Any reversal in the sign of $\lambda(t)$ would indicate a change in the direction of motion relative to $\nabla f$, corresponding to backtracking—a behaviour that contradicts the optimality of a geodesic. Thus, the monotonic variation of $f(\gamma(t))$ ensures that $\lambda(t)$ does not change sign.
 		}), the integrand \( \frac{\partial f}{\partial x_i}(\gamma(t)) \dot{\gamma}_i(t) \) maintains a consistent sign across all \( i \) and \( t \). Therefore,
 	\[
 	\sum_{i=1}^n \left| A_i^{\gamma}(\mathbf{x}) \right| = \left| \sum_{i=1}^n A_i^{\gamma}(\mathbf{x}) \right|.

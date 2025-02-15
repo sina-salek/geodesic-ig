@@ -38,21 +38,41 @@ where $\gamma(t) = \overline{\textbf{x}} + t(\textbf{x} - \overline{\textbf{x}})
 \end{figure}
 
 
-In this paper, we demonstrate that defining attributions along straight paths in Euclidean space can lead to flawed attributions. We examine the consequences of these misattributions through examples in computer vision, as shown in Fig. \ref{fig:duck}, along with simpler, illustrative cases in Fig. \ref{fig:ig}. To address these issues, we introduce \textbf{Geodesic Integrated Gradients}, a generalisation of IG that replaces straight paths with geodesic ones. These geodesics are defined on a Riemannian manifold, characterised by the model's input space and a metric tensor induced by the model's gradients. This approach mitigates the identified pitfalls while retaining all the axioms of IG.
+In this paper, we demonstrate that defining attributions along straight paths in Euclidean space can lead to flawed attributions. We examine the consequences of these misattributions through examples in computer vision, as shown in Fig. \ref{fig:duck}, along with simpler, illustrative cases in Fig. \ref{fig:ig}. To address these issues, we introduce \textbf{Geodesic Integrated Gradients}, a generalisation of IG that replaces straight paths with geodesic ones. These geodesics are defined on a Riemannian manifold, characterised by the model's input space and a metric tensor induced by the model's gradients. This approach mitigates the identified pitfalls while retaining all the axioms of IG. Furthermore, we introduce an additional axiom, Strong Completeness, which we argue is a desirable property for attribution methods. We prove that Geodesic Integrated Gradients is the only method that satisfies this axiom, further justifying its theoretical soundness.
 
 Before making the case for our Geodesic Integrated Gradient, let us first show an example of an artefact that can arise from choosing straight paths, generating explanations which do not reflect the true behaviour of a model. 
 
-We highlight this issue on a half-moons classification task. We train a simple multi-layer perceptron (MLP) with 3 layers, ReLU activations and a cross-entropy loss to distinguish the upper moon from the lower one. The cross-entropy is split into a final log-softmax activation and a negative log-likelihood loss, so that we can explain probabilities.
+We highlight this issue with a simple half-moons classification task. We train a three-layer multi-layer perceptron (MLP) with ReLU activations and a cross-entropy loss to distinguish the upper moon from the lower one. The cross-entropy is decomposed into a final log-softmax activation followed by a negative log-likelihood loss, allowing us to explain probabilities. The model is trained long enough that high gradients emerge at the decision boundary, while the model remains flat elsewhere, as illustrated by the gradient contour maps in Fig.~\ref{fig:ig}.  
 
-We now compute Integrated Gradients, Eq. \ref{eq:igi}, for this model on the test data. Let us consider a baseline and input pair, such that the baseline is outside of either half-moon, for example at (-0.5, -0.5). This is a good choice of baseline, since network should assign near-zero score to it. Let us call the feature in the vertical axis the $1$st component of $x$. In Fig. \ref{fig:ig} we illustrate the attribution of this feature, $IG_1(\textbf{x})$, for each point using the colour map. One should expect to see all the points sufficiently above the decision boundary to receive equally high attributions. Intuitively, this is expected, because if a point is above the decision boundary, its $x_1$ component is an important factor in the classification. However, for a model that is very skilful at the classification task, since the point is significantly above the decision boundary, going slightly down should not make any difference. Because in such a model's score should not change significantly anywhere other than near the decision boundary. However, we can see in Fig. \ref{fig:ig} that some points on the upper moon receive much higher $x_1$-attribution than others. These are points such that a straight line from the baseline to them mostly falls on high gradient regions. This does not reflect the model's behaviour. A similar point could be made about the horizontal axis. This is in contrast with Fig. \ref{fig:ig}, where we show our method gives equally high attribution to all points sufficiently above the decision boundary, with different shades for the points closer to the boundary in $x_1$ direction. In Section \ref{subsec:half-moons} we present the details of how our method that achieves the results presented in this figure.
+We now compute Integrated Gradients, Eq.~\ref{eq:igi}, for this model on the test data. As an appropriate baseline, we choose the point $(-0.5, -0.5)$, which is a reasonable choice since the network should assign a near-zero score to it. Let us denote the feature along the vertical axis as the first component of $\mathbf{x}$, i.e., $x_1$. In Fig.~\ref{fig:ig}(a) (top image), we visualise the horizontal attribution of this feature, $\text{IG}_1(\mathbf{x})$, using a colour map. 
 
-\begin{figure}[t!]
+We expect in a model that is flat almost everywhere except near the decision boundary, moving slightly further from the decision boundary should not significantly change the model’s score. In such a case, the attribution should remain stable for points far from the decision boundary. Yet, as shown in Fig.~\ref{fig:ig}(a), Integrated Gradients significantly violates this for certain points. These are points, as seen in the figure, where the straight-line path from the baseline $(-0.5, -0.5)$ to the input passes mostly through high-gradient regions. This does not accurately reflect the model's behaviour. A similar issue arises in the vertical attribution, shown in Fig.~\ref{fig:ig}(b), but in the opposite direction to the horizontal attribution.  
+
+In contrast, Geodesic Integrated Gradients (Geodesic IG), shown at the bottom of Fig.~\ref{fig:ig}(a) and (b), correctly assigns equally high attributions to all points sufficiently far from the decision boundary. In Section~\ref{subsec:half-moons}, we detail our method and explain how it achieves the results presented in this figure.  
+
+
+\begin{figure}[!t]
 	\vskip -0.1in
 	\begin{center}
 		\centerline{\includegraphics[width=0.85\columnwidth]{figures/moons_compare.pdf}}
 		\vskip -0.2in
-		\caption{\textbf{Integrated Gradients (IG) attributions (top) vs. Geodesic IG (bottom).} We have plotted scatter plots of 10,000 samples from the half-moons datasets with noise parameter set to $\mathcal{N}(0, 0.15)$. We trained an MLP model for classification and plotted the model gradients as contour maps. We see that the model is flat everywhere, except for the decision boundary. For the baseline chosen at the coordinates $(0.5, 0.5)$ we compute IG and Geodesic IG attributions. From left to right, the colour maps show (1) feature attributions along the horizontal axis, (2) feature attributions along the vertical axis, (3) the absolute sum of attributions, $\sum_i |A_i(\textbf{x})|$, and (4) the total sum of attributions, $\sum_i A_i(\textbf{x})$. According to Axioms \ref{ax:complete} and \ref{ax:strong}, the heatmaps in the last two columns should resemble those in Fig. \ref{fig:outcome_diff}. As seen above, IG satisfies Axiom \ref{ax:complete} (last column) but not Axiom \ref{ax:strong} (penultimate column). Geodesic IG, on the other hand, satisfies both. Additionally, similar to what we have observed in Fig. \ref{fig:duck}, IG is highly sensitive to the choice of baseline due to its reliance on a straight-line path, whereas Geodesic IG mitigates this sensitivity.}
+		\caption{\textbf{Integrated Gradients (IG) attributions (top) vs. Geodesic IG (bottom).} 
+			We plot scatter plots of 10,000 samples from the half-moons dataset with noise parameter $\mathcal{N}(0, 0.15)$. An MLP model is trained for classification, and the model gradients are shown as contour maps. The model is nearly flat everywhere except at the decision boundary.  
+			Using a baseline at $(-0.5, -0.5)$, we compute IG and Geodesic IG attributions. From left to right, the colour maps display (a) feature attributions along the horizontal axis, (b) feature attributions along the vertical axis, (c) the absolute sum of attributions, $\sum_i |A_i(\mathbf{x})|$, and (d) the total sum of attributions, $\sum_i A_i(\mathbf{x})$.  
+			According to Axioms~\ref{ax:complete} and~\ref{ax:strong}, the heatmaps in the last two columns should resemble those in Fig.~\ref{fig:outcome_diff}. As shown, IG satisfies Axiom~\ref{ax:complete} (last column) but not Axiom~\ref{ax:strong} (penultimate column). In contrast, Geodesic IG satisfies both. Additionally, similar to Fig.~\ref{fig:duck}, IG is highly sensitive to the choice of baseline due to its reliance on a straight-line path, whereas Geodesic IG mitigates this sensitivity.}  
+		
 		\label{fig:ig}
+	\end{center}
+	\vskip -0.2in
+\end{figure}
+
+\begin{figure}[!b]
+	\vskip -0.1in
+	\begin{center}
+		\centerline{\includegraphics[width=0.5\columnwidth]{figures/complete_strong.pdf}}
+		\vskip -0.2in
+		\caption{\textbf{Model output at the baseline vs. input points.} To assess whether our attribution methods satisfy Axioms \ref{ax:complete} and \ref{ax:strong} in the half-moons example, we plot the model output at the input points, subtracting the model output at the baseline. The left plot shows this difference, $f(\textbf{x}) - f(\overline{\textbf{x}})$, while the right plot shows the absolute difference, $|f(\textbf{x}) - f(\overline{\textbf{x}})|$. Comparing these plots with those in Fig. \ref{fig:ig}, we observe that Geodesic IG satisfies both axioms, whereas IG satisfies Completeness, only.}
+		\label{fig:outcome_diff}
 	\end{center}
 	\vskip -0.2in
 \end{figure}
@@ -67,7 +87,7 @@ The above artefacts further highlight an issue with over-reliance on the followi
 	\end{equation} 
 \end{axiom}
 
-This axiom ensures that the total attribution equals the difference in function values between the baseline and the input. While completeness guarantees mathematical consistency, as the previous example illustrates, it does not account for cancellation effects between features.
+This axiom ensures that the total attribution equals the difference in function values between the baseline and the input. While completeness guarantees certain mathematical consistency, as the previous example illustrates, it does not account for cancellation effects between features.
 
 In the above example, we considered a two-dimensional case where the model assigns nearly the same function value to the input points belonging to the top half-moon. Completeness then requires that for all points, the total attribution must be close to the same constant, $c$, i.e. $\sum_i{\text{A}_i(\textbf{x})} \approx c\text{ } \forall \textbf{x}$. Furthermore, we \emph{know} that the horizontal feature of all points in the same half-moon have equal importance for this particular model. The same goes for the vertical features. Despite this, while IG violates the latter, it can still satisfy completeness by assigning large positive attributions to one feature and equally large negative attributions to the other—cancelling out in the sum but distorting individual attributions. This imbalance does not occur consistently across all points, further complicating interpretation.
 
@@ -82,17 +102,6 @@ To address this issue, we introduce a stronger axiom:
 \end{axiom} 
 
 This stronger version of Completeness guarantees that cancellation effect cannot superficially make the attributions to add up to the difference between the function's score at the baseline versus the input points. As we shall see in section \ref{sec:strong_comp}, Geodesic Integrated Gradients is the only path-based method that satisfies this desired axiom.
-
-\begin{figure}[b!]
-	\vskip -0.1in
-	\begin{center}
-		\centerline{\includegraphics[width=0.5\columnwidth]{figures/complete_strong.pdf}}
-		\vskip -0.2in
-		\caption{\textbf{Model output at the baseline vs. input points.} To assess whether our attribution methods satisfy Axioms \ref{ax:complete} and \ref{ax:strong} in the half-moons example, we plot the model output at the input points, subtracting the model output at the baseline. The left plot shows this difference, $f(\textbf{x}) - f(\overline{\textbf{x}})$, while the right plot shows the absolute difference, $|f(\textbf{x}) - f(\overline{\textbf{x}})|$. Comparing these plots with those in Fig. \ref{fig:ig}, we observe that Geodesic IG satisfies both axioms, whereas IG satisfies Completeness, only.}
-		\label{fig:outcome_diff}
-	\end{center}
-	\vskip -0.2in
-\end{figure}
 
 In Section \ref{sec:method}, we present two methods for approximating the geodesic path between two points on a manifold. The first method, based on $k$-nearest neighbours ($k$NN), is designed for simpler manifolds, while the second method, utilising Stochastic Variational Inference, is suited for more complex manifolds. We further demonstrate that Geodesic IG adheres to all the axioms of Integrated Gradients.
 
