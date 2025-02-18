@@ -1,0 +1,35 @@
+[tool.poetry]
+name = "geodesic"
+version = "0.1.0"
+description = "This is the Python package associated with the paper `Using the Path of Least Resistance to Explain Deep Networks`"
+authors = [
+    "Sina Salek <salek.sina@gmail.com>",
+    "Joseph Enguehard <joseph.enguehard@gmail.com>"
+]
+license = "MIT"
+readme = "README.md"
+homepage = "https://github.com/sina-salek/geodesic-ig"
+repository = "https://github.com/sina-salek/geodesic-ig"
+packages = [
+    { include = "geodesic" }
+]
+
+[tool.poetry.dependencies]
+python = "^3.11"
+numpy = "1.26.4"
+torch = "2.2.2"
+captum = "^0.7.0"
+scipy = "^1.14.1"
+scikit-learn = "^1.5.2"
+pytorch-lightning = "^2.4.0"
+tqdm = "^4.67.1"
+pytest = "^8.3.4"
+black = "^24.10.0"
+torchvision = "^0.17"
+pyro-ppl = "^1.9.1"
+saliency = "^0.2.1"
+
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
